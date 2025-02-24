@@ -462,6 +462,10 @@ class HighLevelILInstruction(BaseILInstruction):
 		return ExpressionIndex(self.core_instr.source_operand)
 
 	@property
+	def source_location(self) -> ILSourceLocation:
+		return ILSourceLocation.from_instruction(self)
+
+	@property
 	def core_operands(self) -> OperandsType:
 		return self.core_instr.operands
 
@@ -2911,7 +2915,16 @@ class HighLevelILFunction:
 		:param HighLevelILInstruction original: the original IL Instruction you want to copy
 		:return: The index of the newly copied expression
 		"""
-		return self.expr(original.operation, original.raw_operands[0], original.raw_operands[1], original.raw_operands[2], original.raw_operands[3], original.raw_operands[4], original.size)
+		return self.expr(
+			original.operation,
+			original.raw_operands[0],
+			original.raw_operands[1],
+			original.raw_operands[2],
+			original.raw_operands[3],
+			original.raw_operands[4],
+			original.size,
+			original.source_location
+		)
 
 	def replace_expr(self, original: InstructionOrExpression, new: InstructionOrExpression) -> None:
 		"""

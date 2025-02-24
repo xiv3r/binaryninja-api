@@ -573,6 +573,10 @@ class LowLevelILInstruction(BaseILInstruction):
 		return self.instr.source_operand
 
 	@property
+	def source_location(self) -> ILSourceLocation:
+		return ILSourceLocation.from_instruction(self)
+
+	@property
 	def tokens(self) -> TokenList:
 		"""LLIL tokens (read-only)"""
 		# special case for those instructions that don't have tokens
@@ -3859,7 +3863,8 @@ class LowLevelILFunction:
 			original.raw_operands[2],
 			original.raw_operands[3],
 			original.size,
-			original.raw_flags
+			original.raw_flags,
+			original.source_location
 		)
 
 	def replace_expr(self, original: InstructionOrExpression, new: InstructionOrExpression) -> None:
