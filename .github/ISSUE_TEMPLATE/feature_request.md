@@ -2,7 +2,7 @@
 name: Request a feature
 about: Let us know how we could improve Binary Ninja
 title: ''
-labels: enhancement
+labels: ''
 assignees: ''
 
 ---
