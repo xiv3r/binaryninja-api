@@ -8,7 +8,7 @@ file(GLOB PLUGIN_SOURCES CONFIGURE_DEPENDS
 	${PROJECT_SOURCE_DIR}/../shared/Cargo.toml
 	${PROJECT_SOURCE_DIR}/../shared/src/*.rs)
 
-file(GLOB_RECURSE API_SOURCES CONFIGURE_DEPENDS
+file(GLOB API_SOURCES CONFIGURE_DEPENDS
 	${PROJECT_SOURCE_DIR}/../../../binaryninjacore.h
 	${PROJECT_SOURCE_DIR}/../../../rust/binaryninjacore-sys/build.rs
 	${PROJECT_SOURCE_DIR}/../../../rust/binaryninjacore-sys/Cargo.toml
