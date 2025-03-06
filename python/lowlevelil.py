@@ -4126,6 +4126,37 @@ class LowLevelILFunction:
 
 		raise NotImplementedError(f"unknown expr operation {expr.operation} in copy_expr_to")
 
+	def translate(
+		self, expr_handler: Callable[['LowLevelILFunction', 'LowLevelILBasicBlock', 'LowLevelILInstruction'], ExpressionIndex]
+	) -> 'LowLevelILFunction':
+		"""
+		``translate`` clones an IL function and modifies its expressions as specified by
+		a given ``expr_handler``, returning the updated IL function.
+
+		:param expr_handler: Function to modify an expression and copy it to the new function.
+		                     The function should have the following signature:
+
+		                     .. function:: expr_handler(new_func: LowLevelILFunction, old_block: LowLevelILBasicBlock, old_instr: LowLevelILInstruction) -> ExpressionIndex
+
+		                     Where:
+		                         - **new_func** (*LowLevelILFunction*): New function to receive translated instructions
+		                         - **old_block** (*LowLevelILBasicBlock*): Original block containing old_instr
+		                         - **old_instr** (*LowLevelILInstruction*): Original instruction
+		                         - **returns** (*ExpressionIndex*): Expression index of newly created instruction in ``new_func``
+		:return: Cloned IL function with modifications
+		"""
+
+		propagated_func = LowLevelILFunction(self.arch, source_func=self.source_function)
+		propagated_func.prepare_to_copy_function(self)
+		for block in self.basic_blocks:
+			propagated_func.prepare_to_copy_block(block)
+			for instr_index in range(block.start, block.end):
+				instr: LowLevelILInstruction = self[InstructionIndex(instr_index)]
+				propagated_func.set_current_address(instr.address, block.arch)
+				propagated_func.append(expr_handler(propagated_func, block, instr))
+
+		return propagated_func
+
 	def set_expr_attributes(self, expr: InstructionOrExpression, value: ILInstructionAttributeSet):
 		"""
 		``set_expr_attributes`` allows modification of instruction attributes but ONLY during lifting.
