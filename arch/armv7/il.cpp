@@ -287,7 +287,7 @@ static ExprId ReadILOperand(LowLevelILFunction& il, InstructionOperand& op, size
 		case REG:
 			if (op.shift == SHIFT_NONE)
 				return ReadRegisterOrPointer(il, op, addr);
-			else if (op.flags.offsetRegUsed == 1)
+			else if (op.flags.offsetRegUsed == 1 && op.imm != 0)
 			{
 				return GetShiftedOffset(il, op);
 			}

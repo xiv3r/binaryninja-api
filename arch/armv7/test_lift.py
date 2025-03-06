@@ -100,6 +100,9 @@ test_cases = \
     ('A', b'\x02\x0a\x83\xed', 'LLIL_STORE.d(LLIL_ADD.d(LLIL_REG.d(r3),LLIL_CONST.d(0x8)),LLIL_REG.d(s0))'),
     # vstr d16, [r3, #0x8]
     ('A', b'\x02\x0b\xc3\xed', 'LLIL_STORE.q(LLIL_ADD.d(LLIL_REG.d(r3),LLIL_CONST.d(0x8)),LLIL_REG.q(d16))'),
+    # orr r0, r1, r3, lsl r4
+    ('A', b'\x13\x04\x81\xe1', 'LLIL_SET_REG.d(r0,LLIL_OR.d(LLIL_REG.d(r1),LLIL_LSL.d(LLIL_REG.d(r3),LLIL_AND.d(LLIL_REG.d(r4),LLIL_CONST.d(0xFF)))))'),
+
     # mov r2, r0
     ('T', b'\x02\x46', 'LLIL_SET_REG.d(r2,LLIL_REG.d(r0))'),
     # cmp r1, r2
