@@ -996,7 +996,7 @@ int DSCTriageViewType::getPriority(BinaryViewRef data, const QString& filename)
 	{
 		return 100;
 	}
-	return 1;
+	return 0;
 }
 
 
