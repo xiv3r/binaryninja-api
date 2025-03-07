@@ -415,6 +415,35 @@ bool Workflow::Insert(const string& activity, const vector<string>& activities)
 }
 
 
+bool Workflow::InsertAfter(const string& activity, const string& newActivity)
+{
+	char* buffer[1];
+	buffer[0] = BNAllocString(newActivity.c_str());
+
+	bool result = BNWorkflowInsertAfter(m_object, activity.c_str(), (const char**)buffer, 1);
+	BNFreeString(buffer[0]);
+	return result;
+}
+
+
+bool Workflow::InsertAfter(const string& activity, const vector<string>& activities)
+{
+	char** buffer = new char*[activities.size()];
+	if (!buffer)
+		return false;
+
+	for (size_t i = 0; i < activities.size(); i++)
+		buffer[i] = BNAllocString(activities[i].c_str());
+
+	bool result = BNWorkflowInsertAfter(m_object, activity.c_str(), (const char**)buffer, activities.size());
+
+	for (size_t i = 0; i < activities.size(); i++)
+		BNFreeString(buffer[i]);
+	delete[] buffer;
+	return result;
+}
+
+
 bool Workflow::Remove(const string& activity)
 {
 	return BNWorkflowRemove(m_object, activity.c_str());

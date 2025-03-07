@@ -10213,6 +10213,22 @@ namespace BinaryNinja {
 		*/
 		bool Insert(const std::string& activity, const std::vector<std::string>& activities);
 
+		/*! Insert an activity after the specified activity and at the same level.
+
+			\param activity Name of the activity to insert the new one after
+			\param newActivity Name of the new activity to be inserted
+			\return true on success, false otherwise
+		*/
+		bool InsertAfter(const std::string& activity, const std::string& newActivity);
+
+		/*! Insert a list of activities after the specified activity and at the same level.
+
+			\param activity Name of the activity to insert the new one after
+			\param newActivity Name of the new activities to be inserted
+			\return true on success, false otherwise
+		*/
+		bool InsertAfter(const std::string& activity, const std::vector<std::string>& activities);
+
 		/*! Remove an activity by name
 
 			\param activity Name of the activity to remove
