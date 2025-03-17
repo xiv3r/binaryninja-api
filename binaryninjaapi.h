@@ -6490,6 +6490,8 @@ namespace BinaryNinja {
 			const FunctionViewType& viewType, const std::function<bool(size_t current, size_t total)>& progress,
 		    const std::function<bool(uint64_t addr, const LinearDisassemblyLine& line)>& matchCallback);
 
+		std::string DetectSearchMode(const std::string& query);
+
 		bool Search(const std::string& query,
 			const std::function<bool(size_t current, size_t total)>& progressCallback,
 			const std::function<bool(uint64_t addr, const DataBuffer& buffer)>& matchCallback);

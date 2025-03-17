@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 100
+#define BN_CURRENT_CORE_ABI_VERSION 101
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -4224,6 +4224,7 @@ extern "C"
 	    bool (*matchCallback)(void* matchCtxt, uint64_t addr, BNLinearDisassemblyLine* line));
 
 	BINARYNINJACOREAPI bool BNSearch(BNBinaryView* view, const char* query, void* context, BNProgressFunction progressCallback, void* matchContext, bool (*callback)(void*, uint64_t, BNDataBuffer*));
+	BINARYNINJACOREAPI char* BNDetectSearchMode(const char* query);
 	BINARYNINJACOREAPI bool BNPerformSearch(const char* query, const uint8_t* buffer, size_t size, bool(*callback)(void*, size_t, size_t), void* context);
 
 	BINARYNINJACOREAPI void BNBeginBulkAddSegments(BNBinaryView* view);
