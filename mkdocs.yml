@@ -53,7 +53,9 @@ theme:
         copyright: '(<a href="https://creativecommons.org/licenses/by/3.0/">cc</a>) <a href="https://vector35.com/">Vector 35 Inc</a>'
 
 plugins:
-    - search
+    - search:
+        lang: en
+        separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
     - offline
     - privacy
     - glightbox:
