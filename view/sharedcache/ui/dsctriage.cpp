@@ -552,6 +552,8 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 	mappingTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
 	mappingTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
 
+	mappingTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
 	auto sectionTable = new QTableView(cacheInfoSubwidget);
 	auto sectionModel = new QStandardItemModel(0, 3, sectionTable);
 	sectionModel->setHorizontalHeaderLabels({"Name", "VM Address", "Size"});
@@ -561,6 +563,8 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 	sectionTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
 	sectionTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
 	sectionTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+
+	sectionTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
 	auto mappingLabel = new QLabel("Mappings");
 	auto sectionLabel = new QLabel("Sections");
