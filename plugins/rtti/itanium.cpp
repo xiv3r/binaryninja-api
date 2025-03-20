@@ -227,6 +227,9 @@ Ref<Type> VMIClassTypeInfoType(BinaryView *view, uint64_t baseCount)
 std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t objectAddr)
 {
     auto typeInfo = TypeInfo(view, objectAddr);
+
+    if (!view->IsValidOffset(typeInfo.base))
+        return std::nullopt;
     
     // TODO: What if there is no symbol?
     // If there is a symbol at objectAddr pointing to a symbol starting with "vtable for __cxxabiv1"
@@ -237,25 +240,57 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
         for (const auto& r : view->GetRelocationsAt(objectAddr))
             if (auto relocSym = r->GetSymbol())
                 baseSym = relocSym;
-        if (baseSym == nullptr)
-            return std::nullopt;
     }
-    if (baseSym->GetType() != ExternalSymbol)
+
+    if (baseSym != nullptr && baseSym->GetType() != ExternalSymbol)
+    {
+        // The base did have a symbol, but it wasn't external.
+        // NOTE: We only require it to be external for symbol available bases.
         return std::nullopt;
+    }
+
+    if (baseSym == nullptr)
+    {
+        // Verify first that we can even read a pointer sized value at the base.
+        if (!view->IsValidOffset(typeInfo.base + view->GetAddressSize()))
+            return std::nullopt;
+        // We did not find a symbol for the base.
+        // Last resort, try and deref to check for static linked c++ rt.
+        // to get the c++ variant assume we are in a vtable like this
+        // void* data_102bb4ca0 = _typeinfo_for___cxxabiv1::__class_type_info
+        // void *data_102bb4ca8 = __cxxabiv1::__class_type_info::~__class_type_info() <--- typeInfo.base points to this.
+        // void *data_102bb4cb0 = __cxxabiv1::__class_type_info::~__class_type_info()
+        // Because we are pointing at the start of the vtable, we can just deref again to get the symbol.
+        BinaryReader reader = BinaryReader(view);
+        reader.Seek(typeInfo.base);
+        uint64_t vftAddr = reader.ReadPointer();
+        if (!view->IsValidOffset(vftAddr))
+            return std::nullopt;
+        auto vftSym = view->GetSymbolByAddress(vftAddr);
+        if (vftSym == nullptr)
+            return std::nullopt;
+        baseSym = vftSym;
+    }
+
     auto baseSymName = baseSym->GetShortName();
     if (baseSymName.find("__cxxabiv1") != std::string::npos)
     {
-        // symbol takes the form of `abi::base_name`
+        // symbol takes the form of `abi::base_name::addend`
+        // Remove the `abi::`
         auto baseTyStartPos = baseSymName.find("::");
         if (baseTyStartPos != std::string::npos)
             baseSymName = baseSymName.substr(baseTyStartPos + 2);
+        // Remove the `::addend`
+        auto baseTyEndPos = baseSymName.find("::");
+        if (baseTyEndPos != std::string::npos)
+            baseSymName = baseSymName.substr(0, baseTyEndPos);
 
         if (baseSymName == "__class_type_info")
             return TIVClass;
         if (baseSymName == "__si_class_type_info")
             return TIVSIClass;
         if (baseSymName == "__vmi_class_type_info")
-            return TIVVMIClass;   
+            return TIVVMIClass;
     }
 
     return std::nullopt;
@@ -270,6 +305,7 @@ std::optional<BaseClassInfo> ItaniumRTTIProcessor::ProcessVFTBaseClassInfo(uint6
     reader.Seek(vftAddr - 0x10);
 
     auto adjustmentOffset = static_cast<int32_t>(reader.Read32());
+    [[maybe_unused]]
     auto baseIdx = static_cast<int32_t>(reader.Read32());
     uint64_t classOffset = std::abs(adjustmentOffset);
 
