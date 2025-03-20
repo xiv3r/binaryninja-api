@@ -652,7 +652,7 @@ void ItaniumRTTIProcessor::ProcessRTTI()
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_time - start_time;
-    m_logger->LogInfo("ProcessRTTI took %f seconds", elapsed_time.count());
+    m_logger->LogDebug("ProcessRTTI took %f seconds", elapsed_time.count());
 }
 
 
@@ -773,5 +773,5 @@ void ItaniumRTTIProcessor::ProcessVFT()
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_time - start_time;
-    m_logger->LogInfo("ProcessVFT took %f seconds", elapsed_time.count());
+    m_logger->LogDebug("ProcessVFT took %f seconds", elapsed_time.count());
 }
