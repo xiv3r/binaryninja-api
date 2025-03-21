@@ -245,6 +245,7 @@ class BINARYNINJAUIAPI View
 
 	void updateCrossReferenceSelection(ViewFrame* frame = nullptr);
 	void forceSyncFromView(ViewFrame* frame = nullptr);
+	virtual void refreshContents() {}
 
 	virtual void clearRelatedHighlights() {}
 	virtual void setRelatedIndexHighlights(FunctionRef func, const std::set<size_t>& related) { (void)func; (void)related; }
@@ -518,6 +519,7 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 
 	void syncToOtherViews();
 	void forceSyncFromView();
+	void refreshContents();
 
 	ViewFrame* getOtherPane();
 
