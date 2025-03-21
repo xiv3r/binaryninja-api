@@ -51,6 +51,8 @@ from . import function
 from . import log
 from .pluginmanager import RepositoryManager
 from .enums import ScriptingProviderExecuteResult, ScriptingProviderInputReadyState
+from binaryninja.settings import Settings
+from .enums import SettingsScope
 
 _WARNING_REGEX = re.compile(r'^\S+:\d+: \w+Warning: ')
 
@@ -798,7 +800,9 @@ from binaryninja import *
 						self.apply_locals()
 
 						if self.active_view is not None:
-							self.active_view.update_analysis()
+							value, scope = Settings().get_bool_with_scope("python.updateAnalysisAfterCommand")
+							if scope == SettingsScope.SettingsInvalidScope or value:
+								self.active_view.update_analysis()
 					except:
 						traceback.print_exc()
 					finally:
