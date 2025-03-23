@@ -91,6 +91,8 @@ class BINARYNINJAUIAPI HistorySidebarWidget : public SidebarWidget
 	void resetToSelectedEntry(std::function<bool(size_t, size_t)> progress);
 
   public:
+	virtual void copy();
+	virtual bool canCopy();
 	HistorySidebarWidget(BinaryViewRef data);
 	~HistorySidebarWidget();
 	void notifyFontChanged() override;
