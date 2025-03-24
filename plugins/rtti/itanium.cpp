@@ -11,19 +11,49 @@ using namespace BinaryNinja::RTTI::Itanium;
 constexpr const char *TYPE_SOURCE_ITANIUM = "rtti_itanium";
 
 
+Ref<Symbol> GetRealSymbol(BinaryView *view, uint64_t relocAddr, uint64_t symAddr)
+{
+    if (view->IsOffsetExternSemantics(symAddr))
+    {
+        // Because bases in the extern section are not 8 byte width only they will
+        // overlap with other externs, until https://github.com/Vector35/binaryninja-api/issues/6387 is fixed.
+        // Check relocation at objectAddr for symbol
+        for (const auto& r : view->GetRelocationsAt(relocAddr))
+            if (auto relocSym = r->GetSymbol())
+                return relocSym;
+    }
+
+    return view->GetSymbolByAddress(symAddr);
+}
+
+
+// Some fields are not always u32, use this if it goes from u32 -> u16 on 32bit
+uint64_t ArchFieldSize(BinaryView *view)
+{
+    return view->GetAddressSize() / 2;
+}
+
+
+
+uint64_t TypeInfoSize(BinaryView *view)
+{
+    return view->GetAddressSize() * 2;
+}
+
+
 std::optional<TypeInfo> GetTypeInfo(BinaryView* view, uint64_t address)
 {
     // TODO: We really need a valid offset range thing.
-    const auto typeInfoSize = view->GetAddressSize() * 2;
+    const auto typeInfoSize = TypeInfoSize(view);
     if (!view->IsValidOffset(address) || !view->IsValidOffset(address + typeInfoSize))
         return std::nullopt;
     BinaryReader reader = BinaryReader(view);
     reader.Seek(address);
     auto base = reader.ReadPointer();
-    if (!view->IsValidOffset(base))
+    if (!view->IsValidOffset(base) || view->IsOffsetCodeSemantics(base))
         return std::nullopt;
     auto typeNameAddr = reader.ReadPointer();
-    if (!view->IsValidOffset(typeNameAddr))
+    if (!view->IsValidOffset(typeNameAddr) || view->IsOffsetCodeSemantics(typeNameAddr))
         return std::nullopt;
     reader.Seek(typeNameAddr);
     auto type_name = reader.ReadCString(512);
@@ -46,7 +76,7 @@ SIClassTypeInfo::SIClassTypeInfo(BinaryView *view, uint64_t address) : ClassType
 {
     BinaryReader reader = BinaryReader(view);
     // TODO: Manually seeking to the offset is ugly.
-    reader.Seek(address + 0x10);
+    reader.Seek(address + TypeInfoSize(view));
     base_type = reader.ReadPointer();
 }
 
@@ -56,16 +86,30 @@ BaseClassTypeInfo::BaseClassTypeInfo(BinaryView *view, uint64_t address)
     BinaryReader reader = BinaryReader(view);
     reader.Seek(address);
     base_type = reader.ReadPointer();
-    offset_flags = reader.Read32();
-    offset_flags_masks = reader.Read32();
+    // I thought the spec was pretty clear about these being u32
+    // but apparently not? Or atleast on the gcc compiler I have these get turned to u16, disappointing.
+    if (view->GetAddressSize() == 8)
+    {
+        offset_flags = reader.Read32();
+        offset_flags_masks = reader.Read32();
+    }
+    else
+    {
+        offset_flags = reader.Read16();
+        offset_flags_masks = reader.Read16();
+    }
 }
 
+uint64_t BaseClassTypeSize(BinaryView *view)
+{
+    return view->GetAddressSize() + 0x8;
+ }
 
 VMIClassTypeInfo::VMIClassTypeInfo(BinaryView *view, uint64_t address) : ClassTypeInfo(view, address)
 {
     BinaryReader reader = BinaryReader(view);
     // TODO: Manually seeking to the offset is ugly.
-    reader.Seek(address + 0x10);
+    reader.Seek(address + TypeInfoSize(view));
     flags = reader.Read32();
     base_count = reader.Read32();
     base_info = {};
@@ -73,7 +117,7 @@ VMIClassTypeInfo::VMIClassTypeInfo(BinaryView *view, uint64_t address) : ClassTy
     {
         uint64_t currentBaseAddr = reader.GetOffset();
         base_info.emplace_back(view, currentBaseAddr);
-        reader.Seek(currentBaseAddr + 0x10);
+        reader.Seek(currentBaseAddr + BaseClassTypeSize(view));
     }
 }
 
@@ -115,7 +159,7 @@ Ref<Type> ClassTypeInfoType(BinaryView *view)
         BaseStructure typeInfoBase = BaseStructure(TypeInfoType(view), 0);
         structureBuilder.SetBaseStructures({typeInfoBase});
         // TODO: This exists because if you have no members but a base struct things get screwy.
-        structureBuilder.SetWidth(0x10);
+        structureBuilder.SetWidth(TypeInfoSize(view));
 
         Ref<Type> structureType = TypeBuilder::StructureType(structureBuilder.Finalize()).Finalize();
         view->DefineType(typeId, QualifiedName("__cxxabiv1::__class_type_info"), structureType);
@@ -134,10 +178,11 @@ Ref<Type> SIClassTypeInfoType(BinaryView *view)
     if (typeCache == nullptr)
     {
         Ref<Architecture> arch = view->GetDefaultArchitecture();
+        uint64_t baseOffset = TypeInfoSize(view);
 
         StructureBuilder structureBuilder;
         Ref<Type> pBaseType = Type::PointerType(arch, Type::VoidType());
-        structureBuilder.AddMemberAtOffset(pBaseType, "__base_type", 0x10);
+        structureBuilder.AddMemberAtOffset(pBaseType, "__base_type", baseOffset);
         BaseStructure classTypeInfoBase = BaseStructure(ClassTypeInfoType(view), 0);
         structureBuilder.SetBaseStructures({classTypeInfoBase});
 
@@ -159,14 +204,15 @@ Ref<Type> OffsetFlagsMasksType(BinaryView *view)
     if (typeCache == nullptr)
     {
         Ref<Architecture> arch = view->GetDefaultArchitecture();
-        Ref<Type> uintType = Type::IntegerType(4, false);
+        // u32 on 64 and u16 on 32, see comment in BaseClassTypeInfo::BaseClassTypeInfo
+        uint64_t enumSize = ArchFieldSize(view);
 
         EnumerationBuilder enumerationBuilder;
         enumerationBuilder.AddMemberWithValue("__virtual_mask", 0x1);
         enumerationBuilder.AddMemberWithValue("__public_mask", 0x2);
         enumerationBuilder.AddMemberWithValue("__offset_shift", 0x8);
 
-        Ref<Type> enumerationType = TypeBuilder::EnumerationType(arch, enumerationBuilder.Finalize()).Finalize();
+        Ref<Type> enumerationType = TypeBuilder::EnumerationType(arch, enumerationBuilder.Finalize(), enumSize).Finalize();
         view->DefineType(typeId, QualifiedName("__cxxabiv1::__offset_flags_masks"), enumerationType);
 
         typeCache = view->GetTypeById(typeId);
@@ -184,7 +230,9 @@ Ref<Type> BaseClassTypeInfoType(BinaryView *view)
     if (typeCache == nullptr)
     {
         Ref<Architecture> arch = view->GetDefaultArchitecture();
-        Ref<Type> uintType = Type::IntegerType(4, false);
+        // u32 on 64 and u16 on 32, see comment in BaseClassTypeInfo::BaseClassTypeInfo
+        uint64_t fieldSize = ArchFieldSize(view);
+        Ref<Type> uintType = Type::IntegerType(fieldSize, false);
 
         StructureBuilder structureBuilder;
         Ref<Type> pBaseType = Type::PointerType(arch, Type::VoidType());
@@ -230,12 +278,13 @@ Ref<Type> VMIClassTypeInfoType(BinaryView *view, uint64_t baseCount)
 {
     Ref<Architecture> arch = view->GetDefaultArchitecture();
     Ref<Type> uintType = Type::IntegerType(4, false);
+    uint64_t baseOffset = TypeInfoSize(view);
 
     StructureBuilder structureBuilder;
-    structureBuilder.AddMemberAtOffset(VMIFlagsMasksType(view), "__flags", 0x10);
-    structureBuilder.AddMemberAtOffset(uintType, "__base_count", 0x14);
+    structureBuilder.AddMemberAtOffset(VMIFlagsMasksType(view), "__flags", baseOffset);
+    structureBuilder.AddMemberAtOffset(uintType, "__base_count", baseOffset + 0x4);
     Ref<Type> baseInfoType = Type::ArrayType(BaseClassTypeInfoType(view), baseCount);
-    structureBuilder.AddMemberAtOffset(baseInfoType, "__base_info", 0x18);
+    structureBuilder.AddMemberAtOffset(baseInfoType, "__base_info", baseOffset + 0x8);
     BaseStructure classTypeInfoBase = BaseStructure(ClassTypeInfoType(view), 0);
     structureBuilder.SetBaseStructures({classTypeInfoBase});
 
@@ -248,29 +297,14 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
     auto typeInfo = GetTypeInfo(view, objectAddr);
     if (!typeInfo.has_value())
         return std::nullopt;
-    
-    // TODO: What if there is no symbol?
-    // If there is a symbol at objectAddr pointing to a symbol starting with "vtable for __cxxabiv1"
-    auto baseSym = view->GetSymbolByAddress(typeInfo->base);
-    if (baseSym == nullptr)
-    {
-        // Check relocation at objectAddr for symbol
-        for (const auto& r : view->GetRelocationsAt(objectAddr))
-            if (auto relocSym = r->GetSymbol())
-                baseSym = relocSym;
-    }
 
-    if (baseSym != nullptr && baseSym->GetType() != ExternalSymbol)
-    {
-        // The base did have a symbol, but it wasn't external.
-        // NOTE: We only require it to be external for symbol available bases.
-        return std::nullopt;
-    }
+    // If there is a symbol at objectAddr pointing to a symbol starting with "vtable for __cxxabiv1"
+    Ref<Symbol> baseSym = GetRealSymbol(view, objectAddr, typeInfo->base);
 
     if (baseSym == nullptr)
     {
         // Verify first that we can even read a pointer sized value at the base.
-        if (!view->IsValidOffset(typeInfo->base + view->GetAddressSize()))
+        if (!view->IsValidOffset(typeInfo->base - view->GetAddressSize()))
             return std::nullopt;
         // We did not find a symbol for the base.
         // Last resort, try and deref to check for static linked c++ rt.
@@ -278,13 +312,17 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
         // void* data_102bb4ca0 = _typeinfo_for___cxxabiv1::__class_type_info
         // void *data_102bb4ca8 = __cxxabiv1::__class_type_info::~__class_type_info() <--- typeInfo.base points to this.
         // void *data_102bb4cb0 = __cxxabiv1::__class_type_info::~__class_type_info()
-        // Because we are pointing at the start of the vtable, we can just deref again to get the symbol.
+        // While we could just deref to get the symbol of the vfunc, the symbol might not actually be present for that function yet.
+        // So instead we will deref to the type info above the supposed vtable.
+        // TODO: We should really just deref into the type info to get the name string.
         BinaryReader reader = BinaryReader(view);
-        reader.Seek(typeInfo->base);
-        uint64_t vftAddr = reader.ReadPointer();
-        if (!view->IsValidOffset(vftAddr))
+        reader.Seek(typeInfo->base - view->GetAddressSize());
+        // Read the type info pointer above the vft
+        uint64_t typeInfoAddr = reader.ReadPointer();
+        if (!view->IsValidOffset(typeInfoAddr))
             return std::nullopt;
-        auto vftSym = view->GetSymbolByAddress(vftAddr);
+        LogInfo("Assuming base type info for %llx is at %llx", objectAddr, typeInfoAddr);
+        auto vftSym = view->GetSymbolByAddress(typeInfoAddr);
         if (vftSym == nullptr)
             return std::nullopt;
         baseSym = vftSym;
@@ -294,21 +332,12 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
     if (baseSymName.find("__cxxabiv1") != std::string::npos)
     {
         // symbol takes the form of `abi::base_name::addend`
-        // Remove the `abi::`
-        auto baseTyStartPos = baseSymName.find("::");
-        if (baseTyStartPos != std::string::npos)
-            baseSymName = baseSymName.substr(baseTyStartPos + 2);
-        // Remove the `::addend`
-        auto baseTyEndPos = baseSymName.find("::");
-        if (baseTyEndPos != std::string::npos)
-            baseSymName = baseSymName.substr(0, baseTyEndPos);
-
-        if (baseSymName == "__class_type_info")
-            return TIVClass;
-        if (baseSymName == "__si_class_type_info")
+        if (baseSymName.find("si_class_type_info") != std::string::npos)
             return TIVSIClass;
-        if (baseSymName == "__vmi_class_type_info")
+        if (baseSymName.find("vmi_class_type_info") != std::string::npos)
             return TIVVMIClass;
+        if (baseSymName.find("class_type_info") != std::string::npos)
+            return TIVClass;
     }
 
     return std::nullopt;
@@ -319,8 +348,9 @@ std::optional<BaseClassInfo> ItaniumRTTIProcessor::ProcessVFTBaseClassInfo(uint6
 {
     BinaryReader reader = BinaryReader(m_view);
     // Because we have this we _need_ to have the adjustment stuff.
-    // NOTE: We assume two 0x4 ints with the first being what we want.
-    reader.Seek(vftAddr - 0x10);
+    // NOTE: We assume two field sized ints with the first being what we want.
+    // Two 0x4 ints and the pointer to the type info.
+    reader.Seek(vftAddr - ((ArchFieldSize(m_view) * 2) + m_view->GetAddressSize()));
 
     auto adjustmentOffset = static_cast<int32_t>(reader.Read32());
     [[maybe_unused]]
@@ -331,15 +361,6 @@ std::optional<BaseClassInfo> ItaniumRTTIProcessor::ProcessVFTBaseClassInfo(uint6
     // Assuming we do not have a baseClassInfo already passed we can deduce it here.
     for (auto& baseClass : classInfo.baseClasses)
     {
-        // if (baseClass.offset == 0)
-        // {
-        //     // If the base class is at offset 0 that means it has yet to be adjusted.
-        //     // NOTE: This should only happen for `TIVSIClass`. If this assigns more than
-        //     // one base class to this offset we are screwed.
-        //     baseClass.offset = classOffset;
-        //     LogInfo("Adjusting base class offset for %llx to %llx", vftAddr, classOffset);
-        // }
-
         if (baseClass.offset == classOffset)
         {
             // Found the appropriate base class for this vtable.
@@ -436,7 +457,8 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
                     return std::nullopt;
                 m_logger->LogDebug("Non-backed external subtype for %llx", objectAddr);
                 subTypeName = externTypeName.value();
-            } else
+            }
+            else
             {
                 auto baseTypeInfo = TypeInfo(m_view, baseInfo.base_type);
                 subTypeName = baseTypeInfo.type_name;
@@ -480,7 +502,8 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
             {
                 // TODO: Sometimes vFunc idx will be zeroed iirc.
                 // We allow vfuncs to point to extern functions.
-                auto vFuncSym = m_view->GetSymbolByAddress(vFuncAddr);
+                // TODO: Until https://github.com/Vector35/binaryninja-api/issues/5982 is fixed we need to check extern sym relocs instead of the symbol directly
+                auto vFuncSym = GetRealSymbol(m_view, reader.GetOffset(), vFuncAddr);
                 if (!vFuncSym)
                     break;
                 DataVariable dv;
@@ -639,14 +662,20 @@ void ItaniumRTTIProcessor::ProcessRTTI()
 {
     auto start_time = std::chrono::high_resolution_clock::now();
     auto addrSize = m_view->GetAddressSize();
-    // TODO: This probably needs to change
-    uint64_t maxTypeInfoSize = 0x10;
+    uint64_t maxTypeInfoSize = TypeInfoSize(m_view);
 
     auto scan = [&](const Ref<Section> &section) {
         for (uint64_t currAddr = section->GetStart(); currAddr <= section->GetEnd() - maxTypeInfoSize; currAddr += addrSize)
         {
-            if (auto classInfo = ProcessRTTI(currAddr))
-                m_classInfo[currAddr] = classInfo.value();
+            try
+            {
+                if (auto classInfo = ProcessRTTI(currAddr))
+                    m_classInfo[currAddr] = classInfo.value();
+            }
+            catch (std::exception& e)
+            {
+                m_logger->LogWarn("Failed to process object at %llx... skipping", currAddr);
+            }
         }
     };
 
@@ -724,8 +753,8 @@ void ItaniumRTTIProcessor::ProcessVFT()
             DataVariable dv;
             if (m_view->GetDataVariableAtAddress(ref, dv) && m_classInfo.find(dv.address) != m_classInfo.end())
                 continue;
-            // Verify that there is two 4 byte values above the type info pointer
-            optReader.Seek(ref - 8);
+            // Verify that there is two field sized values above the type info pointer
+            optReader.Seek(ref - ArchFieldSize(m_view) * 2);
             auto beforeTypeInfoRef = optReader.ReadPointer();
             if (m_view->IsValidOffset(beforeTypeInfoRef))
                 continue;
@@ -734,42 +763,6 @@ void ItaniumRTTIProcessor::ProcessVFT()
             // Found a vtable reference to colocator
             // TODO: Access check here.
             vftMap[coLocatorAddr].insert(vftAddr);
-        }
-    }
-
-    if (virtualFunctionTableSweep)
-    {
-        auto addrSize = m_view->GetAddressSize();
-        auto scan = [&](const Ref<Segment> &segment) {
-            uint64_t startAddr = segment->GetStart();
-            uint64_t endAddr = segment->GetEnd();
-            for (uint64_t vtableAddr = startAddr; vtableAddr < endAddr - 0x10; vtableAddr += addrSize)
-            {
-                optReader.Seek(vtableAddr);
-                uint64_t coLocatorAddr = optReader.ReadPointer();
-                auto coLocator = m_classInfo.find(coLocatorAddr);
-                if (coLocator == m_classInfo.end())
-                    continue;
-                // Found a vtable reference to colocator.
-                // vftMap[coLocatorAddr] = vtableAddr + addrSize;
-            }
-        };
-
-        // Scan data sections for virtual function tables.
-        auto rdataSection = m_view->GetSectionByName(".rdata");
-        for (const Ref<Segment> &segment: m_view->GetSegments())
-        {
-            if (segment->GetFlags() == (SegmentReadable | SegmentContainsData))
-            {
-                m_logger->LogDebug("Attempting to find VirtualFunctionTables in segment %llx", segment->GetStart());
-                scan(segment);
-            }
-            else if (checkWritableRData && rdataSection && rdataSection->GetStart() == segment->GetStart())
-            {
-                m_logger->LogDebug("Attempting to find VirtualFunctionTables in writable rdata segment %llx",
-                                   segment->GetStart());
-                scan(segment);
-            }
         }
     }
 

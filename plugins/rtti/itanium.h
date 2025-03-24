@@ -24,6 +24,7 @@ namespace BinaryNinja::RTTI::Itanium {
 		uint64_t base;
 		std::string type_name;
 
+		TypeInfo() = default;
 		TypeInfo(BinaryView *view, uint64_t address);
 		TypeInfo(uint64_t base, std::string &type_name) : base(base), type_name(type_name) {};
 	};
@@ -38,6 +39,7 @@ namespace BinaryNinja::RTTI::Itanium {
 
 	struct ClassTypeInfo : TypeInfo
 	{
+		ClassTypeInfo() = default;
 		ClassTypeInfo(BinaryView *view, uint64_t uint64) : TypeInfo(view, uint64) {}
 	};
 
@@ -45,6 +47,7 @@ namespace BinaryNinja::RTTI::Itanium {
 	{
 		uint64_t base_type;
 
+		SIClassTypeInfo() = default;
 		SIClassTypeInfo(BinaryView *view, uint64_t address);
 	};
 
@@ -70,6 +73,7 @@ namespace BinaryNinja::RTTI::Itanium {
 		uint64_t base_count;
 		std::vector<BaseClassTypeInfo> base_info;
 
+		VMIClassTypeInfo() = default;
 		VMIClassTypeInfo(BinaryView *view, uint64_t address);
 	};
 
