@@ -321,7 +321,6 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
         uint64_t typeInfoAddr = reader.ReadPointer();
         if (!view->IsValidOffset(typeInfoAddr))
             return std::nullopt;
-        LogInfo("Assuming base type info for %llx is at %llx", objectAddr, typeInfoAddr);
         auto vftSym = view->GetSymbolByAddress(typeInfoAddr);
         if (vftSym == nullptr)
             return std::nullopt;
