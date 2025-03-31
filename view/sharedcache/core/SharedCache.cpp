@@ -542,6 +542,9 @@ bool CacheProcessor::ProcessFileCache(SharedCache& cache)
 		// Skip map files, they contain some nice information... we don't use.
 		if (entry.path().extension() == ".map")
 			continue;
+		// Skip bndb files!
+		if (entry.path().extension() == ".bndb")
+			continue;
 		try
 		{
 			auto additionalEntry = CacheEntry::FromFile(currentFilePath, currentFileName, CacheEntryType::Secondary);
@@ -565,8 +568,29 @@ bool CacheProcessor::ProcessProjectCache(SharedCache& cache)
 {
 	auto baseProjectFile = m_view->GetFile()->GetProjectFile();
 	std::string baseFilePath = baseProjectFile->GetPathOnDisk();
-	// TODO: I dont think the project file name will have anything other than the base name so this might be redundant.
-	std::string baseFileName = BaseFileName(baseProjectFile->GetName());
+	std::string baseFileName = baseProjectFile->GetName();
+
+	// Remove the .bndb extension if present ("dyld_shared_cache_arm64e.bndb" => "dyld_shared_cache_arm64e)
+	// TODO: This is a little annoying, we need to do this because the file accessor we have is seperate
+	// TODO: from the view file accessor. If we either made it so that we can parse from the BNDB file accessor,
+	// TODO: or... something better than this.
+	if (baseFileName.find(".bndb") != std::string::npos)
+	{
+		baseFileName = baseFileName.substr(0, baseFileName.size() - 5);
+		// Search for the backing file.
+		for (const auto& projectFile : baseProjectFile->GetProject()->GetFiles())
+		{
+			auto projectFilePath = projectFile->GetPathOnDisk();
+			auto projectFileName = projectFile->GetName();
+			if (projectFileName == baseFileName)
+			{
+				// Use the real file instead.
+				baseFilePath = projectFilePath;
+				baseProjectFile = projectFile;
+				break;
+			}
+		}
+	}
 
 	// Add this file to the entries
 	auto baseEntry = CacheEntry::FromFile(baseFilePath, baseFileName, CacheEntryType::Primary);
@@ -592,6 +616,9 @@ bool CacheProcessor::ProcessProjectCache(SharedCache& cache)
 			continue;
 		// Filter out .map files, they contain some nice info for rebasing... that we don't do.
 		if (projectFileName.find(".map") != std::string::npos)
+			continue;
+		// Filter out .bndb files!
+		if (projectFileName.find(".bndb") != std::string::npos)
 			continue;
 		// If both top level, or we are in the same folder as the base project file add it.
 		if ((!folder && !currentFolder) || (folder && currentFolder))
