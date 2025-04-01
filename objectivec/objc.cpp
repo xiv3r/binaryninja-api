@@ -782,7 +782,6 @@ void ObjCProcessor::ReadListOfMethodLists(ObjCReader* reader, ClassBase& cls, st
 	head.entsizeAndFlags = reader->Read32();
 	head.count = reader->Read32();
 
-	// TODO(WeiN76LQh): probably can be removed at this point
 	if (head.count > 0x1000)
 	{
 		m_logger->LogError("List of method lists at 0x%llx has an invalid count of 0x%x", start, head.count);
@@ -817,7 +816,6 @@ void ObjCProcessor::ReadMethodList(ObjCReader* reader, ClassBase& cls, std::stri
 	head.entsizeAndFlags = reader->Read32();
 	head.count = reader->Read32();
 
-	// TODO(WeiN76LQh): probably can be removed at this point
 	if (head.count > 0x1000)
 	{
 		m_logger->LogError("Method list at 0x%llx has an invalid count of 0x%x", start, head.count);
