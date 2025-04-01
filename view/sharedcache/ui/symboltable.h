@@ -15,7 +15,9 @@ class SymbolTableModel : public QAbstractTableModel {
 
     SymbolTableView* m_parent;
     std::string m_filter;
-    std::vector<SharedCacheAPI::CacheSymbol> m_symbols;
+    std::vector<SharedCacheAPI::CacheSymbol> m_preparedSymbols {};
+    // the symbols we actually use.
+    std::vector<SharedCacheAPI::CacheSymbol> m_modelSymbols {};
 
 public:
     explicit SymbolTableModel(SymbolTableView* parent);
@@ -25,7 +27,7 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-    void updateSymbols();
+    void updateSymbols(std::vector<SharedCacheAPI::CacheSymbol>&& symbols);
 
     void setFilter(std::string text);
 
@@ -37,9 +39,6 @@ class SymbolTableView : public QTableView, public FilterTarget
 {
     Q_OBJECT
     friend class SymbolTableModel;
-
-    // TODO: Both the model and the view store the symbols?
-    std::vector<SharedCacheAPI::CacheSymbol> m_symbols;
 
     SymbolTableModel* m_model;
 

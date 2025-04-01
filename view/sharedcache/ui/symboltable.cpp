@@ -14,7 +14,7 @@ SymbolTableModel::SymbolTableModel(SymbolTableView* parent)
 
 int SymbolTableModel::rowCount(const QModelIndex& parent) const {
 	Q_UNUSED(parent);
-	return static_cast<int>(m_symbols.size());
+	return static_cast<int>(m_modelSymbols.size());
 }
 
 int SymbolTableModel::columnCount(const QModelIndex& parent) const {
@@ -28,7 +28,7 @@ QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
 		return QVariant();
 	}
 
-	const CacheSymbol& symbol = m_symbols.at(index.row());
+	auto symbol = symbolAt(index.row());
 	auto symbolType = GetSymbolTypeAsString(symbol.type);
 
 	switch (index.column()) {
@@ -60,13 +60,15 @@ QVariant SymbolTableModel::headerData(int section, Qt::Orientation orientation, 
 	}
 }
 
-void SymbolTableModel::updateSymbols() {
-	m_symbols = m_parent->m_symbols;
+void SymbolTableModel::updateSymbols(std::vector<CacheSymbol>&& symbols)
+{
+	m_preparedSymbols = symbols;
 	setFilter(m_filter);
 }
 
-const CacheSymbol& SymbolTableModel::symbolAt(int row) const {
-	return m_symbols.at(row);
+const CacheSymbol& SymbolTableModel::symbolAt(int row) const
+{
+	return m_modelSymbols.at(row);
 }
 
 
@@ -75,23 +77,19 @@ void SymbolTableModel::setFilter(std::string text)
 	beginResetModel();
 
 	m_filter = text;
-	m_symbols.clear();
+	m_modelSymbols = {};
 
-	if (m_filter.empty())
+	// Skip filtering if no filter applied.
+	if (!m_filter.empty())
 	{
-		m_symbols = m_parent->m_symbols;
-	}
-	else
-	{
-		m_symbols.reserve(m_parent->m_symbols.size());
-		for (const auto& symbol : m_parent->m_symbols)
-		{
+		m_modelSymbols.reserve(m_preparedSymbols.size());
+		for (const auto& symbol : m_preparedSymbols)
 			if (((std::string_view)symbol.name).find(m_filter) != std::string::npos)
-			{
-				m_symbols.push_back(symbol);
-			}
-		}
-		m_symbols.shrink_to_fit();
+				m_modelSymbols.push_back(symbol);
+		m_modelSymbols.shrink_to_fit();
+	} else
+	{
+		m_modelSymbols = m_preparedSymbols;
 	}
 
 	endResetModel();
@@ -121,14 +119,26 @@ SymbolTableView::~SymbolTableView() {
 void SymbolTableView::populateSymbols(BinaryView &view)
 {
 	if (auto controller = SharedCacheController::GetController(view)) {
-		BackgroundThread::create(this)
-			->thenBackground([this, controller]() {
-				// TODO: There is a crash related to `this` being destructed. https://github.com/Vector35/binaryninja-api/issues/6300
-				std::vector<CacheSymbol> newSymbols = controller->GetSymbols();
-				m_symbols.swap(newSymbols);
-			})
-			->thenMainThread([this](){ m_model->updateSymbols(); })
-			->start();
+		typedef std::vector<CacheSymbol> SymbolList;
+		// Retrieve the symbols from the controller in a future than pass that to the model.
+		QPointer<QFutureWatcher<SymbolList>> watcher = new QFutureWatcher<SymbolList>(this);
+		connect(watcher, &QFutureWatcher<SymbolList>::finished, this, [watcher, this]() {
+			if (watcher)
+			{
+				auto symbols = watcher->result();
+				m_model->updateSymbols(std::move(symbols));
+			}
+		});
+		QFuture<SymbolList> future = QtConcurrent::run([controller]() {
+			return controller->GetSymbols();
+		});
+		watcher->setFuture(future);
+		connect(this, &QObject::destroyed, this, [watcher]() {
+			if (watcher && watcher->isRunning()) {
+				watcher->cancel();
+				watcher->waitForFinished();
+			}
+		});
 	}
 }
 
