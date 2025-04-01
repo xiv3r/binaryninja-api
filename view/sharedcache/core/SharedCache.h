@@ -32,7 +32,7 @@ struct CacheSymbol
 	CacheSymbol& operator=(CacheSymbol&& other) noexcept = default;
 
 	// NOTE: you should really only call this when adding the symbol to the view.
-	BinaryNinja::Ref<BinaryNinja::Symbol> ToBNSymbol() const;
+	BinaryNinja::Ref<BinaryNinja::Symbol> ToBNSymbol(BinaryNinja::BinaryView& view) const;
 };
 
 enum class CacheRegionType

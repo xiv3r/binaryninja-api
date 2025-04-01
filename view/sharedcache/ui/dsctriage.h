@@ -3,6 +3,7 @@
 //
 
 #include <binaryninjaapi.h>
+#include <QItemDelegate>
 #include <QStyledItemDelegate>
 
 #include "uitypes.h"
@@ -137,5 +138,58 @@ public:
 	static void Register();
 };
 
+class LoadedDelegate : public QItemDelegate
+{
+	Q_OBJECT
+public:
+	void paint(QPainter *painter, const QStyleOptionViewItem &option,
+			   const QModelIndex &index) const override
+	{
+		if (!index.isValid())
+			return;
+
+		painter->save();
+
+		// Highlight if the item is selected
+		if (option.state & QStyle::State_Selected)
+			painter->fillRect(option.rect, option.palette.highlight());
+
+		// "1" is the indicator that its loaded.
+		if (index.data(Qt::DisplayRole).toString() == "1")
+		{
+			QPixmap loadedIcon;
+			pixmapForBWMaskIcon(":/icons/images/download.png", &loadedIcon, SidebarHeaderTextColor);
+			if (!loadedIcon.isNull())
+			{
+				QSize pixmapSize(20, 20);
+				QPixmap scaledPixmap = loadedIcon.scaled(pixmapSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+				// Calculate the rectangle for centering the pixmap
+				int x = option.rect.x() + (option.rect.width() - scaledPixmap.width()) / 2; // Center horizontally
+				int y = option.rect.y() + (option.rect.height() - scaledPixmap.height()) / 2; // Center vertically
+				QRect iconRect(x, y, scaledPixmap.width(), scaledPixmap.height());
+
+				// Draw the pixmap
+				painter->drawPixmap(iconRect, scaledPixmap);
+			}
+		}
+
+		painter->restore();
+	}
+
+	QSize sizeHint(const QStyleOptionViewItem &option,
+				   const QModelIndex &index) const override
+	{
+		Q_UNUSED(option);
+		Q_UNUSED(index);
+		return QSize(50, 24);
+	}
+
+	void setEditorData(QWidget *editor, const QModelIndex &index) const override
+	{
+		Q_UNUSED(editor);
+		Q_UNUSED(index);
+	}
+};
 
 #endif	// BINARYNINJA_DSCTRIAGE_H

@@ -55,6 +55,7 @@ public:
 
 	bool IsAddressMapped(uint64_t address);
 
+	// TODO: Bulk pointer writes here would alleviate a lot of the time spent in the slide info processor.
 	// Write a pointer at a given address. This pointer will be persisted
 	// for a given `VirtualMemoryRegion` region, unlike using the MappedFileAccessor directly.
 	// The persistence is provided through the WeakFileAccessor itself and thus is unique to the construction.

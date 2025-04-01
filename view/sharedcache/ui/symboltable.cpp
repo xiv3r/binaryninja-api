@@ -19,8 +19,8 @@ int SymbolTableModel::rowCount(const QModelIndex& parent) const {
 
 int SymbolTableModel::columnCount(const QModelIndex& parent) const {
 	Q_UNUSED(parent);
-	// We have 2 columns: Address, Name
-	return 2;
+	// We have 3 columns: Address, Type, Name
+	return 3;
 }
 
 QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
@@ -29,11 +29,14 @@ QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
 	}
 
 	const CacheSymbol& symbol = m_symbols.at(index.row());
+	auto symbolType = GetSymbolTypeAsString(symbol.type);
 
 	switch (index.column()) {
 	case 0: // Address column
 		return QString("0x%1").arg(symbol.address, 0, 16); // Display address as hexadecimal
-	case 1: // Name column
+	case 1: // Type column
+		return QString::fromUtf8(symbolType.c_str(), symbolType.size());
+	case 2: // Name column
 		return QString::fromUtf8(symbol.name.c_str(), symbol.name.size());
 	default:
 		return QVariant();
@@ -49,6 +52,8 @@ QVariant SymbolTableModel::headerData(int section, Qt::Orientation orientation, 
 	case 0:
 		return QString("Address");
 	case 1:
+		return QString("Type");
+	case 2:
 		return QString("Name");
 	default:
 		return QVariant();
@@ -100,7 +105,9 @@ SymbolTableView::SymbolTableView(QWidget* parent)
 	setModel(m_model);
 
 	// Configure view settings
-	horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+	horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+	horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+	horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
 	setSelectionBehavior(QAbstractItemView::SelectRows);
 	setSelectionMode(QAbstractItemView::SingleSelection);
 
@@ -116,6 +123,7 @@ void SymbolTableView::populateSymbols(BinaryView &view)
 	if (auto controller = SharedCacheController::GetController(view)) {
 		BackgroundThread::create(this)
 			->thenBackground([this, controller]() {
+				// TODO: There is a crash related to `this` being destructed. https://github.com/Vector35/binaryninja-api/issues/6300
 				std::vector<CacheSymbol> newSymbols = controller->GetSymbols();
 				m_symbols.swap(newSymbols);
 			})

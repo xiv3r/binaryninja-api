@@ -11,11 +11,12 @@ using namespace BinaryNinja;
 // The next id to use when calling Cache::AddEntry
 static CacheEntryId nextId = 1;
 
-Ref<Symbol> CacheSymbol::ToBNSymbol() const
+Ref<Symbol> CacheSymbol::ToBNSymbol(BinaryView& view) const
 {
 	QualifiedName qname;
+	Ref<Type> outType;
 	std::string shortName = name;
-	if (DemangleLLVM(name, qname, true))
+	if (DemangleGeneric(view.GetDefaultArchitecture(), name, outType, qname, &view, true))
 		shortName = qname.GetString();
 	return new Symbol(type, shortName, shortName, name, address, nullptr);
 }
@@ -458,7 +459,7 @@ std::optional<CacheImage> SharedCache::GetImageContaining(const uint64_t address
 {
 	// TODO: What if we are using this on a shared region? Return a list of images?
 	auto region = GetRegionContaining(address);
-	if (region.has_value())
+	if (region.has_value() && region->imageStart.has_value())
 		return GetImageAt(*region->imageStart);
 	return std::nullopt;
 }

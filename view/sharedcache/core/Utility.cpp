@@ -74,7 +74,7 @@ void ApplySymbol(Ref<BinaryView> view, Ref<TypeLibrary> typeLib, Ref<Symbol> sym
 	if (symbol->GetType() == FunctionSymbol)
 	{
 		Ref<Platform> targetPlatform = view->GetDefaultPlatform();
-		func = view->AddFunctionForAnalysis(targetPlatform, symbolAddress);
+		func = view->AddFunctionForAnalysis(targetPlatform, symbolAddress, true);
 	}
 
 	if (typeLib)

@@ -60,6 +60,9 @@ SharedCacheController::SharedCacheController(SharedCache cache, Ref<Logger> logg
 	m_logger = std::move(logger);
 	m_loadedRegions = {};
 	m_loadedImages = {};
+	m_processObjC = true;
+	m_processCFStrings = true;
+	m_regionFilter = std::regex(".*LINKEDIT.*");
 }
 
 DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view, SharedCache cache)
@@ -111,16 +114,16 @@ bool SharedCacheController::ApplyRegionAtAddress(BinaryView& view, const uint64_
 
 bool SharedCacheController::ApplyRegion(BinaryView& view, const CacheRegion& region)
 {
-	// TODO: Check m_loadedRegions? This seems redundant...
+	std::unique_lock<std::shared_mutex> lock(m_loadMutex);
 	// Loads the given region into the BinaryView and marks it as loaded.
-	// First check to make sure there isn't already a segment at the address in the view.
-	if (view.GetSegmentAt(region.start))
+	// First check to make sure we haven't already loaded the region.
+	if (m_loadedRegions.find(region.start) != m_loadedRegions.end())
 		return false;
 
 	// Skip filtered regions, this defaults to just LINKEDIT regions.
 	if (std::regex_match(region.name, m_regionFilter))
 	{
-		LogDebug("Skipping filtered region at %llx", region.start);
+		m_logger->LogDebug("Skipping filtered region at %llx", region.start);
 		return false;
 	}
 
@@ -161,8 +164,9 @@ bool SharedCacheController::ApplyRegion(BinaryView& view, const CacheRegion& reg
 	return true;
 }
 
-bool SharedCacheController::IsRegionLoaded(const CacheRegion& region) const
+bool SharedCacheController::IsRegionLoaded(const CacheRegion& region)
 {
+	std::shared_lock<std::shared_mutex> lock(m_loadMutex);
 	return std::any_of(m_loadedRegions.begin(), m_loadedRegions.end(), [&](const auto& loadedRegion) {
 		return loadedRegion == region.start;
 	});
@@ -170,15 +174,19 @@ bool SharedCacheController::IsRegionLoaded(const CacheRegion& region) const
 
 bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image)
 {
-	// TODO: Check m_loadedImages? This seems redundant...
 	// Load all regions of an image and mark the image as loaded.
+	// NOTE: The regions lock m_loadMutex themselves, so we do not hold it up here.
 	bool loadedRegion = false;
 	for (const auto& regionStart : image.regionStarts)
 		if (ApplyRegionAtAddress(view, regionStart))
 			loadedRegion = true;
 
+	// The ApplyRegionAtAddress no longer holds the lock, we can take it now.
+	std::unique_lock<std::shared_mutex> lock(m_loadMutex);
 	// If there was no loaded regions than we just want to forgo loading the image.
-	if (!loadedRegion)
+	// We also skip if we already loaded the image itself. We do this after loading regions
+	// as we regions have their own check.
+	if (!loadedRegion || m_loadedImages.find(image.headerAddress) != m_loadedImages.end())
 		return false;
 
 	if (image.header)
@@ -187,17 +195,16 @@ bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image
 		auto machoProcessor = SharedCacheMachOProcessor(&view, m_cache.GetVirtualMemory());
 		machoProcessor.ApplyHeader(*image.header);
 
-		// TODO: Make this optional.
-		// Load objective-c information.
-		auto objcProcessor = DSCObjC::SharedCacheObjCProcessor(&view, false);
 		// TODO: Passing in an image name here is weird considering this is shared with the MACHO view.
 		// TODO: We should abstract out the "image" into an objc image type that represents what is required, which ig is the name?
+		// Load objective-c information.
+		auto objcProcessor = DSCObjC::SharedCacheObjCProcessor(&view, false);
 		try
 		{
 			if (m_processObjC)
 				objcProcessor.ProcessObjCData(image.GetName());
-			if (m_processObjC)
-			objcProcessor.ProcessCFStrings(image.GetName());
+			if (m_processCFStrings)
+				objcProcessor.ProcessCFStrings(image.GetName());
 		}
 		catch (std::exception& e)
 		{
@@ -216,8 +223,9 @@ bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image
 	return true;
 }
 
-bool SharedCacheController::IsImageLoaded(const CacheImage& image) const
+bool SharedCacheController::IsImageLoaded(const CacheImage& image)
 {
+	std::shared_lock<std::shared_mutex> lock(m_loadMutex);
 	return std::any_of(m_loadedImages.begin(), m_loadedImages.end(), [&](const auto& loadedImage) {
 		return loadedImage == image.headerAddress;
 	});

@@ -9,21 +9,21 @@ using namespace SharedCacheAPI;
 
 BNSharedCacheImage ImageToApi(CacheImage image)
 {
-	BNSharedCacheImage apiImage;
+	BNSharedCacheImage apiImage {};
 	apiImage.name = BNAllocString(image.name.c_str());
 	apiImage.headerAddress = image.headerAddress;
 	apiImage.regionStartCount = image.regionStarts.size();
-	// TODO: If we alloc then core cannot delete
 	uint64_t *regionStarts = new uint64_t[image.regionStarts.size()];
 	for (size_t i = 0; i < image.regionStarts.size(); i++)
 		regionStarts[i] = image.regionStarts[i];
-	apiImage.regionStarts = regionStarts;
+	apiImage.regionStarts = BNSharedCacheAllocRegionList(regionStarts, image.regionStarts.size());
+	delete[] regionStarts;
 	return apiImage;
 }
 
 CacheImage ImageFromApi(BNSharedCacheImage image)
 {
-	CacheImage apiImage;
+	CacheImage apiImage {};
 	apiImage.name = image.name;
 	apiImage.headerAddress = image.headerAddress;
 	apiImage.regionStarts.reserve(image.regionStartCount);
@@ -34,7 +34,7 @@ CacheImage ImageFromApi(BNSharedCacheImage image)
 
 BNSharedCacheRegion RegionToApi(const CacheRegion &region)
 {
-	BNSharedCacheRegion apiRegion;
+	BNSharedCacheRegion apiRegion {};
 	apiRegion.vmAddress = region.start;
 	apiRegion.name = BNAllocString(region.name.c_str());
 	apiRegion.size = region.size;
@@ -47,7 +47,7 @@ BNSharedCacheRegion RegionToApi(const CacheRegion &region)
 
 CacheRegion RegionFromApi(BNSharedCacheRegion apiRegion)
 {
-	CacheRegion region;
+	CacheRegion region {};
 	region.start = apiRegion.vmAddress;
 	region.name = apiRegion.name;
 	region.size = apiRegion.size;
@@ -58,7 +58,7 @@ CacheRegion RegionFromApi(BNSharedCacheRegion apiRegion)
 
 BNSharedCacheMappingInfo MappingToApi(const CacheMappingInfo &mapping)
 {
-	BNSharedCacheMappingInfo apiMapping;
+	BNSharedCacheMappingInfo apiMapping {};
 	apiMapping.vmAddress = mapping.vmAddress;
 	apiMapping.size = mapping.size;
 	apiMapping.fileOffset = mapping.fileOffset;
@@ -67,7 +67,7 @@ BNSharedCacheMappingInfo MappingToApi(const CacheMappingInfo &mapping)
 
 CacheMappingInfo MappingFromApi(BNSharedCacheMappingInfo apiMapping)
 {
-	CacheMappingInfo mapping;
+	CacheMappingInfo mapping {};
 	mapping.vmAddress = apiMapping.vmAddress;
 	mapping.size = apiMapping.size;
 	mapping.fileOffset = apiMapping.fileOffset;
@@ -76,7 +76,7 @@ CacheMappingInfo MappingFromApi(BNSharedCacheMappingInfo apiMapping)
 
 BNSharedCacheEntry EntryToApi(const CacheEntry &entry)
 {
-	BNSharedCacheEntry apiEntry;
+	BNSharedCacheEntry apiEntry {};
 	apiEntry.path = BNAllocString(entry.path.c_str());
 	apiEntry.entryType = entry.entryType;
 	const auto &mappings = entry.mappings;
@@ -90,7 +90,7 @@ BNSharedCacheEntry EntryToApi(const CacheEntry &entry)
 
 CacheEntry EntryFromApi(BNSharedCacheEntry apiEntry)
 {
-	CacheEntry entry;
+	CacheEntry entry {};
 	entry.path = apiEntry.path;
 	entry.entryType = apiEntry.entryType;
 	entry.mappings.reserve(apiEntry.mappingCount);
@@ -120,6 +120,21 @@ std::string SharedCacheAPI::GetRegionTypeAsString(const BNSharedCacheRegionType 
 		return "DyldData";
 	case SharedCacheRegionTypeNonImage:
 		return "NonImage";
+	default:
+		return "Unknown";
+	}
+}
+
+std::string SharedCacheAPI::GetSymbolTypeAsString(const BNSymbolType &type)
+{
+	// NOTE: We currently only use the function and data symbol for cache symbols.
+	// update this if that changes.
+	switch (type)
+	{
+	case FunctionSymbol:
+		return "Function";
+	case DataSymbol:
+		return "Data";
 	default:
 		return "Unknown";
 	}

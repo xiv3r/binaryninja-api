@@ -289,6 +289,8 @@ namespace SharedCacheAPI {
 		std::string name;
 	};
 
+	std::string GetSymbolTypeAsString(const BNSymbolType& type);
+
 	class SharedCacheController : public DSCCoreRefCountObject<BNSharedCacheController, BNNewSharedCacheControllerReference, BNFreeSharedCacheControllerReference> {
 	public:
 		explicit SharedCacheController(BNSharedCacheController* controller);

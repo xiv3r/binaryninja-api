@@ -54,7 +54,7 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 
 	QWidget* defaultWidget = nullptr;
 
-	static auto loadImagesWithAddr = [this](const std::vector<uint64_t>& addresses) {
+	auto loadImagesWithAddr = [this](const std::vector<uint64_t>& addresses) {
 		auto controller = SharedCacheController::GetController(*this->m_data);
 		if (!controller)
 			return;
@@ -102,10 +102,13 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 			m_imageModel->setHorizontalHeaderLabels({"Address", "Loaded", "Name"});
 		} // loadImageModel
 
+		// Show the icon in the loaded column.
+		loadImageTable->setItemDelegateForColumn(1, new LoadedDelegate());
+
 		auto loadImageButton = new CustomStyleFlatPushButton();
 		{
 			connect(loadImageButton, &QPushButton::clicked,
-				[loadImageTable](bool) {
+				[loadImageTable, loadImagesWithAddr](bool) {
 					auto selected = loadImageTable->selectionModel()->selectedRows();
 					std::vector<uint64_t> addresses;
 					for (const auto& row : selected)
@@ -188,7 +191,7 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		auto loadSymbolImageButton = new CustomStyleFlatPushButton();
 		{
 			connect(loadSymbolImageButton, &QPushButton::clicked,
-				[this](bool) {
+				[this, loadImagesWithAddr](bool) {
 					auto selected = m_symbolTable->selectionModel()->selectedRows();
 					std::vector<uint64_t> addresses;
 					for (const auto& row : selected)
@@ -235,12 +238,6 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 
 		auto symbolWidget = new QWidget;
 		symbolWidget->setLayout(symbolLayout);
-
-		m_symbolTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents); // Address
-		m_symbolTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);          // Name
-
-		m_symbolTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-		m_symbolTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
 		connect(m_symbolTable, &SymbolTableView::activated, this, [=](const QModelIndex& index){
 				auto symbol = m_symbolTable->getSymbolAtRow(index.row());
@@ -444,9 +441,6 @@ void DSCTriageView::RefreshData()
 
 void DSCTriageView::setImageLoaded(const uint64_t imageHeaderAddr)
 {
-	// TODO: Better icon... probably something like ✅
-	static QIcon loadedIcon(":/icons/images/plus.png");
-
 	// Go through the m_loadImageModel and find the image associated with the address
 	// then set the image as loaded.
 	for (int i = 0; i < m_imageModel->rowCount(); i++)
@@ -456,7 +450,8 @@ void DSCTriageView::setImageLoaded(const uint64_t imageHeaderAddr)
 		if (addr == imageHeaderAddr)
 		{
 			auto statusCol = m_imageModel->index(i, 1);
-			m_imageModel->setData(statusCol, QString("•"), Qt::DisplayRole);
+			// See the `LoadedDelegate` class, we set 1 to indicate that this image is loaded.
+			m_imageModel->setData(statusCol, "1", Qt::DisplayRole);
 			break;
 		}
 	}

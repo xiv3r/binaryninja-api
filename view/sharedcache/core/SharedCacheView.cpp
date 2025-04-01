@@ -82,7 +82,7 @@ Ref<Settings> SharedCacheViewType::GetLoadSettingsForData(BinaryView* data)
 	R"({
 		"title" : "Region Regex Filter",
 		"type" : "string",
-		"default" : "LINKEDIT",
+		"default" : ".*LINKEDIT.*",
 		"description" : "Regex filter for region names to skip loading, by default this filters out the link edit region which is not necessary to be applied to the view."
 		})");
 
@@ -784,19 +784,22 @@ bool SharedCacheView::Init()
 		// After this we should have all the mappings available as well.
 		CacheProcessor cacheProcessor = CacheProcessor(this);
 		auto startTime = std::chrono::high_resolution_clock::now();
-		if (!cacheProcessor.ProcessCache(sharedCache))
+		bool result = cacheProcessor.ProcessCache(sharedCache);
+		auto endTime = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = endTime - startTime;
+		logger->LogInfo("Processing %zu entries took %.3f seconds", sharedCache.GetEntries().size(), elapsed.count());
+
+		if (!result)
 		{
-			// Oh no, we failed to process the cache, this likely means the primary on-disk file was not able to be
-			// found.
 			// TODO: Prompt the user to select the primary cache file? We can still recover from here.
+			// Oh no, we failed to process the cache, this likely means the primary on-disk file was not able to be found.
 			logger->LogError("Failed to process cache, likely missing cache files.");
 			// NOTE: An interaction handler headlessly could select yes to this, however for the purposes of this we will just let them continue by defualt.
 			if (IsUIEnabled() && ShowMessageBox("Continue opening", "This shared cache file was unable to be processed, would you like to open without shared cache information?", YesNoButtonSet, QuestionIcon) != YesButton)
 				return false;
+			// Skip all the other shared cache stuff.
+			return true;
 		}
-		auto endTime = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed = endTime - startTime;
-		logger->LogInfo("Processing %zu entries took %.3f seconds", sharedCache.GetEntries().size(), elapsed.count());
 	}
 
 	{

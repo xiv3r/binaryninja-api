@@ -11,7 +11,7 @@ using namespace SharedCacheAPI;
 
 void DisplayDSCPicker(UIContext* ctx, Ref<BinaryView> dscView)
 {
-	static auto getImageNames = [dscView](QVariant var) {
+	auto getImageNames = [dscView](QVariant var) {
 		auto controller = SharedCacheController::GetController(*dscView);
 		if (!controller)
 			return QStringList();
@@ -22,7 +22,7 @@ void DisplayDSCPicker(UIContext* ctx, Ref<BinaryView> dscView)
 		return entries;
 	};
 
-	static auto getChosenImage = [ctx](QVariant var) {
+	auto getChosenImage = [ctx](QVariant var) {
 		QStringList entries = var.toStringList();
 
 		auto choiceDialog = new MetadataChoiceDialog(ctx ? ctx->mainWindow() : nullptr, "Pick Image", "Select", entries);
@@ -36,7 +36,7 @@ void DisplayDSCPicker(UIContext* ctx, Ref<BinaryView> dscView)
 		return QVariant(QString::fromStdString(entries.at((qsizetype)choiceDialog->GetChosenEntry().value().idx).toStdString()));
 	};
 
-	static auto loadSelectedImage = [dscView](QVariant var) {
+	auto loadSelectedImage = [dscView](QVariant var) {
 		auto selectedImageName = var.toString().toStdString();
 		if (selectedImageName.empty())
 			return;
@@ -54,8 +54,8 @@ void DisplayDSCPicker(UIContext* ctx, Ref<BinaryView> dscView)
 
 
 	BackgroundThread::create(ctx ? ctx->mainWindow() : nullptr)
-		->thenBackground([](QVariant var){ return getImageNames(var); })
-		->thenMainThread([](QVariant var){ return getChosenImage(var); })
-		->thenBackground([](QVariant var){ return loadSelectedImage(var); })
+		->thenBackground([getImageNames](QVariant var){ return getImageNames(var); })
+		->thenMainThread([getChosenImage](QVariant var){ return getChosenImage(var); })
+		->thenBackground([loadSelectedImage](QVariant var){ return loadSelectedImage(var); })
 		->start();
 }

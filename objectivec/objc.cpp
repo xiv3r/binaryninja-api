@@ -592,7 +592,7 @@ void ObjCProcessor::LoadCategories(ObjCReader* reader, Ref<Section> classPtrSect
 		}
 		if (categoryBaseClassName.empty())
 		{
-			m_logger->LogError(
+			m_logger->LogWarn(
 				"Failed to determine base classname for category at 0x%llx. Using base address as stand-in classname",
 				catLocation);
 			categoryBaseClassName = std::to_string(catLocation);
@@ -604,7 +604,7 @@ void ObjCProcessor::LoadCategories(ObjCReader* reader, Ref<Section> classPtrSect
 		}
 		catch (...)
 		{
-			m_logger->LogError(
+			m_logger->LogWarn(
 				"Failed to read category name for category at 0x%llx. Using base address as stand-in category name",
 				catLocation);
 			categoryAdditionsName = std::to_string(catLocation);

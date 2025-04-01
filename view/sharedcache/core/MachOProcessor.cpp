@@ -35,11 +35,7 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			auto targetPlatform = m_view->GetDefaultPlatform();
 			auto functions = header.ReadFunctionTable(*m_vm);
 			for (const auto& func : functions)
-			{
-				// TODO: Check to make sure the func exists in a loaded region?
-				// TODO: ^ this check existed prior so we should add it back.
-				m_view->AddFunctionForAnalysis(targetPlatform, func);
-			}
+				m_view->AddFunctionForAnalysis(targetPlatform, func, true);
 		}
 
 		auto typeLib = m_view->GetTypeLibrary(header.installName);
@@ -52,10 +48,9 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			// Mach-O View symtab processing with
 			// a ton of stuff cut out so it can work
 			// NOTE: This table is read relative to the link edit segment file base.
-			// TODO: Remove this and use the m_symbols in the cache?
 			const auto symbols = header.ReadSymbolTable(*m_view, *m_vm);
 			for (const auto& sym : symbols)
-				ApplySymbol(m_view, typeLib, sym.ToBNSymbol());
+				ApplySymbol(m_view, typeLib, sym.ToBNSymbol(*m_view));
 		}
 
 		// Apply symbols from export trie.
@@ -65,7 +60,7 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			// TODO: Remove this and use the m_symbols in the cache?
 			const auto exportSymbols = header.ReadExportSymbolTrie(*m_vm);
 			for (const auto& sym : exportSymbols)
-				ApplySymbol(m_view, typeLib, sym.ToBNSymbol());
+				ApplySymbol(m_view, typeLib, sym.ToBNSymbol(*m_view));
 		}
 		m_view->EndBulkModifySymbols();
 	}

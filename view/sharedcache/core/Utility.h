@@ -36,9 +36,6 @@ uint64_t readValidULEB128(const uint8_t*& current, const uint8_t* end);
 void ApplySymbol(BinaryNinja::Ref<BinaryNinja::BinaryView> view, BinaryNinja::Ref<BinaryNinja::TypeLibrary> typeLib,
 	BinaryNinja::Ref<BinaryNinja::Symbol> symbol);
 
-// Returns the on disk file for a given path, this is required to support project files.
-std::string ResolveFilePath(BinaryNinja::Ref<BinaryNinja::BinaryView> dscView, const std::string& path);
-
 // Returns the "image name" for a given path.
 // /blah/foo/bar/libObjCThing.dylib -> libObjCThing.dylib
 std::string BaseFileName(const std::string& path);

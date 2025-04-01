@@ -18,8 +18,11 @@ namespace BinaryNinja::DSC {
 	{
 		IMPLEMENT_DSC_API_OBJECT(BNSharedCacheController);
 		Ref<Logger> m_logger;
-
 		SharedCache m_cache;
+
+		// Locks on load attempts (region or image).
+		std::shared_mutex m_loadMutex;
+
 		// Store the open images.
 		// Things other than the cache here will be serialized.
 		std::unordered_set<uint64_t> m_loadedRegions;
@@ -49,13 +52,13 @@ namespace BinaryNinja::DSC {
 
 		bool ApplyRegion(BinaryView& view, const CacheRegion& region);
 
-		bool IsRegionLoaded(const CacheRegion& region) const;
+		bool IsRegionLoaded(const CacheRegion& region);
 
 		// Loads the relevant image info into the view. This does not update analysis so if you
 		// call this make sure at some point you update analysis and likely with linear sweep.
 		bool ApplyImage(BinaryView& view, const CacheImage& image);
 
-		bool IsImageLoaded(const CacheImage& image) const;
+		bool IsImageLoaded(const CacheImage& image);
 
 		// Get the metadata for saving the state of the shared cache.
 		Ref<Metadata> GetMetadata() const;
