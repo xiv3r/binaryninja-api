@@ -20,18 +20,16 @@
 using namespace BinaryNinja;
 using namespace SharedCacheAPI;
 
-struct GlobalWorkflowState
+struct WorkflowState
 {
-	// Mutex to guard against duplicate region/image loads that cause reanalysis.
-	std::mutex loadMutex;
 	bool autoLoadStubsAndDyldData = true;
 	bool autoLoadObjCStubRequirements = true;
 };
 
-std::shared_ptr<GlobalWorkflowState> GetGlobalWorkflowState(Ref<BinaryView> view)
+std::shared_ptr<WorkflowState> GetWorkflowState(Ref<BinaryView> view)
 {
 	static std::shared_mutex globalWorkflowStateMutex;
-	static std::unordered_map<uint64_t, std::shared_ptr<GlobalWorkflowState>> globalWorkflowState;
+	static std::unordered_map<uint64_t, std::shared_ptr<WorkflowState>> globalWorkflowState;
 
 	std::shared_lock<std::shared_mutex> readLock(globalWorkflowStateMutex);
 	const uint64_t viewId = view->GetFile()->GetSessionId();
@@ -41,7 +39,7 @@ std::shared_ptr<GlobalWorkflowState> GetGlobalWorkflowState(Ref<BinaryView> view
 	readLock.unlock();
 
 	std::unique_lock<std::shared_mutex> writeLock(globalWorkflowStateMutex);
-	globalWorkflowState[viewId] = std::make_shared<GlobalWorkflowState>();
+	globalWorkflowState[viewId] = std::make_shared<WorkflowState>();
 	Ref<Settings> settings = view->GetLoadSettings(VIEW_NAME);
 
 	bool autoLoadStubsAndDyldData = true;
@@ -70,30 +68,18 @@ Ref<TypeLibrary> TypeLibraryFromName(BinaryView& view, const std::string& name) 
 	return nullptr;
 }
 
+// Rename and retype the stub function.
 void IdentifyStub(BinaryView& view, const SharedCacheController& controller, uint64_t stubFuncAddr, uint64_t symbolAddr) {
 	static const char* STUB_PREFIX = "j_";
-	// TODO: Just check for if there is a user symbol instead?
-	// TODO: ^ well we really should be using an auto symbol no?
-	// Check to see if there is a symbol already at the target. If so we should just stop.
-	if (symbolAddr == stubFuncAddr)
-		if (const auto targetSymbol = view.GetSymbolByAddress(stubFuncAddr))
-			if (targetSymbol->GetShortName().find(STUB_PREFIX) != std::string::npos)
-				return;
-
 	// Try and apply a version of the symbol address to the target address
-	if (symbolAddr != stubFuncAddr)
+	if (const auto symbol = view.GetSymbolByAddress(symbolAddr))
 	{
-		if (const auto symbol = view.GetSymbolByAddress(symbolAddr))
-		{
-			// A symbol already exists at the source location. Add a stub symbol at `targetLocation` based on the existing symbol.
-			const auto id = view.BeginUndoActions();
-			if (auto targetFunc = view.GetAnalysisFunction(view.GetDefaultPlatform(), stubFuncAddr))
-				view.DefineUserSymbol(new Symbol(FunctionSymbol, STUB_PREFIX + symbol->GetShortName(), stubFuncAddr));
-			else
-				view.DefineUserSymbol(new Symbol(symbol->GetType(), STUB_PREFIX + symbol->GetShortName(), stubFuncAddr));
-			view.ForgetUndoActions(id);
-			return;
-		}
+		// A symbol already exists at the source location. Add a stub symbol at `targetLocation` based on the existing symbol.
+		if (auto targetFunc = view.GetAnalysisFunction(view.GetDefaultPlatform(), stubFuncAddr))
+			view.DefineAutoSymbol(new Symbol(FunctionSymbol, STUB_PREFIX + symbol->GetShortName(), stubFuncAddr));
+		else
+			view.DefineAutoSymbol(new Symbol(symbol->GetType(), STUB_PREFIX + symbol->GetShortName(), stubFuncAddr));
+		return;
 	}
 
 	// No existing symbol located, try and search through the symbols of the cache.
@@ -101,295 +87,182 @@ void IdentifyStub(BinaryView& view, const SharedCacheController& controller, uin
 	if (!symbol.has_value())
 		return;
 
-	// NOTE: The type library name is expected to be the image name currently.
-	// Try and pull the type from the associated type library (if there is one)
-	Ref<Type> type = nullptr;
-	if (const auto image = controller.GetImageContaining(symbolAddr))
-		if (auto typeLib = TypeLibraryFromName(view, image->name))
-			type = view.ImportTypeLibraryObject(typeLib, {symbol->name});
-
-	// Define the symbol and type (if found)
-	auto targetFunc = view.GetAnalysisFunction(view.GetDefaultPlatform(), stubFuncAddr);
-	if (type && targetFunc)
+	// Try and retrieve a type for the stub function using type libraries.
+	if (const auto targetFunc = view.GetAnalysisFunction(view.GetDefaultPlatform(), stubFuncAddr))
 	{
-		targetFunc->SetUserType(type);
-		// TODO: When to reanalysis function (mark updates required?)
-		targetFunc->Reanalyze();
+		// NOTE: The type library name is expected to be the image name currently.
+		// Try and pull the type from the associated type library (if there is one)
+		Ref<Type> type = nullptr;
+		if (const auto image = controller.GetImageContaining(symbolAddr))
+			if (auto typeLib = TypeLibraryFromName(view, image->name))
+				type = view.ImportTypeLibraryObject(typeLib, {symbol->name});
+
+		if (type)
+			targetFunc->SetAutoType(type);
 	}
 
-	view.DefineUserSymbol(new Symbol(symbol->type, STUB_PREFIX + symbol->name, stubFuncAddr));
+	// Define the new symbol!
+	view.DefineAutoSymbol(new Symbol(symbol->type, STUB_PREFIX + symbol->name, stubFuncAddr));
 }
 
-// Loads the associated image or region for the specified target address. Returning if it was loaded or not.
-bool TryLoadTarget(BinaryView& view, SharedCacheController& controller, const uint64_t target) {
-	if (const auto image = controller.GetImageContaining(target))
-		return controller.ApplyImage(view, *image);
-	// Failed to find image, try and apply region instead.
-	if (const auto region = controller.GetRegionContaining(target))
-		return controller.ApplyRegion(view, *region);
-	return false;
-};
-
-void FixupStubs(Ref<AnalysisContext> ctx)
+void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, SharedCacheController& controller, bool loadImage)
 {
-	const auto func = ctx->GetFunction();
-	const auto view = func->GetView();
-	const auto mlil = ctx->GetMediumLevelILFunction();
-	if (!mlil)
-		return;
-	const auto mssa = mlil->GetSSAForm();
-	if (!mssa)
-		return;
+	// 1. Identify the load target and load the region, resolving the load to a const pointer.
+	// 2. We _should_ have a proper call now to the appropriate external function (external to the current image)
+	// 3. Rename and retype the current stub function to match the stub target (i.e. target is `foo`, sub function is `j_foo`)
 
-	auto workflowState = GetGlobalWorkflowState(view);
-	auto controller = SharedCacheController::GetController(*view);
-	if (!controller)
-		return;
-
-	// Get the containing section for section specific tasks.
-	auto funcStart = func->GetStart();
-	auto sections = view->GetSectionsAt(funcStart);
-	if (sections.empty())
-		return;
-	const auto& section = sections.front();
-	const auto sectionName = section->GetName();
-
-	// Load the target region if applicable and then trigger re-analysis for all functions in our section.
-	auto processStubImageCall = [&](const uint64_t target) {
-		// TODO: If this fails that doesn't necessarily mean we are duplicating work and thus allowing early return...
-		if (!workflowState->loadMutex.try_lock())
-			return;
-
-		if (!view->IsValidOffset(target) && TryLoadTarget(*view, *controller, target))
-		{
-			// Update all the functions inside our current activities function section.
-			for (const auto &sectFunc : view->GetAnalysisFunctionList())
-				if (section->GetStart() <= sectFunc->GetStart() && sectFunc->GetStart() < section->GetEnd())
-					sectFunc->Reanalyze();
-		}
-
-		workflowState->loadMutex.unlock();
-	};
-
-	// TODO: Split this out into another function.
-	// Processor that automatically loads the libObjC image when it encounters a stub (so we can do inlining).
-	if (workflowState->autoLoadObjCStubRequirements && sectionName.find("__objc_stubs") != std::string::npos)
-	{
-		auto firstInstruction = mlil->GetInstruction(0);
-		if (firstInstruction.operation == MLIL_TAILCALL)
-		{
-			auto dest = firstInstruction.GetDestExpr<MLIL_TAILCALL>();
-			if (dest.operation == MLIL_CONST_PTR)
-			{
-				// We're ready, everything is here
-				func->SetAutoInlinedDuringAnalysis(true);
-				return;
-			}
-		}
-
-		for (const auto& block : mssa->GetBasicBlocks())
-		{
-			for (size_t i = block->GetStart(), end = block->GetEnd(); i < end; ++i)
-			{
-				auto instr = mssa->GetInstruction(i);
-				if (instr.operation == MLIL_JUMP)
-				{
-					if (instr.GetDestExpr<MLIL_JUMP>().operation == MLIL_VAR_SSA)
-					{
-						auto dest = instr.GetDestExpr<MLIL_JUMP>();
-						auto value = mssa->GetSSAVarValue(dest.GetSourceSSAVariable());
-						if (value.state == UndeterminedValue)
-						{
-							auto def = mssa->GetSSAVarDefinition(dest.GetSourceSSAVariable());
-							auto defInstr = mssa->GetInstruction(def);
-							auto targetOffset = defInstr.GetSourceExpr().GetSourceExpr().GetConstant();
-							processStubImageCall(targetOffset);
-						}
-					}
-					else if (instr.GetDestExpr<MLIL_JUMP>().operation == MLIL_CONST_PTR)
-					{
-						auto dest = instr.GetDestExpr<MLIL_JUMP>();
-						auto targetOffset = dest.GetConstant();
-						processStubImageCall(targetOffset);
-					}
-				}
-			}
-		}
-
-		return;
-	}
-
-	// TODO: Split this out into another function.
-	// If this is a stub function we should map in the called region / image.
-	// NOTE: We cant use the region type here as these sections will be found under larger image region
-	// "_stubs" => Branch Islands / Stubs (iOS 16 / macOs)
-	// "dyld_shared_cache_branch_islands" => Branch Islands (iOS 11-?)
-	if (sectionName.rfind("_stubs") != std::string::npos || sectionName.rfind("dyld_shared_cache_branch_islands") != std::string::npos)
-	{
-		// Stage 0: Load the jumped to region, so that x16 is resolved.
-		// 0 @ 180359b58  (MLIL_SET_VAR.q x16 = (MLIL_LOAD.q [(MLIL_CONST_PTR.q &data_1eacf40f8)].q))
-		// 1 @ 180359b5c  (MLIL_JUMP jump((MLIL_VAR.q x16)))
-		for (const auto& block : mssa->GetBasicBlocks())
-		{
-			for (size_t i = block->GetStart(), end = block->GetEnd(); i < end; ++i)
-			{
-				auto instr = mssa->GetInstruction(i);
-				if (instr.operation == MLIL_JUMP)
-				{
-					if (instr.GetDestExpr<MLIL_JUMP>().operation == MLIL_VAR_SSA)
-					{
-						auto dest = instr.GetDestExpr<MLIL_JUMP>();
-						auto value = mssa->GetSSAVarValue(dest.GetSourceSSAVariable());
-						if (value.state == UndeterminedValue)
-						{
-							auto def = mssa->GetSSAVarDefinition(dest.GetSourceSSAVariable());
-							auto defInstr = mssa->GetInstruction(def);
-							auto targetOffset = defInstr.GetSourceExpr().GetSourceExpr().GetConstant();
-							// Load the region and re-analyze the current stub section.
-							processStubImageCall(targetOffset);
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-void IdentifyStubs(Ref<AnalysisContext> ctx)
-{
-	const auto func = ctx->GetFunction();
-	const auto view = func->GetView();
-	const auto mlil = ctx->GetMediumLevelILFunction();
-	if (!mlil)
-		return;
-	const auto mssa = mlil->GetSSAForm();
-	if (!mssa)
-		return;
-
-	auto workflowState = GetGlobalWorkflowState(view);
-	auto controller = SharedCacheController::GetController(*view);
-	if (!controller)
-		return;
-
-	// Get the containing section for section specific tasks.
-	auto funcStart = func->GetStart();
-	auto sections = view->GetSectionsAt(funcStart);
-	if (sections.empty())
-		return;
-	const auto& section = sections.front();
-	const auto sectionName = section->GetName();
-
-	auto jumpInstr = mssa->GetInstruction(0);
-	if (jumpInstr.operation == MLIL_JUMP)
-	{
-		auto dest = jumpInstr.GetDestExpr<MLIL_JUMP>();
-		if (dest.operation == MLIL_CONST_PTR)
-		{
-			auto targetOffset = dest.GetConstant();
-			IdentifyStub(*view, *controller, funcStart, targetOffset);
-		}
-	}
-}
-
-// TODO: FixupOffImageAccess
-void FixupOffImageCalls(Ref<AnalysisContext> ctx)
-{
-	const auto func = ctx->GetFunction();
-	const auto view = func->GetView();
-	const auto mlil = ctx->GetMediumLevelILFunction();
-	if (!mlil)
-		return;
-	const auto mssa = mlil->GetSSAForm();
-	if (!mssa)
-		return;
-
-	auto workflowState = GetGlobalWorkflowState(view);
-	auto controller = SharedCacheController::GetController(*view);
-	if (!controller)
-		return;
-
-	auto tryAddRegion = [&](const uint64_t regionAddr) {
-		const auto region = controller->GetRegionContaining(regionAddr);
+	auto view = func->GetView();
+	auto loadStubIslandRegion = [&](uint64_t regionAddr) {
+		auto region = controller.GetRegionContaining(regionAddr);
 		if (!region.has_value())
-			return;
-
-		// Load stub region if not already loaded and reanalyze the function (to pickup stub functions)
-		// TODO: Call mark updates required instead??? Use incremental update type instead???
-		// TODO: Should we _reanalyze_ all functions? Shouldn't analysis update because of the new region anyways?
-		if (workflowState->autoLoadStubsAndDyldData && region->type == SharedCacheRegionTypeStubIsland)
-			if (controller->ApplyRegion(*view, *region))
-				func->Reanalyze();
+			return false;
+		// Only interested in non image regions, we DON'T want to implicitly load image regions (with functions presumably).
+		if (region->type == SharedCacheRegionTypeImage)
+			return false;
+		// Adjust the new region semantics to read only, this helps analysis pickup constant loads in our stub functions.
+		region->flags = static_cast<BNSegmentFlag>(SegmentReadable | SegmentContainsData);
+		return controller.ApplyRegion(*view, *region);
 	};
 
-	// Load all unmapped STUB regions / images that are called in this function.
-	for (const auto& block : mssa->GetBasicBlocks())
+	// We allow the user to automatically load the directly referenced objc images as having the calls inlined is extremely useful for objc.
+	auto loadTargetImage = [&](uint64_t imageAddr) {
+		auto image = controller.GetImageContaining(imageAddr);
+		if (!image.has_value())
+			return false;
+		return controller.ApplyImage(*view, *image);
+	};
+
+	auto loadTarget = [&](uint64_t targetAddr) {
+		// Skip if already loaded.
+		if (view->IsValidOffset(targetAddr))
+			return false;
+		// If the stub function is allowed to load images (for inlining)
+		if (loadImage && loadTargetImage(targetAddr))
+			return true;
+		return loadStubIslandRegion(targetAddr);
+	};
+
+
+	auto processJumpExpr = [&](MediumLevelILInstruction expr) {
+		switch (expr.operation)
+		{
+		case MLIL_VAR_SSA:
+			{
+				const auto var = expr.GetSourceSSAVariable();
+				const auto varValue = mlil->GetSSAVarValue(var);
+				if (varValue.state != UndeterminedValue)
+					return;
+				// Analysis is not able to determine the jump location! We must load the target region and then
+				// set the variables value.
+				auto def = mlil->GetSSAVarDefinition(var);
+				auto defInstr = mlil->GetInstruction(def);
+				// TODO: This is 100% not OK, you need to verify the expr operation!
+				// targetOffset should be the address from where we load the jump address (i.e. the stub island).
+				const auto islandPtr = defInstr.GetSourceExpr().GetSourceExpr().GetConstant();
+				loadTarget(islandPtr);
+			}
+			break;
+		case MLIL_LOAD_SSA:
+			expr = expr.GetSourceExpr<MLIL_LOAD_SSA>();
+			if (expr.operation != MLIL_CONST_PTR)
+				return;
+			// Fallthrough to const ptr.
+		case MLIL_CONST_PTR:
+			{
+				// First load the stub island, if we _do_ load the stub island stop and reanalyze for constant propagation.'
+				const auto islandPtr = expr.GetConstant<MLIL_CONST_PTR>();
+				auto loaded = loadTarget(islandPtr);
+				if (loaded)
+					return;
+				// We have been promoted to the target pointer here!
+				const auto targetPtr = islandPtr;
+				// Here we expect the pointer value to be the address of the resulting function.
+				IdentifyStub(*view, controller, func->GetStart(), targetPtr);
+			}
+			break;
+		default:
+			break;
+		}
+	};
+
+	auto processTailcallExpr = [&](MediumLevelILInstruction expr) {
+		switch (expr.operation)
+		{
+		case MLIL_CONST_PTR:
+			// NOTE: This runs every single function update.
+				func->SetAutoInlinedDuringAnalysis(true);
+			break;
+		default:
+			break;
+		}
+	};
+
+	const auto basicBlocks = mlil->GetBasicBlocks();
+	for (const auto& block : basicBlocks)
 	{
 		for (size_t i = block->GetStart(), end = block->GetEnd(); i < end; ++i)
 		{
-			auto instr = mssa->GetInstruction(i);
-			if (instr.operation == MLIL_CALL_SSA)
+			auto instr = mlil->GetInstruction(i);
+			switch (instr.operation)
 			{
-				if (instr.GetDestExpr<MLIL_CALL_SSA>().operation == MLIL_CONST_PTR)
-				{
-					auto targetAddr = instr.GetDestExpr<MLIL_CALL_SSA>().GetConstant();
-					if (!view->IsValidOffset(targetAddr))
-					{
-						tryAddRegion(targetAddr);
-					}
-				}
+			case MLIL_JUMP:
+				processJumpExpr(instr.GetDestExpr<MLIL_JUMP>());
+				break;
+			case MLIL_TAILCALL_SSA:
+				processTailcallExpr(instr.GetDestExpr<MLIL_TAILCALL_SSA>());
+				break;
+			default:
+				break;
 			}
-			else if (instr.operation == MLIL_JUMP)
+		}
+	}
+}
+
+// Automatically load the stub regions.
+void AnalyzeStandardFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, SharedCacheController& controller)
+{
+	auto view = func->GetView();
+	auto loadStubIslandRegion = [&](uint64_t regionAddr) {
+		// Skip if already loaded.
+		if (view->IsValidOffset(regionAddr))
+			return false;
+		const auto region = controller.GetRegionContaining(regionAddr);
+		if (!region.has_value())
+			return false;
+		// Only interested in stub islands which would contain the pointers to other image functions.
+		if (region->type != SharedCacheRegionTypeStubIsland)
+			return false;
+
+		return controller.ApplyRegion(*view, *region);
+	};
+
+	auto processJumpExpr = [&](const MediumLevelILInstruction& expr) {
+		switch (expr.operation)
+		{
+		case MLIL_CONST_PTR:
+			loadStubIslandRegion(expr.GetConstant<MLIL_CONST_PTR>());
+			break;
+		default:
+			break;
+		}
+	};
+
+	// Load all unmapped STUB regions / images that are called in this function.
+	for (const auto& block : mlil->GetBasicBlocks())
+	{
+		for (size_t i = block->GetStart(), end = block->GetEnd(); i < end; ++i)
+		{
+			auto instr = mlil->GetInstruction(i);
+			switch (instr.operation)
 			{
-				auto destExpr = instr.GetDestExpr<MLIL_JUMP>();
-				if (destExpr.operation == MLIL_VAR_SSA)
-				{
-					// 1 @ 180359b5c  (MLIL_JUMP jump((MLIL_VAR.q x16)))
-					auto dest = instr.GetDestExpr<MLIL_JUMP>();
-					auto value = mssa->GetSSAVarValue(dest.GetSourceSSAVariable());
-					if (value.state == UndeterminedValue)
-					{
-						auto def = mssa->GetSSAVarDefinition(dest.GetSourceSSAVariable());
-						auto defInstr = mssa->GetInstruction(def);
-						if (defInstr.operation == MLIL_SET_VAR_SSA)
-						{
-							// 0 @ 180359b58  (MLIL_SET_VAR.q x16 = (MLIL_LOAD.q [(MLIL_CONST_PTR.q &data_1eacf40f8)].q))
-							auto loadExpr = defInstr.GetSourceExpr<MLIL_SET_VAR_SSA>();
-							if (loadExpr.operation == MLIL_LOAD_SSA)
-							{
-								auto ptrExpr = loadExpr.GetSourceExpr<MLIL_LOAD_SSA>();
-								if (ptrExpr.operation == MLIL_CONST_PTR)
-								{
-									auto targetAddr = ptrExpr.GetConstant();
-									if (!view->IsValidOffset(targetAddr))
-									{
-										tryAddRegion(targetAddr);
-									}
-								}
-							}
-						}
-					}
-				}
-				else if (destExpr.operation == MLIL_CONST_PTR)
-				{
-					// 4 @ 18aa08208  (MLIL_JUMP jump((MLIL_CONST_PTR.q 0x18c1369f0)))
-					auto targetAddr = destExpr.GetConstant();
-					if (!view->IsValidOffset(targetAddr))
-					{
-						tryAddRegion(targetAddr);
-					}
-				}
-				else if (destExpr.operation == MLIL_LOAD_SSA)
-				{
-					auto ptrExpr = destExpr.GetSourceExpr<MLIL_LOAD_SSA>();
-					if (ptrExpr.operation == MLIL_CONST_PTR)
-					{
-						auto targetAddr = ptrExpr.GetConstant();
-						if (!view->IsValidOffset(targetAddr))
-						{
-							tryAddRegion(targetAddr);
-						}
-					}
-				}
+				case MLIL_CALL_SSA:
+					processJumpExpr(instr.GetDestExpr<MLIL_CALL_SSA>());
+					break;
+				case MLIL_JUMP:
+					processJumpExpr(instr.GetDestExpr<MLIL_JUMP>());
+					break;
+				default:
+					break;
 			}
 			// TODO: Check all instructions for accesses to select region types (stub etc...)
 			// TODO: ^ we actually dont really need to do this, the other type of access cont..
@@ -400,11 +273,57 @@ void FixupOffImageCalls(Ref<AnalysisContext> ctx)
 	}
 }
 
-static constexpr auto WORKFLOW_DESCRIPTION = R"({
-  "title": "Shared Cache Workflow",
-  "description": "Shared Cache Workflow",
-  "capabilities": []
-})";
+void AnalyzeFunction(Ref<AnalysisContext> ctx)
+{
+	const auto func = ctx->GetFunction();
+	const auto view = func->GetView();
+	const auto mlil = ctx->GetMediumLevelILFunction();
+	if (!mlil)
+		return;
+	const auto mlilSsa = mlil->GetSSAForm();
+	if (!mlilSsa)
+		return;
+
+	auto workflowState = GetWorkflowState(view);
+	auto controller = SharedCacheController::GetController(*view);
+	if (!controller)
+		return;
+
+	// Get the containing section for section specific tasks.
+	auto funcStart = func->GetStart();
+	auto sections = view->GetSectionsAt(funcStart);
+	if (sections.empty())
+		return;
+	const auto& section = sections.front();
+	const auto sectionName = section->GetName();
+
+	enum FunctionType
+	{
+		StandardFunction,
+		StubFunction,
+		ObjCStubFunction,
+	};
+
+	// Identify the current analysis function type. We perform different analysis depending on the type.
+	FunctionType functionType = StandardFunction;
+	if (sectionName.rfind("__objc_stubs") != std::string::npos)
+		functionType = ObjCStubFunction;
+	else if (sectionName.rfind("_stubs") != std::string::npos || sectionName.rfind("_branch_islands") != std::string::npos)
+		functionType = StubFunction;
+
+	switch (functionType)
+	{
+		case StandardFunction:
+			AnalyzeStandardFunction(func, mlilSsa, *controller);
+			break;
+		case StubFunction:
+			AnalyzeStubFunction(func, mlilSsa, *controller, false);
+			break;
+		case ObjCStubFunction:
+			AnalyzeStubFunction(func, mlilSsa, *controller, workflowState->autoLoadObjCStubRequirements);
+			break;
+	}
+}
 
 void SharedCacheWorkflow::Register()
 {
@@ -412,11 +331,17 @@ void SharedCacheWorkflow::Register()
 
 	// Register and insert activities here.
 	ObjCActivity::Register(*workflow);
-	workflow->RegisterActivity(new Activity("core.analysis.sharedCache.stubs", &FixupStubs));
-	workflow->RegisterActivity(new Activity("core.analysis.sharedCache.identifyStubs", &IdentifyStubs));
-	workflow->RegisterActivity(new Activity("core.analysis.sharedCache.calls", &FixupOffImageCalls));
-	std::vector<std::string> inserted = { "core.analysis.sharedCache.stubs", "core.analysis.sharedCache.calls", "core.analysis.sharedCache.identifyStubs" };
+	workflow->RegisterActivity(new Activity("core.analysis.sharedCache.processStubFunction", &AnalyzeFunction));
+	std::vector<std::string> inserted = {
+		"core.analysis.sharedCache.processStubFunction"
+	};
 	workflow->Insert("core.function.analyzeTailCalls", inserted);
+
+	static constexpr auto WORKFLOW_DESCRIPTION = R"({
+	  "title": "Shared Cache Workflow",
+	  "description": "Shared Cache Workflow",
+	  "capabilities": []
+	})";
 
 	Workflow::RegisterWorkflow(workflow, WORKFLOW_DESCRIPTION);
 }
