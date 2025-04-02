@@ -176,9 +176,9 @@ uint64_t SharedCacheMachOProcessor::ApplyHeaderSections(SharedCacheMachOHeader& 
 			semantics = ReadOnlyDataSectionSemantics;
 		if (strncmp(section.sectname, "__data", sizeof(section.sectname)) == 0)
 			semantics = ReadWriteDataSectionSemantics;
-		if (strncmp(section.segname, "__DATA_CONST", sizeof(section.segname)) == 0)
+		if (strncmp(section.sectname, "__auth_got", sizeof(section.sectname)) == 0)
 			semantics = ReadOnlyDataSectionSemantics;
-		if (strncmp(section.segname, "__auth_got", sizeof(section.segname)) == 0)
+		if (strncmp(section.segname, "__DATA_CONST", sizeof(section.segname)) == 0)
 			semantics = ReadOnlyDataSectionSemantics;
 
 		m_view->AddUserSection(sectionName, section.addr, section.size, semantics, type, section.align);
