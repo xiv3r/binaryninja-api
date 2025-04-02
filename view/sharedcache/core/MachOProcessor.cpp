@@ -35,7 +35,7 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			auto targetPlatform = m_view->GetDefaultPlatform();
 			auto functions = header.ReadFunctionTable(*m_vm);
 			for (const auto& func : functions)
-				m_view->AddFunctionForAnalysis(targetPlatform, func, true);
+				m_view->AddFunctionForAnalysis(targetPlatform, func, false);
 		}
 
 		auto typeLib = m_view->GetTypeLibrary(header.installName);

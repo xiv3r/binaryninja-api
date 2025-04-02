@@ -71,30 +71,36 @@ void ApplySymbol(Ref<BinaryView> view, Ref<TypeLibrary> typeLib, Ref<Symbol> sym
 	auto symbolAddress = symbol->GetAddress();
 	auto symbolName = symbol->GetFullName();
 
+	// Sometimes the symbol will be duplicated, so lets not do this work again.
+	if (view->GetSymbolByAddress(symbolAddress))
+		return;
+
+	// Define the symbol!
+	view->DefineAutoSymbol(symbol);
+
+	// Try and pull a type to apply at the symbol location.
+	Ref<Type> type = nullptr;
+	if (typeLib)
+		type = view->ImportTypeLibraryObject(typeLib, {symbolName});
+
 	if (symbol->GetType() == FunctionSymbol)
 	{
 		Ref<Platform> targetPlatform = view->GetDefaultPlatform();
-		func = view->AddFunctionForAnalysis(targetPlatform, symbolAddress, true);
-	}
-
-	if (typeLib)
-	{
-		auto type = view->ImportTypeLibraryObject(typeLib, {symbolName});
-		// TODO: This is still auto
-		if (type)
-			view->DefineAutoSymbolAndVariableOrFunction(view->GetDefaultPlatform(), symbol, type);
-		else
-			view->DefineAutoSymbol(symbol);
+		// Make sure to check for already added function from the function table.
+		// Unless we have retrieved a type here we don't need to make a new function.
+		func = view->GetAnalysisFunction(targetPlatform, symbolAddress);
+		if (!func || type)
+			func = view->AddFunctionForAnalysis(targetPlatform, symbolAddress, false, type);
 	}
 	else
 	{
-		view->DefineAutoSymbol(symbol);
+		// Other symbol types can just use this, they don't need to worry about linear sweep removing them.
+		view->DefineAutoSymbolAndVariableOrFunction(view->GetDefaultPlatform(), symbol, type);
 	}
 
-	if (!func)
-		func = view->GetAnalysisFunction(view->GetDefaultPlatform(), symbolAddress);
 	if (func)
 	{
+		// objective c type adjustment stuff.
 		if (symbolName == "_objc_msgSend")
 		{
 			func->SetHasVariableArguments(false);
