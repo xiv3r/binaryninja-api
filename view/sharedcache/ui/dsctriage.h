@@ -158,7 +158,7 @@ public:
 		if (index.data(Qt::DisplayRole).toString() == "1")
 		{
 			QPixmap loadedIcon;
-			pixmapForBWMaskIcon(":/icons/images/download.png", &loadedIcon, SidebarHeaderTextColor);
+			pixmapForBWMaskIcon(":/icons/images/check.png", &loadedIcon, SidebarHeaderTextColor);
 			if (!loadedIcon.isNull())
 			{
 				QSize pixmapSize(20, 20);
