@@ -111,8 +111,13 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 				[loadImageTable, loadImagesWithAddr](bool) {
 					auto selected = loadImageTable->selectionModel()->selectedRows();
 					std::vector<uint64_t> addresses;
-					for (const auto& row : selected)
-						addresses.push_back(row.data().toString().toULongLong(nullptr, 16));
+					for (const auto& idx : selected)
+					{
+						// Skip rows hidden by the filter.
+						if (loadImageTable->isRowHidden(idx.row()))
+							continue;
+						addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
+					}
 					loadImagesWithAddr(addresses);
 				});
 			loadImageButton->setText("Load Selected");
