@@ -73,7 +73,7 @@ void FileAccessorWriteLog::AddPointer(const size_t address, const size_t pointer
 {
 	// TODO: A sharded map here would be better. see: rust dashmap
 	std::unique_lock<std::shared_mutex> lock(m_persistedMutex);
-	m_persistedPointers[address] = pointer;
+	m_persistedPointers.emplace_back(address, pointer);
 }
 
 void FileAccessorWriteLog::ApplyWrites(MappedFileAccessor& accessor)

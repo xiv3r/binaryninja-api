@@ -46,7 +46,7 @@ struct FileAccessorWriteLog
 	// To persist writes to a file accessor being revived (within the lock() function)
 	// we keep a list of writes that will be re-applied in the lock function.
 	std::shared_mutex m_persistedMutex;
-	std::unordered_map<size_t, uint64_t> m_persistedPointers;
+	std::vector<std::pair<size_t, uint64_t>> m_persistedPointers;
 
 	FileAccessorWriteLog() = default;
 
