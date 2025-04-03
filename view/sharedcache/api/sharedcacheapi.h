@@ -287,6 +287,8 @@ namespace SharedCacheAPI {
 		BNSymbolType type;
 		uint64_t address;
 		std::string name;
+
+		BinaryNinja::Ref<BinaryNinja::Symbol> GetBNSymbol(BinaryNinja::BinaryView& view) const;
 	};
 
 	std::string GetSymbolTypeAsString(const BNSymbolType& type);

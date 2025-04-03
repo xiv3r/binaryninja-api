@@ -125,6 +125,16 @@ std::string SharedCacheAPI::GetRegionTypeAsString(const BNSharedCacheRegionType 
 	}
 }
 
+Ref<Symbol> CacheSymbol::GetBNSymbol(BinaryView &view) const
+{
+	QualifiedName qname;
+	Ref<Type> outType;
+	std::string shortName = name;
+	if (DemangleGeneric(view.GetDefaultArchitecture(), name, outType, qname, &view, true))
+		shortName = qname.GetString();
+	return new Symbol(type, shortName, shortName, name, address, nullptr);
+}
+
 std::string SharedCacheAPI::GetSymbolTypeAsString(const BNSymbolType &type)
 {
 	// NOTE: We currently only use the function and data symbol for cache symbols.

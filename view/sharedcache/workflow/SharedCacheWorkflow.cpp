@@ -220,6 +220,15 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 void AnalyzeStandardFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, SharedCacheController& controller)
 {
 	auto view = func->GetView();
+	auto identifyUnmappedSymbol = [&](uint64_t symbolAddr) {
+		// Skip if already loaded.
+		if (view->IsValidOffset(symbolAddr))
+			return false;
+		const auto symbol = controller.GetSymbolAt(symbolAddr);
+		view->DefineAutoSymbol(symbol->GetBNSymbol(*view));
+		return true;
+	};
+
 	auto loadStubIslandRegion = [&](uint64_t regionAddr) {
 		// Skip if already loaded.
 		if (view->IsValidOffset(regionAddr))
@@ -239,6 +248,7 @@ void AnalyzeStandardFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil
 		{
 		case MLIL_CONST_PTR:
 			loadStubIslandRegion(expr.GetConstant<MLIL_CONST_PTR>());
+			identifyUnmappedSymbol(expr.GetConstant<MLIL_CONST_PTR>());
 			break;
 		default:
 			break;
