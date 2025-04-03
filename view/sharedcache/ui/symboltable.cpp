@@ -3,6 +3,8 @@
 
 #include <QHeaderView>
 
+#include "ui/fontsettings.h"
+
 #include "binaryninjaapi.h"
 
 using namespace BinaryNinja;
@@ -10,6 +12,8 @@ using namespace SharedCacheAPI;
 
 SymbolTableModel::SymbolTableModel(SymbolTableView* parent)
 	: QAbstractTableModel(parent), m_parent(parent) {
+	// TODO: Need to implement updating this font if it is changed by the user
+	m_font = getMonospaceFont(parent);
 }
 
 int SymbolTableModel::rowCount(const QModelIndex& parent) const {
@@ -24,20 +28,31 @@ int SymbolTableModel::columnCount(const QModelIndex& parent) const {
 }
 
 QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
-	if (!index.isValid() || role != Qt::DisplayRole) {
+	if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::FontRole)) {
 		return QVariant();
 	}
 
-	auto symbol = symbolAt(index.row());
-	auto symbolType = GetSymbolTypeAsString(symbol.type);
+	switch (role)
+	{
+	case Qt::DisplayRole:
+	{
+		auto symbol = symbolAt(index.row());
+		auto symbolType = GetSymbolTypeAsString(symbol.type);
 
-	switch (index.column()) {
-	case 0: // Address column
-		return QString("0x%1").arg(symbol.address, 0, 16); // Display address as hexadecimal
-	case 1: // Type column
-		return QString::fromUtf8(symbolType.c_str(), symbolType.size());
-	case 2: // Name column
-		return QString::fromUtf8(symbol.name.c_str(), symbol.name.size());
+		switch (index.column())
+		{
+		case 0: // Address column
+			return QString("0x%1").arg(symbol.address, 0, 16); // Display address as hexadecimal
+		case 1: // Type column
+			return QString::fromUtf8(symbolType.c_str(), symbolType.size());
+		case 2: // Name column
+			return QString::fromUtf8(symbol.name.c_str(), symbol.name.size());
+		default:
+			return QVariant();
+		}
+	}
+	case Qt::FontRole:
+		return m_font;
 	default:
 		return QVariant();
 	}

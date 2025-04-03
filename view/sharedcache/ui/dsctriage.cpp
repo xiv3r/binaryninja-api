@@ -97,30 +97,27 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 	auto loadImageTable = new FilterableTableView;
 	{
 		m_imageModel = new QStandardItemModel(0, 3, loadImageTable);
-		{
-			m_imageModel->setHorizontalHeaderLabels({"Address", "Loaded", "Name"});
-		} // loadImageModel
+		m_imageModel->setHorizontalHeaderLabels({"Address", "Loaded", "Name"});
 
-		// Show the icon in the loaded column.
+		// Apply custom column styling
+		loadImageTable->setItemDelegateForColumn(0, new AddressColorDelegate(loadImageTable));
 		loadImageTable->setItemDelegateForColumn(1, new LoadedDelegate());
 
 		auto loadImageButton = new QPushButton();
-		{
-			connect(loadImageButton, &QPushButton::clicked,
-				[loadImageTable, loadImagesWithAddr](bool) {
-					auto selected = loadImageTable->selectionModel()->selectedRows();
-					std::vector<uint64_t> addresses;
-					for (const auto& idx : selected)
-					{
-						// Skip rows hidden by the filter.
-						if (loadImageTable->isRowHidden(idx.row()))
-							continue;
-						addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
-					}
-					loadImagesWithAddr(addresses);
-				});
-			loadImageButton->setText("Load Selected");
-		} // loadImageButton
+		connect(loadImageButton, &QPushButton::clicked,
+			[loadImageTable, loadImagesWithAddr](bool) {
+				auto selected = loadImageTable->selectionModel()->selectedRows();
+				std::vector<uint64_t> addresses;
+				for (const auto& idx : selected)
+				{
+					// Skip rows hidden by the filter.
+					if (loadImageTable->isRowHidden(idx.row()))
+						continue;
+					addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
+				}
+				loadImagesWithAddr(addresses);
+			});
+		loadImageButton->setText("Load Selected");
 
 		auto refreshDataButton = new QPushButton();
 		{
@@ -130,17 +127,14 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		} // refreshDataButton
 
 		auto loadImageFilterEdit = new FilterEdit(loadImageTable);
-		{
-			connect(loadImageFilterEdit, &FilterEdit::textChanged, [loadImageTable](const QString& filter) {
-				loadImageTable->setFilter(filter.toStdString());
-			});
-		} // loadImageFilterEdit
+		connect(loadImageFilterEdit, &FilterEdit::textChanged, [loadImageTable](const QString& filter) {
+			loadImageTable->setFilter(filter.toStdString());
+		});
 
-		connect(loadImageTable, &FilterableTableView::activated, this, [=](const QModelIndex& index)
-			{
-				auto addr = m_imageModel->item(index.row(), 0)->text().toULongLong(nullptr, 16);
-				loadImagesWithAddr({addr});
-			});
+		connect(loadImageTable, &FilterableTableView::activated, this, [=](const QModelIndex& index) {
+			auto addr = m_imageModel->item(index.row(), 0)->text().toULongLong(nullptr, 16);
+			loadImagesWithAddr({addr});
+		});
 
 		auto loadImageLayout = new QVBoxLayout;
 		loadImageLayout->addWidget(loadImageFilterEdit);
@@ -178,11 +172,12 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 	m_symbolTable = new SymbolTableView(this);
 	{
 		auto symbolFilterEdit = new FilterEdit(m_symbolTable);
-		{
-			connect(symbolFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-				m_symbolTable->setFilter(filter.toStdString());
-			});
-		}
+		connect(symbolFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
+			m_symbolTable->setFilter(filter.toStdString());
+		});
+
+		// Apply custom column styling
+		m_symbolTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_symbolTable));
 
 		auto loadSymbolImageButton = new QPushButton();
 		{
@@ -270,6 +265,9 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		m_mappingModel = new QStandardItemModel(0, 4, mappingTable);
 		m_mappingModel->setHorizontalHeaderLabels({"Address", "Size", "File Address", "File Path"});
 
+		// Apply custom column styling
+		mappingTable->setItemDelegateForColumn(0, new AddressColorDelegate(mappingTable));
+
 		mappingTable->setModel(m_mappingModel);
 
 		mappingTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -289,6 +287,9 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		auto regionTable = new FilterableTableView(cacheInfoSubwidget);
 		m_regionModel = new QStandardItemModel(0, 4, regionTable);
 		m_regionModel->setHorizontalHeaderLabels({"Address", "Size", "Type", "Name"});
+
+		// Apply custom column styling
+		regionTable->setItemDelegateForColumn(0, new AddressColorDelegate(regionTable));
 
 		regionTable->setModel(m_regionModel);
 

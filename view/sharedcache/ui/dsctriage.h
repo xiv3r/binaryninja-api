@@ -14,8 +14,27 @@
 #include "filter.h"
 #include "symboltable.h"
 
+#include "ui/fontsettings.h"
+
 #ifndef BINARYNINJA_DSCTRIAGE_H
 #define BINARYNINJA_DSCTRIAGE_H
+
+class AddressColorDelegate : public QStyledItemDelegate
+{
+
+public:
+	AddressColorDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
+
+	void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+	{
+		QStyleOptionViewItem opt = option;
+		initStyleOption(&opt, index);
+
+		opt.palette.setColor(QPalette::Text, getThemeColor(BNThemeColor::AddressColor));
+
+		QStyledItemDelegate::paint(painter, opt, index);
+	}
+};
 
 class FilterableTableView : public QTableView, public FilterTarget {
 	Q_OBJECT
@@ -26,6 +45,7 @@ public:
 	explicit FilterableTableView(QWidget* parent = nullptr, bool filterByHiding = true)
 		: QTableView(parent), m_filterByHiding(filterByHiding) {
 		viewport()->installEventFilter(this);
+		setFont(getMonospaceFont(parent));
 	}
 
 	~FilterableTableView() override = default;
