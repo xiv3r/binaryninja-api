@@ -1767,7 +1767,7 @@ PythonScriptingProvider.register_magic_variable(
 
 def _get_current_token(instance: PythonScriptingInstance):
 	if instance.interpreter.locals["current_ui_token_state"] is not None:
-		if instance.interpreter.locals["current_ui_token_state"].valid:
+		if instance.interpreter.locals["current_ui_token_state"].tokenIndex != 0xffffffff:  # BN_INVALID_OPERAND
 			return instance.interpreter.locals["current_ui_token_state"].token
 	return None
 
@@ -1806,6 +1806,19 @@ PythonScriptingProvider.register_magic_variable(
 	"current_il_index",
 	_get_current_il_index,
 	depends_on=["current_ui_view_location"]
+)
+
+
+def _get_current_il_expr_index(instance: PythonScriptingInstance):
+	if instance.interpreter.locals["current_token"] is not None:
+		return instance.interpreter.locals["current_token"].il_expr_index
+	return None
+
+
+PythonScriptingProvider.register_magic_variable(
+	"current_il_expr_index",
+	_get_current_il_expr_index,
+	depends_on=["current_token"]
 )
 
 
@@ -1866,6 +1879,25 @@ PythonScriptingProvider.register_magic_variable(
 	_get_current_il_instruction,
 	depends_on=[
 		"current_il_index",
+		"current_il_function"
+	]
+)
+
+
+def _get_current_il_expr(instance: PythonScriptingInstance):
+	if instance.interpreter.locals["current_il_function"] is not None \
+			and instance.interpreter.locals["current_il_expr_index"] is not None:
+		return instance.interpreter.locals["current_il_function"].get_expr(
+			instance.interpreter.locals["current_il_expr_index"]
+		)
+	return None
+
+
+PythonScriptingProvider.register_magic_variable(
+	"current_il_expr",
+	_get_current_il_expr,
+	depends_on=[
+		"current_il_expr_index",
 		"current_il_function"
 	]
 )
