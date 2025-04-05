@@ -735,7 +735,7 @@ static void LoadStoreOperandPair(LowLevelILFunction& il, bool load, InstructionO
 
 
 static void LoadStoreVector(
-    LowLevelILFunction& il, bool is_load, InstructionOperand& oper0, InstructionOperand& oper1)
+    LowLevelILFunction& il, bool is_load, InstructionOperand& oper0, InstructionOperand& oper1, bool replicate=false)
 {
 	/* do pre-indexing */
 	ExprId tmp = GetILOperandPreIndex(il, oper1);
@@ -748,18 +748,136 @@ static void LoadStoreVector(
 	/* if we pre-indexed, base sequential effective addresses off the base register */
 	OperandClass oclass = (oper1.operandClass == MEM_PRE_IDX) ? MEM_REG : oper1.operandClass;
 
-	int offset = 0;
-	for (int i = 0; i < regs_n; ++i)
+	int arrspec_size = 1;
+	int arrspec_count = 1;
+
+	bool lanes = oper0.laneUsed;
+
+	// int Q = 0;
+	// switch (oper0.arrSpec)
+	// {
+	// case ARRSPEC_8BYTES:
+	// case ARRSPEC_4HALVES:
+	// case ARRSPEC_2SINGLES:
+	// case ARRSPEC_1DOUBLE:
+	// 	Q = 0;
+	// 	break;
+	// case ARRSPEC_16BYTES:
+	// case ARRSPEC_8HALVES:
+	// case ARRSPEC_4SINGLES:
+	// case ARRSPEC_2DOUBLES:
+	// 	Q = 1;
+	// 	break;
+	// default:
+	// 	// should never happen unless the disassembler is broken
+	// 	LogWarn("Invalid arrangement specification");
+	// 	return;
+	// }
+	// int enc_size = 0;
+	switch (oper0.arrSpec)
 	{
-		int rsize = get_register_size(regs[i]);
-		ExprId eaddr = GetILOperandEffectiveAddress(il, oper1, 8, oclass, offset);
+	case ARRSPEC_1BYTE:
+	case ARRSPEC_4BYTES:
+	case ARRSPEC_8BYTES:
+	case ARRSPEC_16BYTES:
+		// enc_size = 0;
+		arrspec_size = 1;
+		break;
+	case ARRSPEC_1HALF:
+	case ARRSPEC_2HALVES:
+	case ARRSPEC_4HALVES:
+	case ARRSPEC_8HALVES:
+		// enc_size = 1;
+		arrspec_size = 2;
+		break;
+	case ARRSPEC_1SINGLE:
+	case ARRSPEC_2SINGLES:
+	case ARRSPEC_4SINGLES:
+		// enc_size = 2;
+		arrspec_size = 4;
+		break;
+	case ARRSPEC_1DOUBLE:
+	case ARRSPEC_2DOUBLES:
+		// enc_size = 3;
+		arrspec_size = 8;
+		break;
+	default:
+		// should never happen unless the disassembler is broken
+		LogWarn("Invalid arrangement specification");
+		return;
+	}
 
-		if (is_load)
-			il.AddInstruction(il.SetRegister(rsize, regs[i], il.Load(rsize, eaddr)));
-		else
-			il.AddInstruction(il.Store(rsize, eaddr, il.Register(rsize, regs[i])));
+	switch (oper0.arrSpec)
+	{
+	case ARRSPEC_16BYTES:
+		arrspec_count = 16;
+		break;
+	case ARRSPEC_8BYTES:
+	case ARRSPEC_8HALVES:
+		arrspec_count = 8;
+		break;
+	case ARRSPEC_4BYTES:
+	case ARRSPEC_4HALVES:
+	case ARRSPEC_4SINGLES:
+		arrspec_count = 4;
+		break;
+	case ARRSPEC_2HALVES:
+	case ARRSPEC_2SINGLES:
+	case ARRSPEC_2DOUBLES:
+		arrspec_count = 2;
+		break;
+	case ARRSPEC_1BYTE:
+	case ARRSPEC_1HALF:
+	case ARRSPEC_1SINGLE:
+	case ARRSPEC_1DOUBLE:
+		arrspec_count = 1;
+		break;
+	default:
+		// should never happen unless the disassembler is broken
+		LogWarn("Invalid arrangement specification");
+		return;
+	}
+	int offset = 0;
+	if (lanes)
+		arrspec_count = 1;
+	int lane = lanes ? oper0.lane : 0;
+	int rsize = arrspec_size;
+	if (replicate)
+		// load first into temp register for replication
+		il.AddInstruction(il.SetRegister(rsize, LLIL_TEMP(0), il.Load(rsize,
+			GetILOperandEffectiveAddress(il, oper1, 8, oclass, offset))));
+	for (int j = 0; j < arrspec_count; j++)
+	{
+		for (int i = 0; i < regs_n; ++i)
+		{
+			int reg_spec_base = (oper0.reg[0] + i - REG_V0) * (16 / arrspec_size) + lane;
+			Register reg;
+			switch (arrspec_size)
+			{
+			case 1:
+				reg = (Register)(reg_spec_base + REG_V0_B0);
+				break;
+			case 2:
+				reg = (Register)(reg_spec_base + REG_V0_H0);
+				break;
+			case 4:
+				reg = (Register)(reg_spec_base + REG_V0_S0);
+				break;
+			case 8:
+				reg = (Register)(reg_spec_base + REG_V0_D0);
+				break;
+			}
 
-		offset += rsize;
+			ExprId eaddr = GetILOperandEffectiveAddress(il, oper1, 8, oclass, offset);
+			if (is_load)
+				il.AddInstruction(il.SetRegister(rsize, reg + j, replicate ?
+					il.Register(rsize, LLIL_TEMP(0)) // replicate: already loaded
+					:
+					il.Load(rsize, eaddr))); // single-lane: do the load inline
+			else
+				il.AddInstruction(il.Store(rsize, eaddr, il.Register(rsize, reg + j)));
+			offset += rsize;
+		}
 	}
 
 	/* do post-indexing */
@@ -2167,8 +2285,19 @@ bool GetLowLevelILForInstruction(
 	case ARM64_STLXRH:
 		il.AddInstruction(il.Intrinsic({ RegisterOrFlag::Register(REG_O(operand1)) }, ARM64_INTRIN_STLXRH, { ILREG_O(operand2), ILREG_O(operand3) }));
 		break;
+	case ARM64_LD1R:
+	case ARM64_LD2R:
+	case ARM64_LD3R:
+	case ARM64_LD4R:
+		if (true || !preferIntrinsics())  // For now, forcibly disable intrinsics (they are incomplete, and this could help dataflow)
+			LoadStoreVector(il, true, instr.operands[0], instr.operands[1], true);
+		break;
 	case ARM64_LD1:
-		LoadStoreVector(il, true, instr.operands[0], instr.operands[1]);
+	case ARM64_LD2:
+	case ARM64_LD3:
+	case ARM64_LD4:
+		if (true || !preferIntrinsics())  // For now, forcibly disable intrinsics (they are incomplete, and this could help dataflow)
+			LoadStoreVector(il, true, instr.operands[0], instr.operands[1]);
 		break;
 	case ARM64_LDADD:
 	case ARM64_LDADDA:
@@ -2244,6 +2373,230 @@ bool GetLowLevelILForInstruction(
 		// STADD* are aliases of the corresponding LDADD*, so group them together
 		il.AddInstruction(il.Store(2, ILREG_O(operand2),
 		    il.Add(2, il.LowPart(2, ILREG_O(operand1)), il.Load(2, ILREG_O(operand2)))));
+		break;
+	case ARM64_LDCLR:
+	case ARM64_LDCLRA:
+	case ARM64_LDCLRL:
+	case ARM64_LDCLRAL:
+	{
+		// TODO: represent/annotate (model?) acquire/release memory ordering semantics for all LDCLR* instructions
+
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, REGSZ_O(operand2), tmp, operand3);
+		il.AddInstruction(il.Store(REGSZ_O(operand2), ILREG_O(operand3),
+		    il.And(REGSZ_O(operand1),
+				il.Not(REGSZ_O(operand1), ILREG_O(operand1)),
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.Register(REGSZ_O(operand2), LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.Register(REGSZ_O(operand2), LLIL_TEMP(0)))));
+		break;
+	}
+	case ARM64_STCLR:
+	case ARM64_STCLRL:
+		// STCLR* are aliases of the corresponding LDCLR*, so group them together
+		il.AddInstruction(il.Store(REGSZ_O(operand2), ILREG_O(operand2),
+			il.And(REGSZ_O(operand1),
+				il.Not(REGSZ_O(operand1), ILREG_O(operand1)),
+				il.Load(REGSZ_O(operand1), ILREG_O(operand2)))));
+		break;
+	case ARM64_LDCLRB:
+	case ARM64_LDCLRAB:
+	case ARM64_LDCLRLB:
+	case ARM64_LDCLRALB:
+	{
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, 1, tmp, operand3);
+		il.AddInstruction(il.Store(1, ILREG_O(operand3),
+		    il.And(1, il.Not(1, il.LowPart(1, ILREG_O(operand1))), il.LowPart(1, il.Register(1, LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.LowPart(1, il.Register(1, LLIL_TEMP(0))))));
+		break;
+	}
+	case ARM64_STCLRB:
+	case ARM64_STCLRLB:
+		// STCLR* are aliases of the corresponding LDCLR*, so group them together
+		il.AddInstruction(il.Store(1, ILREG_O(operand2),
+		    il.And(1, il.Not(1, il.LowPart(1, ILREG_O(operand1))), il.Load(1, ILREG_O(operand2)))));
+		break;
+	case ARM64_LDCLRH:
+	case ARM64_LDCLRAH:
+	case ARM64_LDCLRLH:
+	case ARM64_LDCLRALH:
+	{
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, 2, tmp, operand3);
+		il.AddInstruction(il.Store(2, ILREG_O(operand3),
+		    il.And(2, il.Not(2, il.LowPart(2, ILREG_O(operand1))), il.LowPart(2, il.Register(2, LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.LowPart(2, il.Register(2, LLIL_TEMP(0))))));
+		break;
+	}
+	case ARM64_STCLRH:
+	case ARM64_STCLRLH:
+		// STCLR* are aliases of the corresponding LDCLR*, so group them together
+		il.AddInstruction(il.Store(2, ILREG_O(operand2),
+		    il.And(2, il.Not(2, il.LowPart(2, ILREG_O(operand1))), il.Load(2, ILREG_O(operand2)))));
+		break;
+	case ARM64_LDEOR:
+	case ARM64_LDEORA:
+	case ARM64_LDEORL:
+	case ARM64_LDEORAL:
+	{
+		// TODO: represent/annotate (model?) acquire/release memory ordering semantics for all LDEOR* instructions
+
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, REGSZ_O(operand2), tmp, operand3);
+		il.AddInstruction(il.Store(REGSZ_O(operand2), ILREG_O(operand3),
+		    il.Xor(REGSZ_O(operand1),
+				ILREG_O(operand1),
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.Register(REGSZ_O(operand2), LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.Register(REGSZ_O(operand2), LLIL_TEMP(0)))));
+		break;
+	}
+	case ARM64_STEOR:
+	case ARM64_STEORL:
+		// STEOR* are aliases of the corresponding LDEOR*, so group them together
+		il.AddInstruction(il.Store(REGSZ_O(operand2), ILREG_O(operand2),
+		    il.Xor(REGSZ_O(operand1), ILREG_O(operand1), il.Load(REGSZ_O(operand1), ILREG_O(operand2)))));
+		break;
+	case ARM64_LDEORB:
+	case ARM64_LDEORAB:
+	case ARM64_LDEORLB:
+	case ARM64_LDEORALB:
+	{
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, 1, tmp, operand3);
+		il.AddInstruction(il.Store(1, ILREG_O(operand3),
+		    il.Xor(1, il.LowPart(1, ILREG_O(operand1)), il.LowPart(1, il.Register(1, LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.LowPart(1, il.Register(1, LLIL_TEMP(0))))));
+		break;
+	}
+	case ARM64_STEORB:
+	case ARM64_STEORLB:
+		// STEOR* are aliases of the corresponding LDEOR*, so group them together
+		il.AddInstruction(il.Store(1, ILREG_O(operand2),
+		    il.Xor(1, il.LowPart(1, ILREG_O(operand1)), il.Load(1, ILREG_O(operand2)))));
+		break;
+	case ARM64_LDEORH:
+	case ARM64_LDEORAH:
+	case ARM64_LDEORLH:
+	case ARM64_LDEORALH:
+	{
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, 2, tmp, operand3);
+		il.AddInstruction(il.Store(2, ILREG_O(operand3),
+		    il.Xor(2, il.LowPart(2, ILREG_O(operand1)), il.LowPart(2, il.Register(2, LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.LowPart(2, il.Register(2, LLIL_TEMP(0))))));
+		break;
+	}
+	case ARM64_STEORH:
+	case ARM64_STEORLH:
+		// STEOR* are aliases of the corresponding LDEOR*, so group them together
+		il.AddInstruction(il.Store(2, ILREG_O(operand2),
+		    il.Xor(2, il.LowPart(2, ILREG_O(operand1)), il.Load(2, ILREG_O(operand2)))));
+		break;
+	case ARM64_LDSET:
+	case ARM64_LDSETA:
+	case ARM64_LDSETL:
+	case ARM64_LDSETAL:
+	{
+		// TODO: represent/annotate (model?) acquire/release memory ordering semantics for all LDSET* instructions
+
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, REGSZ_O(operand2), tmp, operand3);
+		il.AddInstruction(il.Store(REGSZ_O(operand2), ILREG_O(operand3),
+		    il.Or(REGSZ_O(operand1),
+				ILREG_O(operand1),
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.Register(REGSZ_O(operand2), LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.Register(REGSZ_O(operand2), LLIL_TEMP(0)))));
+		break;
+	}
+	case ARM64_STSET:
+	case ARM64_STSETL:
+		// STSET* are aliases of the corresponding LDSET*, so group them together
+		il.AddInstruction(il.Store(REGSZ_O(operand2), ILREG_O(operand2),
+		    il.Or(REGSZ_O(operand1), ILREG_O(operand1), il.Load(REGSZ_O(operand1), ILREG_O(operand2)))));
+		break;
+	case ARM64_LDSETB:
+	case ARM64_LDSETAB:
+	case ARM64_LDSETLB:
+	case ARM64_LDSETALB:
+	{
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, 1, tmp, operand3);
+		il.AddInstruction(il.Store(1, ILREG_O(operand3),
+		    il.Or(1, il.LowPart(1, ILREG_O(operand1)), il.LowPart(1, il.Register(1, LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.LowPart(1, il.Register(1, LLIL_TEMP(0))))));
+		break;
+	}
+	case ARM64_STSETB:
+	case ARM64_STSETLB:
+		// STSET* are aliases of the corresponding LDSET*, so group them together
+		il.AddInstruction(il.Store(1, ILREG_O(operand2),
+		    il.Or(1, il.LowPart(1, ILREG_O(operand1)), il.Load(1, ILREG_O(operand2)))));
+		break;
+	case ARM64_LDSETH:
+	case ARM64_LDSETAH:
+	case ARM64_LDSETLH:
+	case ARM64_LDSETALH:
+	{
+		// InstructionOperand tmp = { .reg = { (Register) LLIL_TEMP(0) } };
+		InstructionOperand tmp;
+		tmp.reg[0] = (Register) LLIL_TEMP(0);
+		LoadStoreOperandSize(il, true, false, 2, tmp, operand3);
+		il.AddInstruction(il.Store(2, ILREG_O(operand3),
+		    il.Or(2, il.LowPart(2, ILREG_O(operand1)), il.LowPart(2, il.Register(2, LLIL_TEMP(0))))));
+		if (!(operand2.reg[0] == REG_XZR || operand2.reg[0] == REG_WZR))
+			il.AddInstruction(ILSETREG_O(operand2,
+				il.ZeroExtend(REGSZ_O(operand2),
+					il.LowPart(2, il.Register(2, LLIL_TEMP(0))))));
+		break;
+	}
+	case ARM64_STSETH:
+	case ARM64_STSETLH:
+		// STSET* are aliases of the corresponding LDSET*, so group them together
+		il.AddInstruction(il.Store(2, ILREG_O(operand2),
+		    il.Or(2, il.LowPart(2, ILREG_O(operand1)), il.Load(2, ILREG_O(operand2)))));
 		break;
 	case ARM64_LSL:
 		il.AddInstruction(ILSETREG_O(operand1, il.ShiftLeft(REGSZ_O(operand2), ILREG_O(operand2),
@@ -2938,14 +3291,14 @@ bool GetLowLevelILForInstruction(
 	case ARM64_SSHLL2:
 	case ARM64_SXTL:
 	case ARM64_SXTL2:
-		if ((instr.encoding == ENC_SSHLL_ASIMDSHF_L || instr.encoding == ENC_SXTL_SSHLL_ASIMDSHF_L) && preferIntrinsics())
+		switch (instr.encoding)
 		{
-			// // Not all valid operand combinations have intrinsics and we have to try it here in case it fails
-			// NeonGetLowLevelILForInstruction(arch, addr, il, instr, addrSize);
-			// LogWarn("NeonGetLowLevelILForInstruction: %d -> %d\n", n_instrs_before, il.GetInstructionCount());
-			// if (il.GetInstructionCount() > n_instrs_before)
-			// 	return true;
-			return true;
+		case ENC_SSHLL_ASIMDSHF_L:
+		case ENC_SXTL_SSHLL_ASIMDSHF_L:
+			if (preferIntrinsics())
+				return true;
+		default:
+			break;
 		}
 	// SHLL{2} is the same as SHLL{2}, except the extension is signed or unsigned "without change of functionality"
 	// (The shift amount is the element size, but is still disassembled to the immediate value in the third operand)
@@ -2991,7 +3344,11 @@ bool GetLowLevelILForInstruction(
 		break;
 	}
 	case ARM64_ST1:
-		LoadStoreVector(il, false, instr.operands[0], instr.operands[1]);
+	case ARM64_ST2:
+	case ARM64_ST3:
+	case ARM64_ST4:
+		if (true || !preferIntrinsics())  // For now, forcibly disable intrinsics (they are incomplete, and this could help dataflow)
+			LoadStoreVector(il, false, instr.operands[0], instr.operands[1]);
 		break;
 	case ARM64_STP:
 	case ARM64_STNP:
@@ -3157,36 +3514,40 @@ bool GetLowLevelILForInstruction(
 	case ARM64_UMADDL:
 		il.AddInstruction(ILSETREG_O(operand1,
 		    il.Add(REGSZ_O(operand1), ILREG_O(operand4),
-		        il.MultDoublePrecUnsigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)))));
+		        il.MultDoublePrecUnsigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3)))));
 		break;
 	case ARM64_UMULL:
 		il.AddInstruction(ILSETREG_O(operand1,
-		    il.MultDoublePrecUnsigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3))));
+		    il.MultDoublePrecUnsigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3))));
 		break;
 	case ARM64_UMSUBL:
 		il.AddInstruction(ILSETREG_O(operand1,
 		    il.Sub(REGSZ_O(operand1), ILREG_O(operand4),
-		        il.MultDoublePrecUnsigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)))));
+		        il.MultDoublePrecUnsigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3)))));
 		break;
 	case ARM64_UMNEGL:
 		il.AddInstruction(ILSETREG_O(operand1,
 		    il.Sub(REGSZ_O(operand1), il.Const(8, 0),
-		        il.MultDoublePrecUnsigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)))));
+		        il.MultDoublePrecUnsigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3)))));
 		break;
 	case ARM64_UXTL:
 	case ARM64_UXTL2:
 	case ARM64_USHLL:
 	case ARM64_USHLL2:
 	{
-		if ((instr.encoding == ENC_USHLL_ASIMDSHF_L || instr.encoding == ENC_UXTL_USHLL_ASIMDSHF_L) && preferIntrinsics())
+		switch (instr.encoding)
 		{
-			// // Not all valid operand combinations have intrinsics and we have to try it here in case it fails
-			// NeonGetLowLevelILForInstruction(arch, addr, il, instr, addrSize);
-			// LogWarn("NeonGetLowLevelILForInstruction: %d -> %d\n", n_instrs_before, il.GetInstructionCount());
-			// if (il.GetInstructionCount() > n_instrs_before)
-			// 	return true;
-			return true;
+		case ENC_USHLL_ASIMDSHF_L:
+		case ENC_UXTL_USHLL_ASIMDSHF_L:
+			if (preferIntrinsics())
+				return true;
+		default:
+			break;
 		}
+		// if ((instr.encoding == ENC_USHLL_ASIMDSHF_L || instr.encoding == ENC_UXTL_USHLL_ASIMDSHF_L) && preferIntrinsics())
+		// {
+		// 	return true;
+		// }
 
 		Register srcs[16], dsts[16];
 		int dst_n = unpack_vector(operand1, dsts);
@@ -3225,7 +3586,7 @@ bool GetLowLevelILForInstruction(
 	case ARM64_SMADDL:
 		il.AddInstruction(ILSETREG_O(operand1,
 		    il.Add(REGSZ_O(operand1), ILREG_O(operand4),
-		        il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)))));
+		        il.MultDoublePrecSigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3)))));
 		break;
 	case ARM64_USHL:
 	{
@@ -3282,19 +3643,30 @@ bool GetLowLevelILForInstruction(
 	}
 	case ARM64_SMULL:
 		il.AddInstruction(ILSETREG_O(operand1,
-		    il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3))));
+		    il.MultDoublePrecSigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3))));
 		break;
 	case ARM64_SMSUBL:
 		il.AddInstruction(ILSETREG_O(operand1,
 		    il.Sub(REGSZ_O(operand1), ILREG_O(operand4),
-		        il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)))));
+		        il.MultDoublePrecSigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3)))));
 		break;
 	case ARM64_SMNEGL:
 		il.AddInstruction(ILSETREG_O(operand1,
-		    il.Sub(REGSZ_O(operand1), il.Const(8, 0),
-		        il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)))));
+		    il.Neg(REGSZ_O(operand1),
+		        il.MultDoublePrecSigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3)))));
 		break;
 	case ARM64_UMULH:
+		switch (instr.encoding)
+		{
+		case ENC_UMULH_Z_ZZ_:
+		case ENC_UMULH_Z_P_ZZ_:
+			if (!preferIntrinsics())
+				il.AddInstruction(il.Unimplemented());
+			return true;
+		default:
+			break;
+		}
+
 		il.AddInstruction(ILSETREG_O(operand1,
 			il.LowPart(8,
 				il.LogicalShiftRight(16,
@@ -3302,11 +3674,21 @@ bool GetLowLevelILForInstruction(
 					il.Const(1, 64)))));
 		break;
 	case ARM64_SMULH:
+		switch (instr.encoding)
+		{
+		case ENC_SMULH_Z_ZZ_:
+		case ENC_SMULH_Z_P_ZZ_:
+			if (!preferIntrinsics())
+				il.AddInstruction(il.Unimplemented());
+			return true;
+		default: break;
+		}
 		il.AddInstruction(ILSETREG_O(operand1,
-			il.LowPart(8,
-				il.LogicalShiftRight(16,
-					il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)),
-					il.Const(1, 64)))));
+			il.SignExtend(8,
+				il.LowPart(8,
+					il.LogicalShiftRight(16,
+						il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)),
+						il.Const(1, 64))))));
 		break;
 	case ARM64_UDIV:
 		switch (instr.encoding)
