@@ -301,9 +301,9 @@ The previous tools are used in the generation of our documentation, but are not 
     - LIB Files ([api license] - MIT) .lib files included with the native windows builds of Binary Ninja are released under the same MIT license as the API itself, distinct from the standard EULA
     - [Views] ([views license] - Apache License 2.0) Binary views included with the product
     - [Architectures] ([architectures license] - Apache License 2.0) Architecture support included with the product
-    - [DWARF Import] - ([dwarf import license] - Apache License 2.0)
-    - [DWARF Export] - ([dwarf export license] - Apache License 2.0)
-    - [IDB Import] - ([idb import license] - Apache License 2.0)
+    - [DWARF Import] - ([dwarf import license] - MIT)
+    - [DWARF Export] - ([dwarf export license] - MIT)
+    - [IDB Import] - ([idb import license] - MIT)
 
 ## Building Qt
 
@@ -349,8 +349,8 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [mkdocs-material license]: https://github.com/squidfunk/mkdocs-material/blob/master/LICENSE
 [mkdocs-material]: https://github.com/squidfunk/mkdocs-material
 [mkdocs]: http://www.mkdocs.org/
-[opensans license]: http://www.apache.org/licenses/LICENSE-2.0.html
-[opensans]: https://www.google.com/fonts/specimen/Open+Sans
+[opensans license]: https://fonts.google.com/specimen/Open+Sans/license
+[opensans]: https://fonts.google.com/specimen/Open+Sans
 [PPC architecture module]: https://github.com/Vector35/ppc-capstone
 [python]: https://github.com/python/cpython
 [python license]: https://github.com/python/cpython/blob/master/LICENSE
@@ -364,14 +364,14 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [NotoColorEmoji license]:  https://github.com/googlefonts/noto-emoji/blob/main/fonts/LICENSE
 [NotoColorEmoji]: https://github.com/googlefonts/noto-emoji
 [sphinx license]: https://github.com/sphinx-doc/sphinx/blob/master/LICENSE.rst
-[sphinx]: http://www.sphinx-doc.org/en/stable/index.html
+[sphinx]: https://www.sphinx-doc.org/en/master/
 [sqlite license]: https://www.sqlite.org/copyright.html
 [sqlite]: https://www.sqlite.org/index.html
 [tarball]: https://binary.ninja/qt6.8.2.tar.xz
 [patch]: https://binary.ninja/qt6.8.2.patch
 [qt-build]: https://github.com/Vector35/qt-build
 [yasm license]: https://github.com/yasm/yasm/blob/master/BSD.txt
-[yasm]: http://yasm.tortall.net/
+[yasm]: https://github.com/yasm/yasm
 [xed]: http://www.github.com/intelxed/xed/
 [xed license]: http://www.github.com/intelxed/xed/blob/master/LICENSE
 [zlib license]: http://www.zlib.net/zlib_license.html
@@ -406,12 +406,12 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [views license]: https://github.com/Vector35/view-pe/blob/main/LICENSE
 [Architectures]: https://github.com/Vector35/?q=arch-&type=all&language=&sort=
 [architectures license]: https://github.com/Vector35/arch-armv7/blob/master/LICENSE
-[DWARF Import]: https://github.com/Vector35/binaryninja-api/tree/dev/rust/examples/dwarf/dwarf_import
-[dwarf import license]: https://github.com/Vector35/binaryninja-api/blob/dev/rust/LICENSE
-[DWARF Export]: https://github.com/Vector35/binaryninja-api/tree/dev/rust/examples/dwarf/dwarf_export
-[dwarf export license]: https://github.com/Vector35/binaryninja-api/blob/dev/rust/LICENSE
-[IDB Import]: https://github.com/Vector35/binaryninja-api/tree/dev/rust/examples/idb_import
-[idb import license]: https://github.com/Vector35/binaryninja-api/blob/dev/rust/LICENSE
+[DWARF Import]: https://github.com/Vector35/binaryninja-api/tree/dev/plugins/dwarf/dwarf_import
+[dwarf import license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
+[DWARF Export]: https://github.com/Vector35/binaryninja-api/tree/dev/plugins/dwarf/dwarf_export
+[dwarf export license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
+[IDB Import]: https://github.com/Vector35/binaryninja-api/tree/dev/plugins/idb_import
+[idb import license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
 
 [Rust]: https://www.rust-lang.org/
 [Rust license]: https://github.com/rust-lang/rust/blob/master/LICENSE-MIT

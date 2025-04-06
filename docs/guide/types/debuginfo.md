@@ -6,7 +6,7 @@ Currently debug info plugins are limited to types, function signatures, and data
 
 ## Supported Debug Info
 
-We currently support [PDBs](https://github.com/Vector35/binaryninja-api/tree/dev/rust/examples/pdb-ng) and [DWARF](https://github.com/Vector35/binaryninja-api/tree/dev/rust/examples/dwarf/dwarf_import) (which are both open source), though you can also [register your own debug info parser through the API](https://api.binary.ninja/binaryninja.debuginfo-module.html#binaryninja.debuginfo.DebugInfoParser).
+We currently support [PDBs](https://github.com/Vector35/binaryninja-api/tree/dev/plugins/pdb-ng) and [DWARF](https://github.com/Vector35/binaryninja-api/tree/dev/plugins/dwarf/dwarf_import) (which are both open source), though you can also [register your own debug info parser through the API](https://api.binary.ninja/binaryninja.debuginfo-module.html#binaryninja.debuginfo.DebugInfoParser).
 
 For PDBs, Binary Ninja will automatically try to source from specified local folders and Microsoft's symbol server ([see the PDB settings for more information](../settings.md#all-settings)).
 
@@ -40,7 +40,7 @@ Components are supported by the API, but not in the parser. The [same issue](htt
 
 #### DWARF Export Limitations
 
-Our [DWARF Export plugin](https://github.com/Vector35/binaryninja-api/tree/dev/rust/examples/dwarf/dwarf_export) is also open source and uses a different system from our debug information import plugins. It also does not support function-local variable names or types. The export plugin currently will export the global variables, function prototypes, and all the types in your binary view except for ones that are FunctionTypeClass or VarArgsTypeClass.
+Our [DWARF Export plugin](https://github.com/Vector35/binaryninja-api/tree/dev/plugins/dwarf/dwarf_export) is also open source and uses a different system from our debug information import plugins. It also does not support function-local variable names or types. The export plugin currently will export the global variables, function prototypes, and all the types in your binary view except for ones that are FunctionTypeClass or VarArgsTypeClass.
 
 #### Special Note for `.dSYM` Files
 
