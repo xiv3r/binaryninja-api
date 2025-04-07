@@ -31,7 +31,6 @@ from .enums import (
 	HighlightColorStyle, DisassemblyOption, IntegerDisplayType, FunctionAnalysisSkipOverride, FunctionUpdateType,
 	BuiltinType
 )
-from .exceptions import ILException
 
 from . import associateddatastore  # Required in the main scope due to being an argument for _FunctionAssociatedDataStore
 from . import types
@@ -981,7 +980,6 @@ class Function:
 		"""
 		returns LowLevelILFunction used to represent Function low level IL (read-only)
 
-		:raises ILException: if the low level IL could not be loaded
 		:rtype: lowlevelil.LowLevelILFunction
 		"""
 		return self.llil
@@ -989,14 +987,14 @@ class Function:
 	@property
 	def llil(self) -> 'lowlevelil.LowLevelILFunction':
 		"""
-		returns LowLevelILFunction used to represent Function low level IL (read-only)
+		returns LowLevelILFunction used to represent Function low level IL, or None if an error occurs while loading
+		the IL (read-only)
 
-		:raises ILException: if the low level IL could not be loaded
 		:rtype: lowlevelil.LowLevelILFunction
 		"""
 		result = core.BNGetFunctionLowLevelIL(self.handle)
 		if not result:
-			raise ILException(f"Low level IL was not loaded for {self!r}")
+			return None
 		return lowlevelil.LowLevelILFunction(self.arch, result, self)
 
 	@property
@@ -1010,14 +1008,14 @@ class Function:
 	@property
 	def lifted_il(self) -> 'lowlevelil.LowLevelILFunction':
 		"""
-		returns LowLevelILFunction used to represent Function lifted IL (read-only)
+		returns LowLevelILFunction used to represent Function lifted IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:raises ILException: if the lifted IL could not be loaded
 		:rtype: lowlevelil.LowLevelILFunction
 		"""
 		result = core.BNGetFunctionLiftedIL(self.handle)
 		if not result:
-			raise ILException(f"Lifted IL was not loaded for {self!r}")
+			return None
 		return lowlevelil.LowLevelILFunction(self.arch, result, self)
 
 	@property
@@ -1033,7 +1031,6 @@ class Function:
 		"""
 		returns MediumLevelILFunction used to represent Function medium level IL (read-only)
 
-		:raises ILException: if the medium level IL could not be loaded
 		:rtype: mediumlevelil.MediumLevelILFunction
 		"""
 		return self.mlil
@@ -1041,14 +1038,14 @@ class Function:
 	@property
 	def mlil(self) -> 'mediumlevelil.MediumLevelILFunction':
 		"""
-		returns MediumLevelILFunction used to represent Function medium level IL (read-only)
+		returns MediumLevelILFunction used to represent Function medium level IL, or None if an error occurs while
+		loading the IL (read-only)
 
-		:raises ILException: if the medium level IL could not be loaded
 		:rtype: mediumlevelil.MediumLevelILFunction
 		"""
 		result = core.BNGetFunctionMediumLevelIL(self.handle)
 		if not result:
-			raise ILException(f"Medium level IL was not loaded for {self!r}")
+			return None
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
@@ -1062,14 +1059,14 @@ class Function:
 	@property
 	def mmlil(self) -> 'mediumlevelil.MediumLevelILFunction':
 		"""
-		returns MediumLevelILFunction used to represent Function mapped medium level IL (read-only)
+		returns MediumLevelILFunction used to represent Function mapped medium level IL, or None if an error occurs
+		while loading the IL (read-only)
 
-		:raises ILException: if the mapped medium level IL could not be loaded
 		:rtype: mediumlevelil.MediumLevelILFunction
 		"""
 		result = core.BNGetFunctionMappedMediumLevelIL(self.handle)
 		if not result:
-			raise ILException(f"Mapped medium level IL was not loaded for {self!r}")
+			return None
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
@@ -1077,7 +1074,6 @@ class Function:
 		"""
 		returns MediumLevelILFunction used to represent Function mapped medium level IL (read-only)
 
-		:raises ILException: if the mapped medium level IL could not be loaded
 		:rtype: mediumlevelil.MediumLevelILFunction
 		"""
 		return self.mmlil
@@ -1095,7 +1091,6 @@ class Function:
 		"""
 		returns HighLevelILFunction used to represent Function high level IL (read-only)
 
-		:raises ILException: if the high level IL could not be loaded
 		:rtype: highlevelil.HighLevelILFunction
 		"""
 		return self.hlil
@@ -1103,14 +1098,14 @@ class Function:
 	@property
 	def hlil(self) -> 'highlevelil.HighLevelILFunction':
 		"""
-		returns HighLevelILFunction used to represent Function high level IL (read-only)
+		returns HighLevelILFunction used to represent Function high level IL, or None if an error occurs while loading
+		the IL (read-only)
 
-		:raises ILException: if the high level IL could not be loaded
 		:rtype: highlevelil.HighLevelILFunction
 		"""
 		result = core.BNGetFunctionHighLevelIL(self.handle)
 		if not result:
-			raise ILException(f"High level IL was not loaded for {self!r}")
+			return None
 		return highlevelil.HighLevelILFunction(self.arch, result, self)
 
 	@property
@@ -1800,12 +1795,8 @@ class Function:
 
 		idx = core.BNGetLowLevelILForInstruction(self.handle, arch.handle, addr)
 
-		try:
-			llil = self.llil
-		except ILException:
-			return None
-
-		if idx == len(llil):
+		llil = self.llil
+		if llil is None or idx == len(llil):
 			return None
 
 		return llil[idx]

@@ -47,7 +47,7 @@ from .enums import (
     TypeClass, BinaryViewEventType, FunctionGraphType, TagReferenceType, TagTypeType, RegisterValueType, DisassemblyOption,
 	RelocationType
 )
-from .exceptions import RelocationWriteException, ILException, ExternalLinkException
+from .exceptions import RelocationWriteException, ExternalLinkException
 
 from . import associateddatastore  # required for _BinaryViewAssociatedDataStore
 from .log import log_warn, log_error, Logger
@@ -3181,10 +3181,7 @@ class BinaryView:
 		for func in AdvancedILFunctionList(
 		    self, self.preload_limit if preload_limit is None else preload_limit, function_generator
 		):
-			try:
-				yield func.mlil
-			except ILException:
-				pass
+			yield func.mlil
 
 	def hlil_functions(
 	    self, preload_limit: Optional[int] = None,
@@ -3197,10 +3194,7 @@ class BinaryView:
 		for func in AdvancedILFunctionList(
 		    self, self.preload_limit if preload_limit is None else preload_limit, function_generator
 		):
-			try:
-				yield func.hlil
-			except ILException:
-				pass
+			yield func.hlil
 
 	@property
 	def has_functions(self) -> bool:
