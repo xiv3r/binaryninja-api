@@ -435,7 +435,18 @@ std::optional<SharedCacheMachOHeader> SharedCacheMachOHeader::ParseHeaderForAddr
 			char sectionName[17];
 			memcpy(sectionName, section.sectname, sizeof(section.sectname));
 			sectionName[16] = 0;
-			header.sectionNames.push_back(header.identifierPrefix + "::" + sectionName);
+
+			char segmentName[sizeof(section.segname)+1];
+			memcpy(segmentName, section.segname, sizeof(section.segname));
+			segmentName[sizeof(segmentName)-1] = 0;
+
+			// Section names used to be image name and section only but some images have duplicate section names
+			// so we now also use the segment name, this also is more close to what is seen with LLVM.
+			// Justification: https://github.com/Vector35/binaryninja-api/pull/6454#issuecomment-2777465476
+			if (header.identifierPrefix.empty())
+				header.sectionNames.push_back(fmt::format("{}.{}", segmentName, sectionName));
+			else
+				header.sectionNames.push_back(fmt::format("{}::{}.{}", header.identifierPrefix, segmentName, sectionName));
 		}
 	}
 	catch (ReadException&)
