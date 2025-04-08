@@ -792,14 +792,8 @@ bool SharedCacheView::Init()
 
 		if (!result)
 		{
-			// TODO: Prompt the user to select the primary cache file? We can still recover from here.
 			// Oh no, we failed to process the cache, this likely means the primary on-disk file was not able to be found.
 			logger->LogError("Failed to process cache, likely missing cache files.");
-			// NOTE: An interaction handler headlessly could select yes to this, however for the purposes of this we will just let them continue by defualt.
-			if (IsUIEnabled() && ShowMessageBox("Continue opening", "This shared cache file was unable to be processed, would you like to open without shared cache information?", YesNoButtonSet, QuestionIcon) != YesButton)
-				return false;
-			// Skip all the other shared cache stuff.
-			return true;
 		}
 
 		// If we can't store all of our files for this cache in the accessor cache we might run into issues, warn the user.

@@ -553,6 +553,19 @@ bool CacheProcessor::ProcessFileCache(SharedCache& cache)
 	std::string baseFilePath = m_view->GetFile()->GetOriginalFilename();
 	std::string baseFileName = BaseFileName(baseFilePath);
 
+	// If we don't have an original file path, prompt the user to select one.
+	if (baseFilePath.empty())
+	{
+		if (!GetOpenFileNameInput(baseFilePath, "Please select the base shared cache file"))
+		{
+			// User did not give a file, tell them that we will try and scan the file directory.
+			m_logger->LogWarn("Failed to get original file path, will try and scan the file directory.");
+		}
+		// Update so next load we don't need to prompt the user.
+		// TODO: What happens for a remote project? This will point at what exactly?
+		m_view->GetFile()->SetOriginalFilename(baseFilePath);
+	}
+
 	// Add this file to the entries
 	try
 	{
@@ -614,10 +627,23 @@ bool CacheProcessor::ProcessFileCache(SharedCache& cache)
 bool CacheProcessor::ProcessProjectCache(SharedCache& cache)
 {
 	auto baseProjectFile = m_view->GetFile()->GetProjectFile();
+	auto baseProjectFileFolder = baseProjectFile->GetFolder();
 	std::string baseFilePath = baseProjectFile->GetPathOnDisk();
 	std::string baseFileName = baseProjectFile->GetName();
 	// This will point to the path on disk for original non-bndb file.
 	std::string originalFilePath = m_view->GetFile()->GetOriginalFilename();
+
+	// If we don't have an original file path, prompt the user to select one.
+	if (originalFilePath.empty())
+	{
+		if (!GetOpenFileNameInput(originalFilePath, "Please select the base shared cache file"))
+		{
+			// User did not give a file, tell them that we will try and scan the project directory.
+			m_logger->LogWarn("Failed to get original file path, will try and scan the project directory.");
+		}
+		// Update so next load we don't need to prompt the user.
+		m_view->GetFile()->SetOriginalFilename(originalFilePath);
+	}
 
 	// Remove the .bndb extension if present ("dyld_shared_cache_arm64e.bndb" => "dyld_shared_cache_arm64e)
 	// TODO: This is a little annoying, we need to do this because the file accessor we have is separate
@@ -629,6 +655,12 @@ bool CacheProcessor::ProcessProjectCache(SharedCache& cache)
 		// Search for the backing file.
 		for (const auto& projectFile : baseProjectFile->GetProject()->GetFiles())
 		{
+			// Skip files not in the same folder.
+			auto projectFileFolder = projectFile->GetFolder();
+			if (baseProjectFileFolder && projectFileFolder)
+				if (baseProjectFileFolder->GetId() != projectFileFolder->GetId())
+					continue;
+
 			auto projectFilePath = projectFile->GetPathOnDisk();
 			auto projectFileName = projectFile->GetName();
 			if (projectFileName == baseFileName || projectFilePath == originalFilePath)
