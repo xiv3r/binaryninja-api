@@ -218,12 +218,16 @@ bool SharedCacheView::Init()
 
 	Ref<Settings> settings = GetLoadSettings(GetTypeName());
 
-	// If we are a new file (not a database) lets go ahead and set the function workflow.
-	// We do not set the workflow on database as the user might have changed it in load options prior.
-	if (!settings && !GetFile()->IsBackedByDatabase())
+	if (!settings)
 	{
 		Ref<Settings> programSettings = Settings::Instance();
-		programSettings->Set("analysis.workflows.functionWorkflow", "core.function.sharedCache", this);
+		auto previousWorkflow = programSettings->Get<std::string>("analysis.workflows.functionWorkflow", this);
+
+		// If we are a new file (not a database) lets go ahead and set the function workflow.
+		// We do not set the workflow on database as the user might have changed it in load options prior.
+		// We also need to update usages of `core.function.dsc` to `core.function.sharedCache`
+		if (!GetFile()->IsBackedByDatabase() || previousWorkflow == "core.function.dsc")
+			programSettings->Set("analysis.workflows.functionWorkflow", "core.function.sharedCache", this);
 	}
 
 	if (m_parseOnly)
