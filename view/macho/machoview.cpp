@@ -3792,7 +3792,8 @@ uint64_t MachoViewType::ParseHeaders(BinaryView* data, uint64_t imageOffset, mac
 		ident.filetype == MH_KEXT_BUNDLE ||
 		ident.filetype == MH_CORE ||
 		ident.filetype == MH_PRELOAD ||
-		ident.filetype == MH_DSYM))
+		ident.filetype == MH_DSYM ||
+		ident.filetype == MH_FILESET))
 	{
 		m_logger->LogError("Unhandled Macho file class: 0x%x", ident.filetype);
 		errorMsg = "invalid file class";
