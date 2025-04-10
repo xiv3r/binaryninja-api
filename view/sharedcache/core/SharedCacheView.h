@@ -11,6 +11,7 @@
 class SharedCacheView : public BinaryNinja::BinaryView
 {
 	bool m_parseOnly;
+	BinaryNinja::Ref<BinaryNinja::Logger> m_logger;
 
 public:
 	SharedCacheView(const std::string& typeName, BinaryView* data, bool parseOnly = false);
@@ -18,6 +19,9 @@ public:
 	~SharedCacheView() override = default;
 
 	bool Init() override;
+
+	// Initialized the shared cache controller for this view. This is what allows us to load images and regions.
+	bool InitController();
 };
 
 

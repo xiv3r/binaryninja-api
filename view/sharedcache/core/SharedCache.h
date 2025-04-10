@@ -7,8 +7,6 @@
 #include "MachO.h"
 #include "VirtualMemory.h"
 
-class SharedCache;
-
 struct CacheSymbol
 {
 	BNSymbolType type;
@@ -16,19 +14,15 @@ struct CacheSymbol
 	std::string name;
 
 	CacheSymbol() = default;
-
 	CacheSymbol(BNSymbolType type, uint64_t address, std::string name) :
 		type(type), address(address), name(std::move(name))
 	{}
-
 	~CacheSymbol() = default;
 
 	CacheSymbol(const CacheSymbol& other) = default;
-
 	CacheSymbol& operator=(const CacheSymbol& other) = default;
 
 	CacheSymbol(CacheSymbol&& other) noexcept = default;
-
 	CacheSymbol& operator=(CacheSymbol&& other) noexcept = default;
 
 	std::pair<std::string, BinaryNinja::Ref<BinaryNinja::Type>> DemangledName(BinaryNinja::BinaryView& view) const;
@@ -56,15 +50,12 @@ struct CacheRegion
 	BNSegmentFlag flags;
 
 	CacheRegion() = default;
-
 	~CacheRegion() = default;
 
 	CacheRegion(const CacheRegion& other) = default;
-
 	CacheRegion& operator=(const CacheRegion& other) = default;
 
 	CacheRegion(CacheRegion&& other) noexcept = default;
-
 	CacheRegion& operator=(CacheRegion&& other) noexcept = default;
 
 	AddressRange AsAddressRange() const { return {start, start + size}; }
@@ -95,15 +86,12 @@ struct CacheImage
 	std::shared_ptr<SharedCacheMachOHeader> header;
 
 	CacheImage() = default;
-
 	~CacheImage() = default;
 
 	CacheImage(const CacheImage& other) = default;
-
 	CacheImage& operator=(const CacheImage& other) = default;
 
 	CacheImage(CacheImage&& other) noexcept = default;
-
 	CacheImage& operator=(CacheImage&& other) noexcept = default;
 
 	// Get the file name from the path.
@@ -145,11 +133,9 @@ public:
 		std::vector<dyld_cache_mapping_info> mappings, std::vector<std::pair<std::string, dyld_cache_image_info>> images);
 
 	CacheEntry() = default;
-
 	CacheEntry(const CacheEntry&) = default;
 
 	CacheEntry(CacheEntry&&) = default;
-
 	CacheEntry& operator=(CacheEntry&&) = default;
 
 	// Construct a cache entry from the file on disk.
@@ -213,6 +199,7 @@ class SharedCache
 	bool AddNonOverlappingRegion(CacheRegion region);
 
 public:
+	SharedCache() = default;
 	explicit SharedCache(uint64_t addressSize);
 
 	SharedCache(const SharedCache &) = delete;
@@ -268,24 +255,4 @@ public:
 	std::optional<CacheSymbol> GetSymbolAt(uint64_t address) const;
 
 	std::optional<CacheSymbol> GetSymbolWithName(const std::string& name);
-};
-
-// This constructs a Cache, give it a file path, and it will add all relevant cache entries.
-class CacheProcessor
-{
-	BinaryNinja::Ref<BinaryNinja::BinaryView> m_view;
-	BinaryNinja::Ref<BinaryNinja::Logger> m_logger;
-
-public:
-	explicit CacheProcessor(BinaryNinja::Ref<BinaryNinja::BinaryView> view);
-
-	// Construct a cache from the root file, this will parse the cache header and locate all
-	// applicable cache entries and add them as well.
-	bool ProcessCache(SharedCache& cache);
-
-	// Process a cache on the file system, this is for when not using a project.
-	bool ProcessFileCache(SharedCache& cache);
-
-	// Process a cache using Binary Ninja's project system.
-	bool ProcessProjectCache(SharedCache& cache);
 };

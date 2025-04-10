@@ -1,8 +1,11 @@
 #include "SharedCacheView.h"
 #include <regex>
+#include <filesystem>
+
 #include "SharedCacheController.h"
 #include "FileAccessorCache.h"
 #include "MappedFileAccessor.h"
+#include "SharedCacheBuilder.h"
 
 using namespace BinaryNinja;
 using namespace BinaryNinja::DSC;
@@ -166,7 +169,7 @@ bool SharedCacheView::Init()
 	std::string os;
 	std::string arch;
 
-	auto logger = new Logger("SharedCache.View", GetFile()->GetSessionId());
+	m_logger = new Logger("SharedCache.View", GetFile()->GetSessionId());
 
 	uint32_t platform;
 	GetParentView()->Read(&platform, 0xd8, 4);
@@ -194,7 +197,7 @@ bool SharedCacheView::Init()
 	case DSCPlatformWatchOSSimulator:
 	case DSCPlatformBridgeOS:
 	default:
-		logger->LogError("Unknown platform: %d", platform);
+		m_logger->LogError("Unknown platform: %d", platform);
 		return false;
 	}
 
@@ -209,7 +212,7 @@ bool SharedCacheView::Init()
 	}
 	else
 	{
-		logger->LogError("Unknown magic: %s", magic);
+		m_logger->LogError("Unknown magic: %s", magic);
 		return false;
 	}
 
@@ -335,7 +338,7 @@ bool SharedCacheView::Init()
 
 	if (!err.empty() || !headerType.type)
 	{
-		logger->LogError("Failed to parse header type: %s", err.c_str());
+		m_logger->LogError("Failed to parse header type: %s", err.c_str());
 		return false;
 	}
 
@@ -758,14 +761,14 @@ bool SharedCacheView::Init()
 	GetParentView()->Read(&basePointer, 16, 4);
 	if (basePointer == 0)
 	{
-		logger->LogError("Failed to read base pointer");
+		m_logger->LogError("Failed to read base pointer");
 		return false;
 	}
 	uint64_t primaryBase = 0;
 	GetParentView()->Read(&primaryBase, basePointer, 8);
 	if (primaryBase == 0)
 	{
-		logger->LogError("Failed to read primary base at 0x%llx", basePointer);
+		m_logger->LogError("Failed to read primary base at 0x%llx", basePointer);
 		return false;
 	}
 
@@ -790,29 +793,120 @@ bool SharedCacheView::Init()
 		return true;
 	}
 
-	auto sharedCache = SharedCache(GetAddressSize());
+	return InitController();
+}
+
+// Get the file path and file name for the primary cache entry.
+// We need this to support BNDB and projects.
+std::optional<std::pair<std::string, std::string>> GetPrimaryFileInfo(BinaryView& view)
+{
+	auto viewFile = view.GetFile();
+	// Add the primary file, for a regular view this is the original path.
+	auto primaryFilePath = viewFile->GetOriginalFilename();
+
+	// If we don't have an original file path, prompt the user to select one.
+	if (primaryFilePath.empty())
+	{
+		if (!GetOpenFileNameInput(primaryFilePath, "Please select the primary shared cache file"))
+			return std::nullopt;
+		// Update so next load we don't need to prompt the user.
+		viewFile->SetOriginalFilename(primaryFilePath);
+	}
+
+	// The primary file name for which we will use when adding files.
+	// NOTE: For projects the file name here is a UUID, we will need to traverse the project to get the name.
+	auto primaryFileName = BaseFileName(primaryFilePath);
+
+	// If we are a project file, we need to grab the actual name of the file.
+	if (auto primaryProjectFile = viewFile->GetProjectFile())
+	{
+		primaryFileName = primaryProjectFile->GetName();
+
+		// If we are a BNDB in a project, we need to change the `primaryFilePath` as well.
+		// Because our shared cache processing only works through our mapped file accessor we need to original
+		// file to map in, this can be relaxed if we ever support Binary Ninja file accessors.
+		if (primaryFileName.find(".bndb") != std::string::npos)
+		{
+			primaryFileName = primaryFileName.substr(0, primaryFileName.size() - 5);
+			for (const auto& pj : primaryProjectFile->GetProject()->GetFiles())
+			{
+				auto projectFilePath = pj->GetPathOnDisk();
+				auto projectFileName = pj->GetName();
+				if (projectFileName == primaryFileName || projectFilePath == primaryFilePath)
+				{
+					primaryFilePath = projectFilePath;
+					primaryFileName = projectFileName;
+					break;
+				}
+			}
+		}
+	}
+
+	return {{primaryFilePath, primaryFileName}};
+}
+
+bool SharedCacheView::InitController()
+{
+	auto primaryFileInfo = GetPrimaryFileInfo(*this);
+	if (!primaryFileInfo.has_value())
+		return false;
+	auto [primaryFilePath, primaryFileName] = primaryFileInfo.value();
+	auto primaryFileDir = std::filesystem::path(primaryFilePath).parent_path();
+
+	// OK, we have the primary shared cache file, now let's add the entries.
+	auto sharedCacheBuilder = SharedCacheBuilder(this);
+	sharedCacheBuilder.SetPrimaryFileName(primaryFileName);
+
+	// Add the primary file. If we fail log alert that the primary cache file is invalid.
+	// We process the primary cache entry first as it might be consulted in the processing of later entries.
+	if (!sharedCacheBuilder.AddFile(primaryFilePath, primaryFileName, CacheEntryType::Primary))
+	{
+		m_logger->LogAlertF("Failed to add primary cache file: '{}'", primaryFileName);
+		return false;
+	}
 
 	{
-		// Add up all the cache entries using the cache processor.
 		// After this we should have all the mappings available as well.
-		CacheProcessor cacheProcessor = CacheProcessor(this);
 		auto startTime = std::chrono::high_resolution_clock::now();
-		bool result = cacheProcessor.ProcessCache(sharedCache);
+		sharedCacheBuilder.AddDirectory(primaryFileDir);
+		if (auto projectFile = GetFile()->GetProjectFile())
+			sharedCacheBuilder.AddProjectFolder(projectFile->GetFolder());
+		auto entryCount = sharedCacheBuilder.GetCache().GetEntries().size();
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;
-		auto entryCount = sharedCache.GetEntries().size();
-		logger->LogInfo("Processing %zu entries took %.3f seconds", entryCount, elapsed.count());
-
-		if (!result)
-		{
-			// Oh no, we failed to process the cache, this likely means the primary on-disk file was not able to be found.
-			logger->LogError("Failed to process cache, likely missing cache files.");
-		}
+		m_logger->LogInfo("Processing %zu entries took %.3f seconds", entryCount, elapsed.count());
 
 		// If we can't store all of our files for this cache in the accessor cache we might run into issues, warn the user.
 		if (entryCount > FileAccessorCache::Global().GetCacheSize())
-			logger->LogWarn("Cache contains more entries than the allowed number of opened file handles, this may impact reliability.");
+			m_logger->LogWarn("Cache contains more entries than the allowed number of opened file handles, this may impact reliability.");
+
+		// If we have less entries than the primary header subcache array count than let the user add another directory.
+		const auto& cacheEntries = sharedCacheBuilder.GetCache().GetEntries();
+		for (const auto& [_, entry] : cacheEntries)
+		{
+			if (entry.GetType() != CacheEntryType::Primary)
+				continue;
+
+			auto requiredCount = entry.GetHeader().subCacheArrayCount;
+			if (requiredCount <= entryCount)
+				continue;
+
+			m_logger->LogWarnF("Opening with {} entries when shared cache header says there are {}, likely missing files, prompting user to select a directory containing the rest.", entryCount, requiredCount);
+			// We don't have enough entries, prompt the user to select a directory with the rest.
+			std::string supplementaryDir;
+			if (GetDirectoryNameInput(supplementaryDir, "Directory with associated shared cache files"))
+			{
+				auto additionalEntries = sharedCacheBuilder.AddDirectory(primaryFileDir);
+				m_logger->LogInfoF("Processed an additional {} entries...", additionalEntries);
+				entryCount += additionalEntries;
+				// If we are still below the count, just let the user know and continue.
+				if (entryCount < requiredCount)
+					m_logger->LogWarnF("Provided entry files still below the reported entry count in the shared cache header. Some functionality may be lost.");
+			}
+		}
 	}
+
+	auto sharedCache = sharedCacheBuilder.Finalize();
 
 	{
 		// Write all the slide info pointers to the virtual memory.
@@ -822,7 +916,7 @@ bool SharedCacheView::Init()
 			sharedCache.ProcessEntrySlideInfo(entry);
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;
-		logger->LogInfo("Processing slide info took %.3f seconds", elapsed.count());
+		m_logger->LogInfo("Processing slide info took %.3f seconds", elapsed.count());
 	}
 
 	{
@@ -834,11 +928,11 @@ bool SharedCacheView::Init()
 				sharedCache.ProcessEntryImages(entry);
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;
-		auto images = sharedCache.GetImages();
-		logger->LogInfo("Processing %zu images took %.3f seconds", images.size(), elapsed.count());
+		const auto& images = sharedCache.GetImages();
+		m_logger->LogInfo("Processing %zu images took %.3f seconds", images.size(), elapsed.count());
 		// Warn if we found no images, and provide the likely explanation
 		if (images.empty())
-			logger->LogWarn("Failed to process any images, likely missing cache files.");
+			m_logger->LogWarn("Failed to process any images, likely missing cache files.");
 	}
 
 	{
@@ -849,12 +943,16 @@ bool SharedCacheView::Init()
 			sharedCache.ProcessEntryRegions(entry);
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;
-		logger->LogInfo("Processing %zu regions took %.3f seconds", sharedCache.GetRegions().size(), elapsed.count());
+		m_logger->LogInfo("Processing %zu regions took %.3f seconds", sharedCache.GetRegions().size(), elapsed.count());
 	}
+
+	// TODO: Here we should have all the regions and what not for the virtual memory populated, I think it might be a good idea
+	// TODO: To verify the regions are here and pointing at valid file accessor mappings, to make diagnosing issues quicker.
 
 	auto cacheController = SharedCacheController::Initialize(*this, std::move(sharedCache));
 
 	{
+		auto logger = m_logger;
 		// Load up all the symbols into the named symbols lookup map.
 		// NOTE: We do this on a separate thread as image & region loading does not consult this.
 		WorkerPriorityEnqueue([logger, cacheController]() {
@@ -867,11 +965,12 @@ bool SharedCacheView::Init()
 		});
 	}
 
+	Ref<Settings> settings = GetLoadSettings(GetTypeName());
 	// Users can adjust which images are loaded by default using the `loader.dsc.autoLoadPattern` setting.
 	std::string autoLoadPattern = ".*libsystem_c.dylib";
 	if (settings && settings->Contains("loader.dsc.autoLoadPattern"))
 		autoLoadPattern = settings->Get<std::string>("loader.dsc.autoLoadPattern", this);
-	logger->LogDebug("Loading images using pattern: %s", autoLoadPattern.c_str());
+	m_logger->LogDebug("Loading images using pattern: %s", autoLoadPattern.c_str());
 
 	{
 		// Load all images that match the `autoLoadPattern`.
@@ -884,7 +983,7 @@ bool SharedCacheView::Init()
 					++loadedImages;
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;
-		logger->LogInfo("Automatically loading %zu images took %.3f seconds", loadedImages, elapsed.count());
+		m_logger->LogInfo("Automatically loading %zu images took %.3f seconds", loadedImages, elapsed.count());
 	}
 
 	return true;
