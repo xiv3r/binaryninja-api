@@ -6,6 +6,31 @@
 - Then you should contact [support]!
 
 ## Bug Reproduction
+
+We recommend the following steps to produce the best bug-reports:
+
+1. Try to reproduce your issue with both the latest stable release as well as [switching](index.md#updates) to the latest development branch.
+2. Try temporarily [disabling plugins](#disabling-plugins)
+3. Try temporarily [disabling user settings](#disabling-user-settings)
+4. Try temporarily [resetting QSettings](#disabling-qsettings)
+5. Enable [extra logging](#extra-logging)
+
+### Disabling Plugins
+
+Disabling plugins can be a quick way to diagnose whether some unexpected behavior is caused by Binary Ninja itself or a plugin. Simply launch the process with the extra command-line option `-p` to disable all user plugins at load time. Note that repository plugins are currently not disabled with this switch.
+
+### Disabling User Settings
+
+In addition to the above-mentioned method of disabling user-plugins, you can also set the environment variable `BN_DISABLE_USER_PLUGINS` (the value doesn't matter, the mere existence of the variable is enough). Related, there is another setting: `BN_DISABLE_USER_SETTINGS` that will launch BN without relying on any user settings which is useful for identifying whether a particular behavior is the result of a setting without having to manually change a number of settings.
+
+### Resetting QSettings
+
+Some UI features rely on [QSettings](https://doc.qt.io/qt-6/qsettings.html#platform-specific-notes) to save state, window location, etc. You can temporarily reset your QSettings by setting the `BN_QSETTINGS_POSTFIX` environment variable which will cause Binary Ninja to use a different qsettings for that launch.
+
+Removing the environment variable or running without it will revert to the default qsettings locations.
+
+### Extra logging
+
 Running Binary Ninja with debug logging will make your bug report more useful.
 
 ``` bash
@@ -20,19 +45,7 @@ Alternatively, it might be easier to save debug logs to a file instead:
 
 (note that both long and short-form of the command-line arguments are demonstrated in the above examples)
 
-
 ## Troubleshooting Plugins
-
-### Disabling Plugins
-
-Disabling plugins can be a quick way to diagnose whether some unexpected behavior is caused by Binary Ninja itself or a plugin. Simply launch the process with the extra command-line option `-p` to disable all user plugins at load time. Note that repository plugins are currently not disabled with this switch.
-
-
-### Disabling User Settings
-
-In addition to the above-mentioned method of disabling user-plugins, you can also set the environment variable `BN_DISABLE_USER_PLUGINS` (the value doesn't matter, the mere existence of the variable is enough). Related, there is another setting: `BN_DISABLE_USER_SETTINGS` that will launch BN without relying on any user settings which is useful for identifying whether a particular behavior is the result of a setting without having to manually change a number of settings.
-
-### Other Steps
 
 While third party plugins are not officially supported, there are a number of troubleshooting tips that can help identify the cause. The most important is to enable debug logging as suggested in the previous section. This will often highlight problems with python paths or any other issues that prevent plugins from running.
 
