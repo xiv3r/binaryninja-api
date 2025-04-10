@@ -12,7 +12,7 @@ We recommend the following steps to produce the best bug-reports:
 1. Try to reproduce your issue with both the latest stable release as well as [switching](index.md#updates) to the latest development branch.
 2. Try temporarily [disabling plugins](#disabling-plugins)
 3. Try temporarily [disabling user settings](#disabling-user-settings)
-4. Try temporarily [resetting QSettings](#disabling-qsettings)
+4. Try temporarily [resetting QSettings](#resetting-qsettings)
 5. Enable [extra logging](#extra-logging)
 
 ### Disabling Plugins
@@ -44,6 +44,30 @@ Alternatively, it might be easier to save debug logs to a file instead:
 ```
 
 (note that both long and short-form of the command-line arguments are demonstrated in the above examples)
+
+### Launching Binary Ninja from the command line (CLI)
+
+While it has always been possible to launch Binary Ninja from the command line (shell), passing file paths or URLs to open, as of 5.0, it is now possible to have some control over whether it will open in an already running instance of Binary Ninja, or in a new instance. (Previously, this would always start a new Binary Ninja application instance, unless a `binaryninja:` URL was found on the command line.)
+
+Now in version 5.0 and later, unless the [`ui.files.commandLine.newInstance`](settings.md#ui.files.commandLine.newInstance) is set to `True` (which it currently is by default), running Binary Ninja from the command line will try to find a running instance in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
+
+There are a few ways to affect this behavior:
+1. Passing the `-n` or `--new-instance` command line argument will _always_ cause a new Binary Ninja application to be launched.
+2. If the `BN_FORCE_NEW_INSTANCE` environment variable is set or if the [`ui.files.commandLine.newInstance`](settings.md#ui.files.commandLine.newInstance) setting is true, it will open a new instance _unless_ there are file or URL command line arguments, in which case it will still try to open in a running instance if possible.
+3. If the `BN_FORCE_EXISTING_INSTANCE` environment variable is set, it will try to open in a running instance if possible, _unless_ the `-n` or `--new-instance` command line argument is passed. (This is mainly intended for development testing purposes and is documented here for completeness.) 
+
+Disabling [`ui.files.commandLine.newInstance`](settings.md#ui.files.commandLine.newInstance) has the following implications:
+* For users whose workflow involves running Binary Ninja from a shell, just running `binaryninja` will try to activate a running instance, and if it does, return you to your shell. Otherwise it will launch a new instance of Binary Ninja.
+* Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will 
+    1. Try to activate existing tabs for those files in a running instance, or failing that,   
+    2. Try to open those files in new tabs in a running instance, or failing that,
+    3. Open those files in a new instance of Binary Ninja.
+
+Finally, some things to note:
+* The Binary Ninja executable you run must be the _exact same version_ (both edition and build number) in order to communicate with a running instance.
+* If there are multiple instances of the same version of Binary Ninja already running, it is generally the first one launched that will be activated. If the first instance terminates, a new instance will open when run from the command line.
+* A "forced new instance" of Binary Ninja will remain independent.  
+
 
 ## Troubleshooting Plugins
 
