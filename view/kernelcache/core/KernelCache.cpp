@@ -602,12 +602,12 @@ bool KernelCache::LoadImageWithInstallName(std::lock_guard<std::mutex>& lock, st
 			break;
 		}
 	}
-	const auto header = LoadHeaderForAddress(m_kcView, targetImage->headerFileLocation, targetImage->installName);
-
-	if (!header)
-	{
+	if (!targetImage)
 		return false;
-	}
+
+	const auto header = LoadHeaderForAddress(m_kcView, targetImage->headerFileLocation, targetImage->installName);
+	if (!header)
+		return false;
 
 	m_modifiedState->viewState = KCViewStateLoadedWithImages;
 
