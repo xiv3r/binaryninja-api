@@ -42,7 +42,7 @@ namespace BinaryNinja::DSC {
 		static DSCRef<SharedCacheController> Initialize(BinaryView& view, SharedCache&& cache);
 
 		// NOTE: This will not create one if it does not exist. To create one for the view call `Initialize`.
-		static DSCRef<SharedCacheController> FromView(BinaryView& view);
+		static DSCRef<SharedCacheController> FromView(const BinaryView& view);
 
 		SharedCache& GetCache() { return m_cache; };
 		const std::unordered_set<uint64_t>& GetLoadedRegions() { return m_loadedRegions; };

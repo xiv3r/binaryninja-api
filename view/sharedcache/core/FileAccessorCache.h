@@ -34,12 +34,16 @@ public:
 	// accessor and inserting itself back into its related cache.
 	WeakFileAccessor Open(const std::string& filePath);
 
+	void RemoveAccessor(CacheAccessorID id);
+
 	// Adjust the cache size limit.
 	// This will NOT evict current cache entries, as they are already available.
 	// Any subsequent call to `Open` will assume this cache size, evicting until the size is equal to the cache size.
 	void SetCacheSize(const uint64_t size) { m_cacheSize = size; };
 
 	size_t GetCacheSize() const { return m_cacheSize; }
+
+	size_t GetCacheCount() const { return m_accessors.size(); }
 };
 
 class WeakFileAccessor

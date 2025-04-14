@@ -68,6 +68,12 @@ WeakFileAccessor FileAccessorCache::Open(const std::string& filePath)
 	return WeakFileAccessor(sharedAccessor, filePath);
 }
 
+void FileAccessorCache::RemoveAccessor(const CacheAccessorID id)
+{
+	std::unique_lock lock(m_mutex);
+	m_accessors.erase(id);
+}
+
 std::shared_ptr<MappedFileAccessor> WeakFileAccessor::lock()
 {
 	auto sharedPtr = m_weakPtr.lock();

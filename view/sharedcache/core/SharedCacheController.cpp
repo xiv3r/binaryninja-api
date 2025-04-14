@@ -13,39 +13,49 @@ std::shared_mutex GlobalControllersMutex;
 std::map<ViewId, DSCRef<SharedCacheController>>& GlobalControllers()
 {
 	// To make initialization order consistent we place the static in a function.
-	static std::map<ViewId, DSCRef<SharedCacheController>> g_dscViews = {};
-	return g_dscViews;
+	static std::map<ViewId, DSCRef<SharedCacheController>> g_controllers = {};
+	return g_controllers;
 }
 
-ViewId GetViewIdFromView(BinaryView& view)
+ViewId GetViewIdFromFileMetadata(const FileMetadata& file)
 {
 	// Currently the view id is just the views session id.
 	// NOTE: If we want more than one shared cache controller per view we would need to make this more unique.
-	return view.GetFile()->GetSessionId();
+	return file.GetSessionId();
 }
 
-void DeleteController(BinaryView& view)
+void DeleteController(const FileMetadata& file)
 {
-	const auto id = GetViewIdFromView(view);
+	const auto id = GetViewIdFromFileMetadata(file);
 	std::unique_lock<std::shared_mutex> lock(GlobalControllersMutex);
-	auto& dscViews = GlobalControllers();
-	if (auto it = dscViews.find(id); it != dscViews.end())
+	auto& controllers = GlobalControllers();
+	if (auto it = controllers.find(id); it != controllers.end())
 	{
+		auto controller = it->second;
 		// Someone is still holding the controller, lets warn about this.
-		if (it->second->m_refs > 1)
+		if (controller->m_refs > 1)
 			LogWarn("Deleting SharedCacheController for view %llx, but there are still %d references", id,
-				it->second->m_refs.load());
-		dscViews.erase(it);
-		LogDebug("Deleted SharedCacheController for view %s", view.GetFile()->GetFilename().c_str());
+				controller->m_refs.load());
+
+		// Go through the file accessor cache and remove the entries we reference.
+		auto& fileAccessorCache = FileAccessorCache::Global();
+		for (const auto& entry : controller->GetCache().GetEntries())
+		{
+			auto accessorId = GetCacheAccessorID(entry.GetFilePath());
+			fileAccessorCache.RemoveAccessor(accessorId);
+		}
+
+		controllers.erase(it);
+		LogDebug("Deleted SharedCacheController for view %s", file.GetFilename().c_str());
 	}
 }
 
 void RegisterSharedCacheControllerDestructor()
 {
 	BNObjectDestructionCallbacks callbacks = {};
-	callbacks.destructBinaryView = [](void* ctx, BNBinaryView* obj) -> void {
-		auto view = BinaryView(obj);
-		DeleteController(view);
+	callbacks.destructFileMetadata = [](void* ctx, BNFileMetadata* obj) -> void {
+		const auto file = FileMetadata(obj);
+		DeleteController(file);
 	};
 	BNRegisterObjectDestructionCallbacks(&callbacks);
 }
@@ -63,7 +73,7 @@ SharedCacheController::SharedCacheController(SharedCache&& cache, Ref<Logger> lo
 
 DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view, SharedCache&& cache)
 {
-	auto id = GetViewIdFromView(view);
+	auto id = GetViewIdFromFileMetadata(*view.GetFile());
 	std::unique_lock<std::shared_mutex> lock(GlobalControllersMutex);
 	auto logger = new Logger("SharedCache.Controller", view.GetFile()->GetSessionId());
 	DSCRef<SharedCacheController> controller = new SharedCacheController(std::move(cache), logger);
@@ -94,9 +104,9 @@ DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view
 	return controller;
 }
 
-DSCRef<SharedCacheController> SharedCacheController::FromView(BinaryView& view)
+DSCRef<SharedCacheController> SharedCacheController::FromView(const BinaryView& view)
 {
-	auto id = GetViewIdFromView(view);
+	auto id = GetViewIdFromFileMetadata(*view.GetFile());
 	std::shared_lock<std::shared_mutex> lock(GlobalControllersMutex);
 	auto& dscViews = GlobalControllers();
 	auto dscView = dscViews.find(id);

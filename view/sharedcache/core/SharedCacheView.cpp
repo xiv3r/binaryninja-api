@@ -20,8 +20,7 @@ void SharedCacheViewType::Register()
 
 	// Adjust the global accessor cache to the fdlimit.
 	FileAccessorCache::Global().SetCacheSize(fdLimit);
-
-	// TODO: Register object destructor to clear accessor cache
+	
 	RegisterSharedCacheControllerDestructor();
 
 	static SharedCacheViewType type;
