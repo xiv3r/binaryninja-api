@@ -31,6 +31,9 @@ bool SharedCacheBuilder::AddFile(
 	// Skip map files, they contain some nice information... we don't use.
 	if (fileName.find(".map") != std::string::npos)
 		return false;
+	// Skip atlas files, they contain some nice information... we don't use.
+	if (fileName.find(".atlas") != std::string::npos)
+		return false;
 	// Skip bndb files!
 	if (fileName.find(".bndb") != std::string::npos)
 		return false;
