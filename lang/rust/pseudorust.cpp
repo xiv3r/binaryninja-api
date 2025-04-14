@@ -258,9 +258,15 @@ void PseudoRustFunction::AppendComparison(const string& comparison, const HighLe
 	const auto leftExpr = instr.GetLeftExpr();
 	const auto rightExpr = instr.GetRightExpr();
 
-	GetExprText(leftExpr, emitter, settings, precedence, InnerExpression, signedHint);
+	if (leftExpr.operation == HLIL_SPLIT)
+		AppendDefaultSplitExpr(leftExpr, emitter, settings, precedence);
+	else
+		GetExprText(leftExpr, emitter, settings, precedence, InnerExpression, signedHint);
 	emitter.Append(OperationToken, comparison);
-	GetExprText(rightExpr, emitter, settings, precedence, InnerExpression, signedHint);
+	if (rightExpr.operation == HLIL_SPLIT)
+		AppendDefaultSplitExpr(rightExpr, emitter, settings, precedence);
+	else
+		GetExprText(rightExpr, emitter, settings, precedence, InnerExpression, signedHint);
 }
 
 
@@ -548,6 +554,25 @@ void PseudoRustFunction::AppendFieldTextTokens(const HighLevelILInstruction& var
 
 		default: break;
 	}
+}
+
+
+void PseudoRustFunction::AppendDefaultSplitExpr(const BinaryNinja::HighLevelILInstruction& instr,
+	BinaryNinja::HighLevelILTokenEmitter& tokens, DisassemblySettings* settings, BNOperatorPrecedence precedence)
+{
+	const auto high = instr.GetHighExpr<HLIL_SPLIT>();
+	const auto low = instr.GetLowExpr<HLIL_SPLIT>();
+	if (precedence == EqualityOperatorPrecedence)
+		tokens.AppendOpenParen();
+	tokens.AppendOpenParen();
+	GetExprText(high, tokens, settings, precedence);
+	tokens.Append(OperationToken, " << ");
+	tokens.Append(IntegerToken, std::to_string(low.size * 8));
+	tokens.AppendCloseParen();
+	tokens.Append(OperationToken, " | ");
+	GetExprText(low, tokens, settings, precedence);
+	if (precedence == EqualityOperatorPrecedence)
+		tokens.AppendCloseParen();
 }
 
 
@@ -1391,19 +1416,10 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			}
 			else if (srcExpr.operation == HLIL_SPLIT)
 			{
-				const auto high = srcExpr.GetHighExpr<HLIL_SPLIT>();
-				const auto low = srcExpr.GetLowExpr<HLIL_SPLIT>();
 				GetExprText(destExpr, tokens, settings, precedence);
 				tokens.Append(OperationToken, " = ");
-				tokens.AppendOpenParen();
-				GetExprText(high, tokens, settings, precedence);
-				tokens.Append(OperationToken, " << ");
-				tokens.Append(IntegerToken, std::to_string(low.size * 8));
-				tokens.AppendCloseParen();
-				tokens.Append(OperationToken, " | ");
-				GetExprText(low, tokens, settings, precedence);
+				AppendDefaultSplitExpr(srcExpr, tokens, settings, precedence);
 				tokens.AppendSemicolon();
-				tokens.NewLine();
 				return;
 			}
 			else
