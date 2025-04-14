@@ -37,19 +37,17 @@ bool SharedCacheBuilder::AddFile(
 
 	try
 	{
-		if (auto entry = CacheEntry::FromFile(filePath, fileName, cacheType))
-		{
-			m_cache.AddEntry(std::move(*entry));
-			return true;
-		}
+		auto entry = CacheEntry::FromFile(filePath, fileName, cacheType);
+		m_cache.AddEntry(std::move(entry));
 	}
 	catch (const std::exception& e)
 	{
 		// Just return false so the view init can continue.
-		m_logger->LogErrorF("Failed to add file {}... {}", fileName, e.what());
+		m_logger->LogErrorF("Failed to add file '{}': {}", fileName, e.what());
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 size_t SharedCacheBuilder::AddDirectory(const std::string& directoryPath)

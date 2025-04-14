@@ -36,7 +36,7 @@ std::vector<std::string> CacheImage::GetDependencies() const
 }
 
 CacheEntry::CacheEntry(std::string filePath, std::string fileName, CacheEntryType type, dyld_cache_header header,
-	std::vector<dyld_cache_mapping_info> mappings, std::vector<std::pair<std::string, dyld_cache_image_info>> images)
+	std::vector<dyld_cache_mapping_info>&& mappings, std::vector<std::pair<std::string, dyld_cache_image_info>>&& images)
 {
 	m_filePath = std::move(filePath);
 	m_fileName = std::move(fileName);
@@ -46,7 +46,7 @@ CacheEntry::CacheEntry(std::string filePath, std::string fileName, CacheEntryTyp
 	m_images = std::move(images);
 }
 
-std::optional<CacheEntry> CacheEntry::FromFile(const std::string& filePath, const std::string& fileName, CacheEntryType type)
+CacheEntry CacheEntry::FromFile(const std::string& filePath, const std::string& fileName, CacheEntryType type)
 {
 	auto file = FileAccessorCache::Global().Open(filePath).lock();
 
@@ -55,15 +55,19 @@ std::optional<CacheEntry> CacheEntry::FromFile(const std::string& filePath, cons
 	// All entries must start with "dyld".
 	DataBuffer sig = file->ReadBuffer(0, 4);
 	if (sig.GetLength() != 4)
-		return std::nullopt;
-	const char* magic = (char*)sig.GetData();
+		throw std::runtime_error("File is empty!");
+	const char* magic = static_cast<char*>(sig.GetData());
 	if (strncmp(magic, "dyld", 4) != 0)
-		return std::nullopt;
+		throw std::runtime_error("File does not start with `dyld`!");
 
 	// Read the header, this _should_ be compatible with all known DSC formats.
 	// Mason: the above is not true! https://github.com/Vector35/binaryninja-api/issues/6073
 	dyld_cache_header header = {};
 	file->Read(&header, 0, sizeof(header));
+
+	// Adjust the array count to actually be the "real" number for comparisons with what we load.
+	// This is required so we can check if we loaded the required number of caches, in view init.
+	header.subCacheArrayCount += header.cacheSubType;
 
 	// Read the mappings using the headers `mappingCount` and `mappingOffset`.
 	dyld_cache_mapping_info currentMapping = {};
@@ -71,6 +75,13 @@ std::optional<CacheEntry> CacheEntry::FromFile(const std::string& filePath, cons
 	for (size_t i = 0; i < header.mappingCount; i++)
 	{
 		file->Read(&currentMapping, header.mappingOffset + (i * sizeof(currentMapping)), sizeof(currentMapping));
+
+		// Cancel adding the entry if we have an invalid mapping.
+		if (currentMapping.fileOffset + currentMapping.size > file->Length())
+			throw std::runtime_error("Invalid mapping in shared cache entry");
+
+		// TODO: Check initProt to make sure its in the range of expected values.
+
 		mappings.push_back(currentMapping);
 	}
 
@@ -134,7 +145,7 @@ std::optional<CacheEntry> CacheEntry::FromFile(const std::string& filePath, cons
 		images.emplace_back(imageName, branchIslandImg);
 	}
 
-	return CacheEntry(filePath, fileName, type, header, mappings, images);
+	return {filePath, fileName, type, header, std::move(mappings), std::move(images)};
 }
 
 WeakFileAccessor CacheEntry::GetAccessor() const

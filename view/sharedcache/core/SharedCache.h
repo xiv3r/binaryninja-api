@@ -130,7 +130,7 @@ class CacheEntry
 
 public:
 	CacheEntry(std::string filePath, std::string fileName, CacheEntryType type, dyld_cache_header header,
-		std::vector<dyld_cache_mapping_info> mappings, std::vector<std::pair<std::string, dyld_cache_image_info>> images);
+		std::vector<dyld_cache_mapping_info>&& mappings, std::vector<std::pair<std::string, dyld_cache_image_info>>&& images);
 
 	CacheEntry() = default;
 	CacheEntry(const CacheEntry&) = default;
@@ -139,7 +139,7 @@ public:
 	CacheEntry& operator=(CacheEntry&&) = default;
 
 	// Construct a cache entry from the file on disk.
-	static std::optional<CacheEntry> FromFile(const std::string& filePath, const std::string& fileName, CacheEntryType type);
+	static CacheEntry FromFile(const std::string& filePath, const std::string& fileName, CacheEntryType type);
 
 	WeakFileAccessor GetAccessor() const;
 
