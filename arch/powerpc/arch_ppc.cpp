@@ -598,11 +598,11 @@ class PowerpcArchitecture: public Architecture
 							snprintf(buf, sizeof(buf), "0x%" PRIx64, op->imm);
 							result.emplace_back(CodeRelativeAddressToken, buf, (uint32_t) op->imm, 4);
 							break;
-						case PPC_INS_ADDIS:
-						case PPC_INS_LIS:
 						case PPC_INS_ORIS:
 						case PPC_INS_XORIS:
 						case PPC_INS_ORI:
+						case PPC_INS_ANDI:
+						case PPC_INS_ANDIS:
 							snprintf(buf, sizeof(buf), "0x%x", (uint16_t)op->imm);
 							result.emplace_back(IntegerToken, buf, (uint16_t) op->imm, 4);
 							break;
