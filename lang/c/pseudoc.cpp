@@ -1310,9 +1310,9 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			std::optional<string> assignUpdateOperator;
 			std::optional<HighLevelILInstruction> assignUpdateSource;
 			bool assignUpdateNegate = false;
-			const auto isSplit = destExpr.operation == HLIL_SPLIT;
+			const auto destIsSplit = destExpr.operation == HLIL_SPLIT;
 			std::optional<bool> assignSignedHint;
-			if (isSplit)
+			if (destIsSplit)
 			{
 				const auto high = destExpr.GetHighExpr<HLIL_SPLIT>();
 				const auto low = destExpr.GetLowExpr<HLIL_SPLIT>();
@@ -1327,6 +1327,23 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				tokens.AppendSemicolon();
 				tokens.NewLine();
 				GetExprTextInternal(low, tokens, settings, precedence);
+			}
+			else if (srcExpr.operation == HLIL_SPLIT)
+			{
+				const auto high = srcExpr.GetHighExpr<HLIL_SPLIT>();
+				const auto low = srcExpr.GetLowExpr<HLIL_SPLIT>();
+				GetExprTextInternal(destExpr, tokens, settings, precedence);
+				tokens.Append(OperationToken, " = ");
+				tokens.AppendOpenParen();
+				GetExprTextInternal(high, tokens, settings, precedence);
+				tokens.Append(OperationToken, " << ");
+				tokens.Append(IntegerToken, std::to_string(low.size * 8));
+				tokens.AppendCloseParen();
+				tokens.Append(OperationToken, " | ");
+				GetExprTextInternal(low, tokens, settings, precedence);
+				tokens.AppendSemicolon();
+				tokens.NewLine();
+				return;
 			}
 			else
 			{
@@ -1454,7 +1471,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				appearsDead = false;
 			}
 
-			if (isSplit)
+			if (destIsSplit)
 			{
 //				const auto high = destExpr.GetHighExpr<HLIL_SPLIT>();
 				const auto low = destExpr.GetLowExpr<HLIL_SPLIT>();
@@ -1484,7 +1501,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				GetExprTextInternal(srcExpr, tokens, settings, AssignmentOperatorPrecedence, false, assignSignedHint);
 			}
 
-			if (isSplit)
+			if (destIsSplit)
 				tokens.AppendCloseParen();
 
 			if (appearsDead)
