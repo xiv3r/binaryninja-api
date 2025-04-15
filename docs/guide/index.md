@@ -1033,9 +1033,9 @@ When you launch Binary Ninja from the command-line, you can control whether or n
 * Running Binary Ninja from the command line will try to find a running instance of the same version in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
 * For users whose workflow involves running Binary Ninja from a shell, just running `binaryninja` will try to activate a running instance, and if it does, return you to your shell. Otherwise it will launch a new instance of Binary Ninja.
 * Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will 
-  1. Try to activate and focus existing tabs for those files in a running instance, or failing that,
-  2. Try to open those files in new tabs in a running instance, or failing that,
-  3. Open those files in a new instance of Binary Ninja.
+    1. Try to activate and focus existing tabs for those files in a running instance, or failing that,
+    2. Try to open those files in new tabs in a running instance, or failing that,
+    3. Open those files in a new instance of Binary Ninja.
 * Passing the `-n` or `--new-instance` command line argument will cause a new Binary Ninja application to be launched and any files or URLs on the command line will be opened in the new instance.
 
 ## Debugger
