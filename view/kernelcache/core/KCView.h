@@ -16,6 +16,8 @@ public:
 	~KCView() override;
 
     bool Init() override;
+
+	virtual bool PerformIsExecutable() const override { return true; }
 };
 
 

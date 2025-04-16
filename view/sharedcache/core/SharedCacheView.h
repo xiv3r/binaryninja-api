@@ -43,6 +43,8 @@ public:
 	BinaryNinja::Ref<BinaryNinja::Metadata> GetMetadata() const;
 
 	void LoadMetadata(const BinaryNinja::Metadata& metadata);
+
+	virtual bool PerformIsExecutable() const override { return true; }
 };
 
 
