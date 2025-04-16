@@ -1902,6 +1902,13 @@ std::vector<KernelCacheImage> KernelCache::GetLoadedImages()
 }
 
 
+bool KernelCache::IsImageLoaded(uint64_t address)
+{
+	std::lock_guard lock(m_viewSpecificState->stateMutex);
+	return m_viewSpecificState->state.loadedImages.find(address)!= m_viewSpecificState->state.loadedImages.end();
+}
+
+
 std::vector<std::pair<uint64_t, std::pair<std::string, std::string>>> KernelCache::LoadAllSymbolsAndWait()
 {
 	std::vector<std::pair<uint64_t, std::pair<std::string, std::string>>> symbols;
@@ -2155,6 +2162,14 @@ extern "C"
 		{
 			return cache->object->LoadImageContainingAddress(address);
 		}
+
+		return false;
+	}
+
+	bool BNKCViewIsImageLoaded(BNKernelCache* cache, uint64_t address)
+	{
+		if (cache->object)
+			return cache->object->IsImageLoaded(address);
 
 		return false;
 	}

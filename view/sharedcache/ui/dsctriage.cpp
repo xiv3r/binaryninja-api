@@ -130,6 +130,25 @@ void DSCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses, b
 }
 
 
+void DSCTriageView::setImageLoaded(const uint64_t imageHeaderAddr)
+{
+	// Go through the m_imageModel and find the image associated with the address
+	// then set the image as loaded.
+	for (int i = 0; i < m_imageModel->rowCount(); i++)
+	{
+		auto addrCol = m_imageModel->index(i, 0);
+		const auto addr = addrCol.data().toString().toULongLong(nullptr, 16);
+		if (addr == imageHeaderAddr)
+		{
+			auto statusCol = m_imageModel->index(i, 1);
+			// See the `LoadedDelegate` class, we set 1 to indicate that this image is loaded.
+			m_imageModel->setData(statusCol, "1", Qt::DisplayRole);
+			break;
+		}
+	}
+}
+
+
 QWidget* DSCTriageView::initImageTable()
 {
 	m_imageTable = new FilterableTableView(this);
@@ -530,23 +549,4 @@ void DSCTriageView::RefreshData()
 	}
 
 	m_symbolTable->populateSymbols(*m_data);
-}
-
-
-void DSCTriageView::setImageLoaded(const uint64_t imageHeaderAddr)
-{
-	// Go through the m_loadImageModel and find the image associated with the address
-	// then set the image as loaded.
-	for (int i = 0; i < m_imageModel->rowCount(); i++)
-	{
-		auto addrCol = m_imageModel->index(i, 0);
-		const auto addr = addrCol.data().toString().toULongLong(nullptr, 16);
-		if (addr == imageHeaderAddr)
-		{
-			auto statusCol = m_imageModel->index(i, 1);
-			// See the `LoadedDelegate` class, we set 1 to indicate that this image is loaded.
-			m_imageModel->setData(statusCol, "1", Qt::DisplayRole);
-			break;
-		}
-	}
 }

@@ -109,6 +109,8 @@ extern "C"
 	KERNELCACHE_FFI_API bool BNKCViewLoadImageWithInstallName(BNKernelCache* cache, char* name);
 	KERNELCACHE_FFI_API bool BNKCViewLoadImageContainingAddress(BNKernelCache* cache, uint64_t address);
 
+	KERNELCACHE_FFI_API bool BNKCViewIsImageLoaded(BNKernelCache* cache, uint64_t address);
+
 	KERNELCACHE_FFI_API char* BNKCViewGetNameForAddress(BNKernelCache* cache, uint64_t address);
 	KERNELCACHE_FFI_API char* BNKCViewGetImageNameForAddress(BNKernelCache* cache, uint64_t address);
 

@@ -299,6 +299,7 @@ namespace KernelCacheCore {
 		std::string ImageNameForAddress(uint64_t address);
 		std::vector<std::string> GetAvailableImages();
 		std::vector<KernelCacheImage> GetLoadedImages();
+		bool IsImageLoaded(uint64_t address);
 
 		std::vector<std::pair<uint64_t, std::pair<std::string, std::string>>> LoadAllSymbolsAndWait();
 

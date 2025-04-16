@@ -170,21 +170,6 @@ public:
 		}
 	}
 
-//	bool eventFilter(QObject* obj, QEvent* event) override {
-//		if (event->type() == QEvent::KeyPress) {
-//			auto* keyEvent = dynamic_cast<QKeyEvent*>(event);
-//			if (keyEvent->key() == Qt::Key_Escape) {
-//				clearSelection();
-//				return true;
-//			}
-//			if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return) {
-//				emit activated(currentIndex());
-//				return true;
-//			}
-//		}
-//		return QTableView::eventFilter(obj, event);
-//	}
-
 signals:
 	void filterTextChanged(const QString& text);
 };
@@ -219,10 +204,10 @@ public:
 
 	void OnAfterOpenFile(UIContext* context, FileContext* file, ViewFrame* frame) override;
 	void RefreshData();
-	void setImageLoaded(uint64_t imageHeaderAddr);
 
 private:
 	void loadImagesWithAddr(const std::vector<uint64_t>& addresses, bool includeDependencies = false);
+	void setImageLoaded(uint64_t imageHeaderAddr);
 	QWidget* initImageTable();
 	void initSymbolTable();
 	void initCacheInfoTables();

@@ -66,15 +66,115 @@ KCTriageView::~KCTriageView()
 }
 
 
+void KCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses) {
+	if (!m_cache)
+		return;
+
+	std::map<uint64_t, std::string> images;
+	for (const uint64_t& addr : addresses)
+	{
+		auto imageName = m_cache->GetImageNameForAddress(addr);
+		if (!imageName.empty() && !m_cache->IsImageLoaded(addr))
+		{
+			images.insert({addr, imageName});
+		}
+	}
+
+	// Don't create a worker action if we don't have any images.
+	if (images.empty())
+		return;
+
+	WorkerPriorityEnqueue([this, images]() {
+		size_t loadedImages = 0;
+		const std::string initialLoad = fmt::format("Loading images... (0/{})", images.size());
+		auto imageLoadTask = BackgroundTask(initialLoad, true);
+
+		for (const auto& [addr, imageName] : images)
+		{
+			if (imageLoadTask.IsCancelled())
+				break;
+			std::string newLoad = fmt::format("Loading images... ({}/{})", loadedImages++, images.size());
+			imageLoadTask.SetProgressText(newLoad);
+			if (m_cache->LoadImageWithInstallName(imageName))
+				setImageLoaded(addr);
+		}
+		imageLoadTask.Finish();
+
+		// We have loaded images, lets make sure to update analysis!
+		this->m_data->AddAnalysisOption("linearsweep");
+		this->m_data->UpdateAnalysis();
+	});
+}
+
+
+void KCTriageView::setImageLoaded(const uint64_t imageHeaderAddr)
+{
+	// Go through the m_imageModel and find the image associated with the address
+	// then set the image as loaded.
+	for (int i = 0; i < m_imageModel->rowCount(); i++)
+	{
+		auto addrCol = m_imageModel->index(i, 0);
+		const auto addr = addrCol.data().toString().toULongLong(nullptr, 16);
+		if (addr == imageHeaderAddr)
+		{
+			auto statusCol = m_imageModel->index(i, 1);
+			// See the `LoadedDelegate` class, we set 1 to indicate that this image is loaded.
+			m_imageModel->setData(statusCol, "1", Qt::DisplayRole);
+			break;
+		}
+	}
+}
+
+
 QWidget* KCTriageView::initImageTable()
 {
 	m_imageTable = new FilterableTableView(this);
 
-	m_imageModel = new QStandardItemModel(0, 2, m_imageTable);
-	m_imageModel->setHorizontalHeaderLabels({"VM Address", "Name"});
+	m_imageModel = new QStandardItemModel(0, 3, m_imageTable);
+	m_imageModel->setHorizontalHeaderLabels({"VM Address", "Loaded", "Name"});
 
 	// Apply custom column styling
 	m_imageTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_imageTable));
+	m_imageTable->setItemDelegateForColumn(1, new LoadedDelegate(m_imageTable));
+
+	// Context menu
+	m_imageTable->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(m_imageTable, &QWidget::customContextMenuRequested, [this](const QPoint &pos) {
+		QMenu contextMenu(tr("Load Image Actions"), m_imageTable);
+
+		// Get number of selected images
+		auto selected = m_imageTable->selectionModel()->selectedRows();
+		int selectedCount = 0;
+		std::vector<uint64_t> addresses;
+		for (const auto& idx : selected)
+		{
+			// Skip rows hidden by the filter
+			if (m_imageTable->isRowHidden(idx.row()))
+				continue;
+			addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
+			selectedCount++;
+		}
+
+		QAction noSelectionAction("No Images Selected", m_imageTable);
+		QAction loadImagesAction("", m_imageTable);
+		if (selectedCount == 0)
+		{
+			noSelectionAction.setEnabled(false);
+			contextMenu.addAction(&noSelectionAction);
+		}
+		else
+		{
+			// Format action text for loading selected images
+			QString loadActionText = (selectedCount == 1) ? "Load Selected Image" : QString("Load %1 Selected Images").arg(selectedCount);
+			loadImagesAction.setText(loadActionText);
+			connect(&loadImagesAction, &QAction::triggered, [this, addresses]() {
+				loadImagesWithAddr(addresses);
+			});
+			contextMenu.addAction(&loadImagesAction);
+		}
+
+		contextMenu.exec(m_imageTable->viewport()->mapToGlobal(pos));
+	});
 
 	BackgroundThread::create(m_imageTable)->thenBackground([this](const QVariant var) {
 		QVariantList rows;
@@ -91,6 +191,7 @@ QWidget* KCTriageView::initImageTable()
 				newHeaders->push_back(*header);
 				rows.push_back(QList<QVariant>{
 					QString("0x%1").arg(header->textBase, 0, 16),
+					QString(""),
 					QString::fromStdString(img.name)
 				});
 			}
@@ -131,12 +232,12 @@ QWidget* KCTriageView::initImageTable()
 		if (selected.empty())
 			return;
 
-		for (const auto& selection : selected) {
-			auto name = m_imageModel->item(selection.row(), 1)->text().toStdString();
-			WorkerPriorityEnqueue([this, name]() { m_cache->LoadImageWithInstallName(name); });
-		}
+		std::vector<uint64_t> addresses;
+		for (const auto& idx : selected)
+			addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
+		loadImagesWithAddr(addresses);
 	});
-	loadImageButton->setText("Load Selected");
+	loadImageButton->setText(" Load Selected ");
 
 	auto loadImageFilterEdit = new FilterEdit(m_imageTable);
 	connect(loadImageFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
@@ -144,9 +245,8 @@ QWidget* KCTriageView::initImageTable()
 	});
 
 	connect(m_imageTable, &FilterableTableView::activated, this, [=](const QModelIndex& index) {
-		auto selected = m_imageModel->item(index.row(), 1);
-		auto name = selected->text().toStdString();
-		WorkerPriorityEnqueue([this, name]() { m_cache->LoadImageWithInstallName(name); });
+		auto addr = m_imageModel->item(index.row(), 0)->text().toULongLong(nullptr, 16);
+		loadImagesWithAddr({addr});
 	});
 
 	auto loadImageLayout = new QVBoxLayout;
@@ -166,7 +266,8 @@ QWidget* KCTriageView::initImageTable()
 	m_imageTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
 	m_imageTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-	m_imageTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+	m_imageTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+	m_imageTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
 
 	m_imageTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_imageTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -191,9 +292,35 @@ void KCTriageView::initSymbolTable()
 		m_symbolTable->setFilter(filter.toStdString());
 	});
 
+	auto loadSymbolImageButton = new QPushButton();
+	connect(loadSymbolImageButton, &QPushButton::clicked, [this](bool) {
+		auto selected = m_symbolTable->selectionModel()->selectedRows();
+		std::vector<uint64_t> addresses;
+		for (const auto& row : selected)
+			addresses.push_back(row.data().toString().toULongLong(nullptr, 16));
+		loadImagesWithAddr(addresses);
+	});
+	loadSymbolImageButton->setText("Load Image");
+
+	// Shows the current selected rows image name.
+	auto currentImageLabel = new QLabel(this);
+	currentImageLabel->setText("");
+	currentImageLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	connect(m_symbolTable->selectionModel(), &QItemSelectionModel::currentRowChanged, this, [this, currentImageLabel](const QModelIndex &current, const QModelIndex &) {
+		auto symbol = m_symbolTable->getSymbolAtRow(current.row());
+		auto imageName = m_cache->GetImageNameForAddress(symbol.address);
+		currentImageLabel->setText("Image: " + QString::fromStdString(imageName));
+	});
+
+	auto symbolFooterLayout = new QHBoxLayout;
+	symbolFooterLayout->addWidget(loadSymbolImageButton);
+	symbolFooterLayout->addWidget(currentImageLabel);
+	symbolFooterLayout->setAlignment(Qt::AlignLeft);
+
 	auto symbolLayout = new QVBoxLayout;
 	symbolLayout->addWidget(symbolFilterEdit);
 	symbolLayout->addWidget(m_symbolTable);
+	symbolLayout->addLayout(symbolFooterLayout);
 
 	auto symbolWidget = new QWidget;
 	symbolWidget->setLayout(symbolLayout);

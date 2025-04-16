@@ -50,6 +50,11 @@ namespace KernelCacheAPI {
 		return result;
 	}
 
+	bool KernelCache::IsImageLoaded(const uint64_t address) const
+	{
+	    return BNKCViewIsImageLoaded(m_object, address);
+	}
+
 	std::vector<KCImage> KernelCache::GetImages()
 	{
 		size_t count;

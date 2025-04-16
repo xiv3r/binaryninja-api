@@ -258,6 +258,8 @@ namespace KernelCacheAPI {
 		bool LoadImageContainingAddress(uint64_t addr);
 		std::vector<std::string> GetAvailableImages();
 
+		bool IsImageLoaded(const uint64_t address) const;
+
 		std::vector<KCSymbol> LoadAllSymbolsAndWait();
 
 		std::string GetNameForAddress(uint64_t address);
