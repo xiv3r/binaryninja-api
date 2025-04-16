@@ -290,7 +290,9 @@ int TriageViewType::getPriority(BinaryViewRef data, const QString&)
 		return 100;
 	if (data->GetLength() > 0)
 	{
-		if (alwaysPrefer || data->IsExecutable() || preferForRaw)
+		if (alwaysPrefer || preferForRaw)
+			return 35;
+		if (data->IsExecutable())
 			return 25;
 		return 1;
 	}

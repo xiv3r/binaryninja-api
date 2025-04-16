@@ -38,7 +38,7 @@ void KCTriageViewType::Register()
 
 KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent), View(), m_data(data), m_cache(new KernelCache(data))
 {
-	setBinaryDataNavigable(true);
+	setBinaryDataNavigable(false);
 	setupView(this);
 
 	UIContext::registerNotification(this);
@@ -367,8 +367,7 @@ BinaryViewRef KCTriageView::getData()
 
 bool KCTriageView::navigate(uint64_t offset)
 {
-	// TODO: We have to set this to true otherwise view restore does not pickup this view.
-	return true;
+	return false;
 }
 
 

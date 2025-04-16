@@ -470,8 +470,7 @@ BinaryViewRef DSCTriageView::getData()
 
 bool DSCTriageView::navigate(uint64_t offset)
 {
-	// TODO: We have to set this to true otherwise view restore does not pickup this view.
-	return true;
+	return false;
 }
 
 
