@@ -60,7 +60,21 @@ impl Command for LoadSVDFile {
 
 #[no_mangle]
 #[allow(non_snake_case)]
+#[cfg(not(feature = "demo"))]
 pub extern "C" fn CorePluginInit() -> bool {
+    plugin_init();
+    true
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
+#[cfg(feature = "demo")]
+pub extern "C" fn SVDPluginInit() -> bool {
+    plugin_init();
+    true
+}
+
+fn plugin_init() {
     Logger::new("SVD").with_level(LevelFilter::Debug).init();
 
     binaryninja::command::register_command(
@@ -107,6 +121,4 @@ pub extern "C" fn CorePluginInit() -> bool {
         .unwrap();
     module_meta_workflow.insert("core.module.loadDebugInfo", [LOADER_ACTIVITY_NAME]);
     module_meta_workflow.register().unwrap();
-
-    true
 }

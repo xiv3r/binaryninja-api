@@ -1,14 +1,15 @@
 [package]
-name = "svd_ninja"
+name = "svd_ninja-static"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["staticlib", "lib"]
+path = "../src/lib.rs"
 
 [dependencies]
-binaryninja.workspace = true
+binaryninja = { workspace = true, features = ["demo"]}
 binaryninjacore-sys.workspace = true
 svd-parser = { version = "0.14.8", features = ["expand"] }
 log = "0.4"

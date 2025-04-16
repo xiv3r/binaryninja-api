@@ -2753,6 +2753,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "svd_ninja-static"
+version = "0.1.0"
+dependencies = [
+ "binaryninja",
+ "binaryninjacore-sys",
+ "insta",
+ "log",
+ "serde_json",
+ "svd-parser",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
