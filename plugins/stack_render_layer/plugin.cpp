@@ -115,7 +115,11 @@ public:
 extern "C" {
 	BN_DECLARE_CORE_ABI_VERSION
 
+#ifdef DEMO_EDITION
+	bool StackRenderLayerPluginInit()
+#else
 	BINARYNINJAPLUGIN bool CorePluginInit()
+#endif
 	{
 		static StackRenderLayer* layer = new StackRenderLayer();
 		RenderLayer::Register(layer, DisabledByDefaultRenderLayerDefaultEnableState);
