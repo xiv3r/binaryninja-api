@@ -149,7 +149,7 @@ std::optional<std::string> TypeContainer::AddType(QualifiedName name, Ref<Type> 
 
 std::optional<std::unordered_map<QualifiedName, std::string>> TypeContainer::AddTypes(
 	const std::vector<std::pair<QualifiedName, Ref<Type>>>& types,
-	std::function<bool(size_t, size_t)> progress)
+	ProgressFunction progress)
 {
 	BNQualifiedName* apiTypeNames = new BNQualifiedName[types.size()];
 	BNType** apiTypes = new BNType*[types.size()];

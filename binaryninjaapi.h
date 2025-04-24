@@ -1492,6 +1492,9 @@ namespace BinaryNinja {
 		bool IsKeyValueStore() const;
 	};
 
+	typedef std::function<bool(size_t, size_t)> ProgressFunction;
+	bool DefaultProgressFunction(size_t, size_t);
+
 	class BinaryView;
 	class ProjectFile;
 
@@ -1529,12 +1532,12 @@ namespace BinaryNinja {
 	                    being loaded. If the function returns false, it will cancel Load.
 	    \return Constructed view, or a nullptr Ref<BinaryView>
 	*/
-	Ref<BinaryView> Load(const std::string& filename, bool updateAnalysis = true, const std::string& options = "{}", std::function<bool(size_t, size_t)> progress = {});
+	Ref<BinaryView> Load(const std::string& filename, bool updateAnalysis = true, const std::string& options = "{}", ProgressFunction progress = {});
 	/*! Open a BinaryView from a raw data buffer, initializing data views and loading settings.
 
 	    @threadmainonly
 
-	    \see BinaryNinja::Load(const std::string&, bool, std::function<bool(size_t, size_t)>, Json::Value)
+	    \see BinaryNinja::Load(const std::string&, bool, ProgressFunction, Json::Value)
 	    for discussion of this function.
 
 	    \param rawData Buffer with raw binary data to load (cannot load from bndb)
@@ -1545,14 +1548,14 @@ namespace BinaryNinja {
 	                    being loaded. If the function returns false, it will cancel Load.
 	    \return Constructed view, or a nullptr Ref<BinaryView>
 	*/
-	Ref<BinaryView> Load(const DataBuffer& rawData, bool updateAnalysis = true, const std::string& options = "{}", std::function<bool(size_t, size_t)> progress = {});
+	Ref<BinaryView> Load(const DataBuffer& rawData, bool updateAnalysis = true, const std::string& options = "{}", ProgressFunction progress = {});
 
 
 	/*! Open a BinaryView from a raw BinaryView, initializing data views and loading settings.
 
 	    @threadmainonly
 
-	    \see BinaryNinja::Load(const std::string&, bool, std::function<bool(size_t, size_t)>, Json::Value)
+	    \see BinaryNinja::Load(const std::string&, bool, ProgressFunction, Json::Value)
 	    for discussion of this function.
 
 	    \param rawData BinaryView with raw binary data to load
@@ -1563,13 +1566,13 @@ namespace BinaryNinja {
 	                    being loaded. If the function returns false, it will cancel Load.
 	    \return Constructed view, or a nullptr Ref<BinaryView>
 	*/
-	Ref<BinaryView> Load(Ref<BinaryView> rawData, bool updateAnalysis = true, const std::string& options = "{}", std::function<bool(size_t, size_t)> progress = {});
+	Ref<BinaryView> Load(Ref<BinaryView> rawData, bool updateAnalysis = true, const std::string& options = "{}", ProgressFunction progress = {});
 
 	/*! Open a BinaryView from a ProjectFile, initializing data views and loading settings.
 
 	    @threadmainonly
 
-	    \see BinaryNinja::Load(const std::string&, bool, std::function<bool(size_t, size_t)>, Json::Value)
+	    \see BinaryNinja::Load(const std::string&, bool, ProgressFunction, Json::Value)
 	    for discussion of this function.
 
 	    \param rawData BinaryView with raw binary data to load
@@ -1580,24 +1583,24 @@ namespace BinaryNinja {
 	                    being loaded. If the function returns false, it will cancel Load.
 	    \return Constructed view, or a nullptr Ref<BinaryView>
 	*/
-	Ref<BinaryView> Load(Ref<ProjectFile> rawData, bool updateAnalysis = true, const std::string& options = "{}", std::function<bool(size_t, size_t)> progress = {});
+	Ref<BinaryView> Load(Ref<ProjectFile> rawData, bool updateAnalysis = true, const std::string& options = "{}", ProgressFunction progress = {});
 
 	Ref<BinaryView> ParseTextFormat(const std::string& filename);
 
 	/*!
 		Deprecated. Use non-metadata version.
 	*/
-	Ref<BinaryView> Load(const std::string& filename, bool updateAnalysis, std::function<bool(size_t, size_t)> progress, Ref<Metadata> options = new Metadata(MetadataType::KeyValueDataType));
+	Ref<BinaryView> Load(const std::string& filename, bool updateAnalysis, ProgressFunction progress, Ref<Metadata> options = new Metadata(MetadataType::KeyValueDataType));
 
 	/*!
 		Deprecated. Use non-metadata version.
 	*/
-	Ref<BinaryView> Load(const DataBuffer& rawData, bool updateAnalysis, std::function<bool(size_t, size_t)> progress, Ref<Metadata> options = new Metadata(MetadataType::KeyValueDataType));
+	Ref<BinaryView> Load(const DataBuffer& rawData, bool updateAnalysis, ProgressFunction progress, Ref<Metadata> options = new Metadata(MetadataType::KeyValueDataType));
 
 	/*!
 		Deprecated. Use non-metadata version.
 	*/
-	Ref<BinaryView> Load(Ref<BinaryView> rawData, bool updateAnalysis, std::function<bool(size_t, size_t)> progress, Ref<Metadata> options = new Metadata(MetadataType::KeyValueDataType), bool isDatabase = false);
+	Ref<BinaryView> Load(Ref<BinaryView> rawData, bool updateAnalysis, ProgressFunction progress, Ref<Metadata> options = new Metadata(MetadataType::KeyValueDataType), bool isDatabase = false);
 
 	/*! Attempt to demangle a mangled name, trying all relevant demanglers and using whichever one accepts it
 
@@ -2032,9 +2035,6 @@ namespace BinaryNinja {
 	*/
 	bool OpenUrl(const std::string& url);
 
-	typedef std::function<bool(size_t, size_t)> ProgressFunction;
-	bool DefaultProgressFunction(size_t, size_t);
-
 	/*! Run a given task in a background thread, and show an updating progress bar which the user can cancel
 
 		@threadsafe
@@ -2092,7 +2092,7 @@ namespace BinaryNinja {
 
 	struct ProgressContext
 	{
-		std::function<bool(size_t, size_t)> callback;
+		ProgressFunction callback;
 	};
 
 	bool ProgressCallback(void* ctxt, size_t current, size_t total);
@@ -2517,10 +2517,10 @@ namespace BinaryNinja {
 		DataBuffer GetFileContentsHash();
 		DataBuffer GetUndoData();
 		std::vector<Ref<UndoEntry>> GetUndoEntries();
-		std::vector<Ref<UndoEntry>> GetUndoEntries(const std::function<bool(size_t, size_t)>& progress);
+		std::vector<Ref<UndoEntry>> GetUndoEntries(const ProgressFunction& progress);
 		Ref<KeyValueStore> ReadData();
-		Ref<KeyValueStore> ReadData(const std::function<bool(size_t, size_t)>& progress);
-		bool StoreData(const Ref<KeyValueStore>& data, const std::function<bool(size_t, size_t)>& progress);
+		Ref<KeyValueStore> ReadData(const ProgressFunction& progress);
+		bool StoreData(const Ref<KeyValueStore>& data, const ProgressFunction& progress);
 		bool HasAncestor(Ref<Snapshot> other);
 	};
 
@@ -2541,7 +2541,7 @@ namespace BinaryNinja {
 		void SetCurrentSnapshot(int64_t id);
 		Ref<Snapshot> GetCurrentSnapshot();
 		int64_t WriteSnapshotData(std::vector<int64_t> parents, Ref<BinaryView> file, const std::string& name,
-		    const Ref<KeyValueStore>& data, bool autoSave, const std::function<bool(size_t, size_t)>& progress);
+		    const Ref<KeyValueStore>& data, bool autoSave, const ProgressFunction& progress);
 		void TrimSnapshot(int64_t id);
 		void RemoveSnapshot(int64_t id);
 
@@ -2781,7 +2781,7 @@ namespace BinaryNinja {
 		void SetDescription(const std::string& description);
 		Ref<ProjectFolder> GetParent() const;
 		void SetParent(Ref<ProjectFolder> parent);
-		bool Export(const std::string& destination, const std::function<bool(size_t progress, size_t total)>& progressCallback = {}) const;
+		bool Export(const std::string& destination, const ProgressFunction& progressCallback = {}) const;
 	};
 
 	/*!
@@ -2840,18 +2840,18 @@ namespace BinaryNinja {
 		void RemoveMetadata(const std::string& key);
 
 		Ref<ProjectFolder> CreateFolderFromPath(const std::string& path, Ref<ProjectFolder> parent, const std::string& description,
-			const std::function<bool(size_t progress, size_t total)>& progressCallback = {});
+			const ProgressFunction& progressCallback = {});
 		Ref<ProjectFolder> CreateFolder(Ref<ProjectFolder> parent, const std::string& name, const std::string& description);
 		Ref<ProjectFolder> CreateFolderUnsafe(Ref<ProjectFolder> parent, const std::string& name, const std::string& description, const std::string& id);
 		std::vector<Ref<ProjectFolder>> GetFolders() const;
 		Ref<ProjectFolder> GetFolderById(const std::string& id) const;
 		void PushFolder(Ref<ProjectFolder> folder);
-		bool DeleteFolder(Ref<ProjectFolder> folder, const std::function<bool(size_t progress, size_t total)>& progressCallback = {});
+		bool DeleteFolder(Ref<ProjectFolder> folder, const ProgressFunction& progressCallback = {});
 
-		Ref<ProjectFile> CreateFileFromPath(const std::string& path, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::function<bool(size_t progress, size_t total)>& progressCallback = {});
-		Ref<ProjectFile> CreateFileFromPathUnsafe(const std::string& path, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::string& id, int64_t creationTimestamp, const std::function<bool(size_t progress, size_t total)>& progressCallback = {});
-		Ref<ProjectFile> CreateFile_(const std::vector<uint8_t>& contents, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::function<bool(size_t progress, size_t total)>& progressCallback = {});
-		Ref<ProjectFile> CreateFileUnsafe(const std::vector<uint8_t>& contents, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::string& id, int64_t creationTimestamp, const std::function<bool(size_t progress, size_t total)>& progressCallback = {});
+		Ref<ProjectFile> CreateFileFromPath(const std::string& path, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const ProgressFunction& progressCallback = {});
+		Ref<ProjectFile> CreateFileFromPathUnsafe(const std::string& path, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::string& id, int64_t creationTimestamp, const ProgressFunction& progressCallback = {});
+		Ref<ProjectFile> CreateFile_(const std::vector<uint8_t>& contents, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const ProgressFunction& progressCallback = {});
+		Ref<ProjectFile> CreateFileUnsafe(const std::vector<uint8_t>& contents, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::string& id, int64_t creationTimestamp, const ProgressFunction& progressCallback = {});
 		std::vector<Ref<ProjectFile>> GetFiles() const;
 		Ref<ProjectFile> GetFileById(const std::string& id) const;
 		Ref<ProjectFile> GetFileByPathOnDisk(const std::string& path);
@@ -2998,7 +2998,7 @@ namespace BinaryNinja {
 		    \return Whether the save was successful
 		*/
 		bool CreateDatabase(const std::string& name, BinaryView* data,
-		    const std::function<bool(size_t progress, size_t total)>& progressCallback, Ref<SaveSettings> settings);
+		    const ProgressFunction& progressCallback, Ref<SaveSettings> settings);
 
 		/*! Open an existing database from a given path
 
@@ -3014,7 +3014,7 @@ namespace BinaryNinja {
 		    \return The resulting BinaryView, if the load was successful
 		*/
 		Ref<BinaryView> OpenExistingDatabase(
-		    const std::string& path, const std::function<bool(size_t progress, size_t total)>& progressCallback);
+		    const std::string& path, const ProgressFunction& progressCallback);
 		Ref<BinaryView> OpenDatabaseForConfiguration(const std::string& path);
 
 		/*! Save the current database to the already created file.
@@ -3037,11 +3037,11 @@ namespace BinaryNinja {
 		    \return Whether the save was successful
 		*/
 		bool SaveAutoSnapshot(BinaryView* data,
-		    const std::function<bool(size_t progress, size_t total)>& progressCallback, Ref<SaveSettings> settings);
+		    const ProgressFunction& progressCallback, Ref<SaveSettings> settings);
 		void GetSnapshotData(
-		    Ref<KeyValueStore> data, Ref<KeyValueStore> cache, const std::function<bool(size_t, size_t)>& progress);
+		    Ref<KeyValueStore> data, Ref<KeyValueStore> cache, const ProgressFunction& progress);
 		void ApplySnapshotData(BinaryView* file, Ref<KeyValueStore> data, Ref<KeyValueStore> cache,
-		    const std::function<bool(size_t, size_t)>& progress, bool openForConfiguration = false,
+		    const ProgressFunction& progress, bool openForConfiguration = false,
 		    bool restoreRawView = true);
 		Ref<Database> GetDatabase();
 
@@ -3061,10 +3061,10 @@ namespace BinaryNinja {
 		    \return Whether the rebase was successful
 		*/
 		bool Rebase(BinaryView* data, uint64_t address,
-		    const std::function<bool(size_t progress, size_t total)>& progressCallback);
+		    const ProgressFunction& progressCallback);
 		bool CreateSnapshotedView(BinaryView* data, const std::string& viewName);
 		bool CreateSnapshotedView(BinaryView* data, const std::string& viewName,
-								  const std::function<bool(size_t progress, size_t total)>& progressCallback);
+								  const ProgressFunction& progressCallback);
 
 		/*! Run a function in a context in which any changes made to analysis will be added to an undo state.
 			If the function returns false or throws an exception, any changes made within will be reverted.
@@ -4837,10 +4837,10 @@ namespace BinaryNinja {
 		    \return Whether the save was successful
 		*/
 		bool CreateDatabase(const std::string& path,
-		    const std::function<bool(size_t progress, size_t total)>& progressCallback,
+		    const ProgressFunction& progressCallback,
 		    Ref<SaveSettings> settings = new SaveSettings());
 		bool SaveAutoSnapshot(Ref<SaveSettings> settings = new SaveSettings());
-		bool SaveAutoSnapshot(const std::function<bool(size_t progress, size_t total)>& progressCallback,
+		bool SaveAutoSnapshot(const ProgressFunction& progressCallback,
 		    Ref<SaveSettings> settings = new SaveSettings());
 
 		/*! Run a function in a context in which any changes made to analysis will be added to an undo state.
@@ -6289,10 +6289,10 @@ namespace BinaryNinja {
 		QualifiedName GetTypeNameById(const std::string& id);
 		bool IsTypeAutoDefined(const QualifiedName& name);
 		QualifiedName DefineType(const std::string& id, const QualifiedName& defaultName, Ref<Type> type);
-		std::unordered_map<std::string, QualifiedName> DefineTypes(const std::vector<std::pair<std::string, QualifiedNameAndType>>& types, std::function<bool(size_t, size_t)> progress = {});
+		std::unordered_map<std::string, QualifiedName> DefineTypes(const std::vector<std::pair<std::string, QualifiedNameAndType>>& types, ProgressFunction progress = {});
 		void DefineUserType(const QualifiedName& name, Ref<Type> type);
-		void DefineUserTypes(const std::vector<QualifiedNameAndType>& types, std::function<bool(size_t, size_t)> progress = {});
-		void DefineUserTypes(const std::vector<ParsedType>& types, std::function<bool(size_t, size_t)> progress = {});
+		void DefineUserTypes(const std::vector<QualifiedNameAndType>& types, ProgressFunction progress = {});
+		void DefineUserTypes(const std::vector<ParsedType>& types, ProgressFunction progress = {});
 		void UndefineType(const std::string& id);
 		void UndefineUserType(const QualifiedName& name);
 		void RenameType(const QualifiedName& oldName, const QualifiedName& newName);
@@ -6516,30 +6516,30 @@ namespace BinaryNinja {
 			const FunctionViewType& viewType = NormalFunctionGraph);
 
 		bool FindNextData(uint64_t start, uint64_t end, const DataBuffer& data, uint64_t& addr, BNFindFlag flags,
-		    const std::function<bool(size_t current, size_t total)>& progress);
+		    const ProgressFunction& progress);
 		bool FindNextText(uint64_t start, uint64_t end, const std::string& data, uint64_t& addr,
 			Ref<DisassemblySettings> settings, BNFindFlag flags, const FunctionViewType& viewType,
-		    const std::function<bool(size_t current, size_t total)>& progress);
+		    const ProgressFunction& progress);
 		bool FindNextConstant(uint64_t start, uint64_t end, uint64_t constant, uint64_t& addr,
 			Ref<DisassemblySettings> settings, const FunctionViewType& viewType,
-		    const std::function<bool(size_t current, size_t total)>& progress);
+		    const ProgressFunction& progress);
 
 		bool FindAllData(uint64_t start, uint64_t end, const DataBuffer& data, BNFindFlag flags,
-		    const std::function<bool(size_t current, size_t total)>& progress,
+		    const ProgressFunction& progress,
 		    const std::function<bool(uint64_t addr, const DataBuffer& match)>& matchCallback);
 		bool FindAllText(uint64_t start, uint64_t end, const std::string& data, Ref<DisassemblySettings> settings,
 			BNFindFlag flags, const FunctionViewType& viewType,
-		    const std::function<bool(size_t current, size_t total)>& progress,
+		    const ProgressFunction& progress,
 		    const std::function<bool(uint64_t addr, const std::string& match, const LinearDisassemblyLine& line)>&
 		        matchCallback);
 		bool FindAllConstant(uint64_t start, uint64_t end, uint64_t constant, Ref<DisassemblySettings> settings,
-			const FunctionViewType& viewType, const std::function<bool(size_t current, size_t total)>& progress,
+			const FunctionViewType& viewType, const ProgressFunction& progress,
 		    const std::function<bool(uint64_t addr, const LinearDisassemblyLine& line)>& matchCallback);
 
 		std::string DetectSearchMode(const std::string& query);
 
 		bool Search(const std::string& query,
-			const std::function<bool(size_t current, size_t total)>& progressCallback,
+			const ProgressFunction& progressCallback,
 			const std::function<bool(uint64_t addr, const DataBuffer& buffer)>& matchCallback);
 
 		void Reanalyze();
@@ -14409,9 +14409,9 @@ namespace BinaryNinja {
 
 		BNUpdateResult UpdateToVersion(const std::string& version);
 		BNUpdateResult UpdateToVersion(
-		    const std::string& version, const std::function<bool(size_t progress, size_t total)>& progress);
+		    const std::string& version, const ProgressFunction& progress);
 		BNUpdateResult UpdateToLatestVersion();
-		BNUpdateResult UpdateToLatestVersion(const std::function<bool(size_t progress, size_t total)>& progress);
+		BNUpdateResult UpdateToLatestVersion(const ProgressFunction& progress);
 	};
 
 	/*! UpdateVersion documentation
@@ -16780,7 +16780,7 @@ namespace BinaryNinja {
 		virtual BNMessageBoxButtonResult ShowMessageBox(const std::string& title, const std::string& text,
 		    BNMessageBoxButtonSet buttons = OKButtonSet, BNMessageBoxIcon icon = InformationIcon) = 0;
 		virtual bool OpenUrl(const std::string& url) = 0;
-		virtual bool RunProgressDialog(const std::string& title, bool canCancel, std::function<void(std::function<bool(size_t, size_t)> progress)> task) = 0;
+		virtual bool RunProgressDialog(const std::string& title, bool canCancel, std::function<void(ProgressFunction progress)> task) = 0;
 	};
 
 	typedef BNPluginOrigin PluginOrigin;
@@ -17557,7 +17557,7 @@ namespace BinaryNinja {
 		static std::vector<Ref<DebugInfoParser>> GetListForView(const Ref<BinaryView> data);
 
 		std::string GetName() const;
-		Ref<DebugInfo> Parse(Ref<BinaryView> view, Ref<BinaryView> debugView, Ref<DebugInfo> existingDebugInfo = nullptr, std::function<bool(size_t, size_t)> progress = {}) const;
+		Ref<DebugInfo> Parse(Ref<BinaryView> view, Ref<BinaryView> debugView, Ref<DebugInfo> existingDebugInfo = nullptr, ProgressFunction progress = {}) const;
 
 		bool IsValidForView(const Ref<BinaryView> view) const;
 	};
@@ -17577,7 +17577,7 @@ namespace BinaryNinja {
 
 		virtual bool IsValid(Ref<BinaryView>) = 0;
 		virtual bool ParseInfo(
-			Ref<DebugInfo>, Ref<BinaryView>, Ref<BinaryView>, std::function<bool(size_t, size_t)>) = 0;
+			Ref<DebugInfo>, Ref<BinaryView>, Ref<BinaryView>, ProgressFunction) = 0;
 	};
 
 	/*! Class for storing secrets (e.g. tokens) in a system-specific manner
@@ -18458,7 +18458,7 @@ namespace BinaryNinja {
 			const std::string& secondSnapshot,
 			const std::unordered_map<std::string, std::string>& mergeConflictsIn,
 			std::unordered_set<std::string>& mergeConflictsOut,
-			std::function<bool(size_t, size_t)> progress
+			ProgressFunction progress
 		);
 	};
 
@@ -18569,7 +18569,7 @@ namespace BinaryNinja {
 		 */
 		std::optional<std::unordered_map<QualifiedName, std::string>> AddTypes(
 			const std::vector<std::pair<QualifiedName, Ref<Type>>>& types,
-			std::function<bool(size_t, size_t)> progress = {});
+			ProgressFunction progress = {});
 
 		/*! Rename a type in the Type Container. All references to this type will be updated
 			(by id) to use the new name.
@@ -19968,7 +19968,7 @@ namespace BinaryNinja::Collaboration
 			\param progress Function to call on progress updates
 			\throws RemoteException If there is an error in any request or if the remote is not connected
 		*/
-		void PullProjects(std::function<bool(size_t, size_t)> progress = {});
+		void PullProjects(ProgressFunction progress = {});
 
 
 		/*!
@@ -19988,7 +19988,7 @@ namespace BinaryNinja::Collaboration
 			\return Reference to the created project
 			\throws RemoteException If there is an error in any request or if the remote is not connected
 		*/
-		Ref<RemoteProject> ImportLocalProject(Ref<Project> localProject, std::function<bool(size_t, size_t)> progress = {});
+		Ref<RemoteProject> ImportLocalProject(Ref<Project> localProject, ProgressFunction progress = {});
 
 
 		/*!
@@ -20046,7 +20046,7 @@ namespace BinaryNinja::Collaboration
 			\param progress Function to call on progress updates
 			\throws RemoteException If there is an error in any request or if the remote is not connected
 		*/
-		void PullGroups(std::function<bool(size_t, size_t)> progress = {});
+		void PullGroups(ProgressFunction progress = {});
 
 
 		/*!
@@ -20122,7 +20122,7 @@ namespace BinaryNinja::Collaboration
 			\param progress Function to call on progress updates
 			\throws RemoteException If there is an error in any request or if the remote is not connected
 		*/
-		void PullUsers(std::function<bool(size_t, size_t)> progress = {});
+		void PullUsers(ProgressFunction progress = {});
 
 
 		/*!
@@ -20259,7 +20259,7 @@ namespace BinaryNinja::Collaboration
 		    \param progress Function to call on progress updates
 		    \throws RemoteException If there is an error in any request or if the remote is not connected
 		 */
-		void PullUndoEntries(std::function<bool(size_t, size_t)> progress = {});
+		void PullUndoEntries(ProgressFunction progress = {});
 
 		/*!
 		    Create a new undo entry on the remote (and pull it)
@@ -20285,7 +20285,7 @@ namespace BinaryNinja::Collaboration
 		    \return Contents of the file at the point of the snapshot
 		    \throws RemoteException If there is an error in any request or if the remote is not connected
 		 */
-		std::vector<uint8_t> DownloadSnapshotFile(std::function<bool(size_t, size_t)> progress = {});
+		std::vector<uint8_t> DownloadSnapshotFile(ProgressFunction progress = {});
 
 		/*!
 		    Download the contents of the snapshot
@@ -20293,7 +20293,7 @@ namespace BinaryNinja::Collaboration
 		    \return Contents of the snapshot
 		    \throws RemoteException If there is an error in any request or if the remote is not connected
 		 */
-		std::vector<uint8_t> Download(std::function<bool(size_t, size_t)> progress = {});
+		std::vector<uint8_t> Download(ProgressFunction progress = {});
 
 		/*!
 		    Download the contents of the analysis cache for this snapshot, returns an empty vector if there is no cache (eg: old snapshots)
@@ -20301,7 +20301,7 @@ namespace BinaryNinja::Collaboration
 		    \return Contents of the analysis cache
 		    \throws RemoteException If there is an error in any request or if the remote is not connected
 		 */
-		std::vector<uint8_t> DownloadAnalysisCache(std::function<bool(size_t, size_t)> progress = {});
+		std::vector<uint8_t> DownloadAnalysisCache(ProgressFunction progress = {});
 	};
 
 	/*!
@@ -20359,7 +20359,7 @@ namespace BinaryNinja::Collaboration
 		    \param progress Function to call on progress updates
 		    \throws RemoteException If there is an error in any request or if the remote is not connected
 		 */
-		void PullSnapshots(std::function<bool(size_t, size_t)> progress = {});
+		void PullSnapshots(ProgressFunction progress = {});
 
 		/*!
 		    Create a new snapshot on the remote (and pull it)
@@ -20378,7 +20378,7 @@ namespace BinaryNinja::Collaboration
 			std::vector<uint8_t> analysisCacheContents,
 			std::optional<std::vector<uint8_t>> fileContents,
 			std::vector<std::string> parentIds,
-			std::function<bool(size_t, size_t)> progress = {}
+			ProgressFunction progress = {}
 		);
 
 		/*!
@@ -20394,7 +20394,7 @@ namespace BinaryNinja::Collaboration
 		    \return Contents of the file
 		    \throws RemoteException If there is an error in any request or if the remote is not connected
 		 */
-		std::vector<uint8_t> Download(std::function<bool(size_t, size_t)> progress = {});
+		std::vector<uint8_t> Download(ProgressFunction progress = {});
 
 		/*!
 		    Get the current user positions for this file
@@ -20444,7 +20444,7 @@ namespace BinaryNinja::Collaboration
 
 		Ref<Project> GetCoreProject();
 		bool IsOpen();
-		bool Open(std::function<bool(size_t, size_t)> progress = {});
+		bool Open(ProgressFunction progress = {});
 		void Close();
 
 		Ref<Remote> GetRemote();
@@ -20467,10 +20467,10 @@ namespace BinaryNinja::Collaboration
 		std::vector<Ref<RemoteFolder>> GetFolders();
 		Ref<RemoteFile> GetFileById(const std::string& id);
 		Ref<RemoteFile> GetFileByName(const std::string& name);
-		void PullFiles(std::function<bool(size_t, size_t)> progress = {});
-		void PullFolders(std::function<bool(size_t, size_t)> progress = {});
-		Ref<RemoteFile> CreateFile(const std::string& filename, std::vector<uint8_t>& contents, const std::string& name, const std::string& description, Ref<RemoteFolder> folder, BNRemoteFileType type, std::function<bool(size_t, size_t)> progress = {}, Ref<ProjectFile> coreFile = nullptr);
-		Ref<RemoteFolder> CreateFolder(const std::string& name, const std::string& description, Ref<RemoteFolder> parent, std::function<bool(size_t, size_t)> progress = {}, Ref<ProjectFolder> coreFolder = nullptr);
+		void PullFiles(ProgressFunction progress = {});
+		void PullFolders(ProgressFunction progress = {});
+		Ref<RemoteFile> CreateFile(const std::string& filename, std::vector<uint8_t>& contents, const std::string& name, const std::string& description, Ref<RemoteFolder> folder, BNRemoteFileType type, ProgressFunction progress = {}, Ref<ProjectFile> coreFile = nullptr);
+		Ref<RemoteFolder> CreateFolder(const std::string& name, const std::string& description, Ref<RemoteFolder> parent, ProgressFunction progress = {}, Ref<ProjectFolder> coreFolder = nullptr);
 		void PushFile(Ref<RemoteFile> file, const std::vector<std::pair<std::string, std::string>>& extraFields = {});
 		void PushFolder(Ref<RemoteFolder> folder, const std::vector<std::pair<std::string, std::string>>& extraFields = {});
 		void DeleteFolder(const Ref<RemoteFolder> folder);
@@ -20479,10 +20479,10 @@ namespace BinaryNinja::Collaboration
 		std::vector<Ref<CollabPermission>> GetGroupPermissions();
 		std::vector<Ref<CollabPermission>> GetUserPermissions();
 		Ref<CollabPermission> GetPermissionById(const std::string& id);
-		void PullGroupPermissions(std::function<bool(size_t, size_t)> progress = {});
-		void PullUserPermissions(std::function<bool(size_t, size_t)> progress = {});
-		Ref<CollabPermission> CreateGroupPermission(int groupId, BNCollaborationPermissionLevel level, std::function<bool(size_t, size_t)> progress = {});
-		Ref<CollabPermission> CreateUserPermission(const std::string& userId, BNCollaborationPermissionLevel level, std::function<bool(size_t, size_t)> progress = {});
+		void PullGroupPermissions(ProgressFunction progress = {});
+		void PullUserPermissions(ProgressFunction progress = {});
+		Ref<CollabPermission> CreateGroupPermission(int groupId, BNCollaborationPermissionLevel level, ProgressFunction progress = {});
+		Ref<CollabPermission> CreateUserPermission(const std::string& userId, BNCollaborationPermissionLevel level, ProgressFunction progress = {});
 		void PushPermission(Ref<CollabPermission> permission, const std::vector<std::pair<std::string, std::string>>& extraFields = {});
 		void DeletePermission(Ref<CollabPermission> permission);
 		bool CanUserView(const std::string& username);
@@ -20549,7 +20549,6 @@ namespace BinaryNinja::Collaboration
 	};
 
 	typedef std::function<bool(Ref<CollabChangeset>)> NameChangesetFunction;
-	typedef std::function<bool(size_t, size_t)> ProgressFunction;
 	typedef std::function<bool(const std::unordered_map<std::string, Ref<AnalysisMergeConflict>>& conflicts)> AnalysisConflictHandler;
 	typedef std::function<bool(const std::vector<Ref<TypeArchiveMergeConflict>>& conflicts)> TypeArchiveConflictHandler;
 
@@ -20577,7 +20576,7 @@ namespace BinaryNinja::Collaboration
 	    \param nameChangeset Function to call for naming a pushed changeset, if necessary
 	    \throws SyncException If there is an error syncing
 	 */
-	void SyncDatabase(Ref<Database> database, Ref<RemoteFile> file, AnalysisConflictHandler conflictHandler, std::function<bool(size_t, size_t)> progress = {}, NameChangesetFunction nameChangeset = [](Ref<CollabChangeset>){ return true; });
+	void SyncDatabase(Ref<Database> database, Ref<RemoteFile> file, AnalysisConflictHandler conflictHandler, ProgressFunction progress = {}, NameChangesetFunction nameChangeset = [](Ref<CollabChangeset>){ return true; });
 
 	/*!
 	    Completely sync a type archive, pushing/pulling/merging/applying changes

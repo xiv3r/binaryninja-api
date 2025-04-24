@@ -576,7 +576,7 @@ std::optional<std::string> TypeArchive::MergeSnapshots(
 	const std::string& secondSnapshot,
 	const std::unordered_map<std::string, std::string>& mergeConflictsIn,
 	std::unordered_set<std::string>& mergeConflictsOut,
-	std::function<bool(size_t, size_t)> progress
+	ProgressFunction progress
 )
 {
 	std::vector<const char*> mergeConflictKeysIn;

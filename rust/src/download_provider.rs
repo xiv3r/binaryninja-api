@@ -76,13 +76,13 @@ unsafe impl CoreArrayProviderInner for DownloadProvider {
 
 pub struct DownloadInstanceOutputCallbacks {
     pub write: Option<Box<dyn FnMut(&[u8]) -> usize>>,
-    pub progress: Option<Box<dyn FnMut(u64, u64) -> bool>>,
+    pub progress: Option<Box<dyn FnMut(usize, usize) -> bool>>,
 }
 
 pub struct DownloadInstanceInputOutputCallbacks {
     pub read: Option<Box<dyn FnMut(&mut [u8]) -> Option<isize>>>,
     pub write: Option<Box<dyn FnMut(&[u8]) -> usize>>,
-    pub progress: Option<Box<dyn FnMut(u64, u64) -> bool>>,
+    pub progress: Option<Box<dyn FnMut(usize, usize) -> bool>>,
 }
 
 pub struct DownloadResponse {
@@ -121,7 +121,7 @@ impl DownloadInstance {
         }
     }
 
-    unsafe extern "C" fn o_progress_callback(ctxt: *mut c_void, progress: u64, total: u64) -> bool {
+    unsafe extern "C" fn o_progress_callback(ctxt: *mut c_void, progress: usize, total: usize) -> bool {
         let callbacks = ctxt as *mut DownloadInstanceOutputCallbacks;
         if let Some(func) = &mut (*callbacks).progress {
             (func)(progress, total)
@@ -186,7 +186,7 @@ impl DownloadInstance {
         }
     }
 
-    unsafe extern "C" fn i_progress_callback(ctxt: *mut c_void, progress: u64, total: u64) -> bool {
+    unsafe extern "C" fn i_progress_callback(ctxt: *mut c_void, progress: usize, total: usize) -> bool {
         let callbacks = ctxt as *mut DownloadInstanceInputOutputCallbacks;
         if let Some(func) = &mut (*callbacks).progress {
             (func)(progress, total)

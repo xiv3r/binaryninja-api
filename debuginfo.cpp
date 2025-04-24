@@ -406,7 +406,7 @@ string DebugInfoParser::GetName() const
 
 
 Ref<DebugInfo> DebugInfoParser::Parse(Ref<BinaryView> view, Ref<BinaryView> debugFile, Ref<DebugInfo> existingDebugInfo,
-	std::function<bool(size_t, size_t)> progress) const
+	ProgressFunction progress) const
 {
 	ProgressContext ctxt;
 	if (progress)

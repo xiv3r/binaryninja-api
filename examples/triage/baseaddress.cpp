@@ -305,7 +305,7 @@ void BaseAddressDetectionWidget::RebaseWithFullAnalysis()
 			return;
 
 		bool result = false;
-		ProgressTask* task = new ProgressTask(this, "Rebase", "Rebasing...", "Cancel", [&](std::function<bool(size_t, size_t)> progress) {
+		ProgressTask* task = new ProgressTask(this, "Rebase", "Rebasing...", "Cancel", [&](BinaryNinja::ProgressFunction progress) {
 			result = fileMetadata->Rebase(view, address, progress);
 		});
 		task->wait();

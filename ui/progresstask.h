@@ -88,7 +88,7 @@ class BINARYNINJAUIAPI ProgressDialog : public QDialog
  	\code{.cpp}
 	// Starts task
 	ProgressTask* task = new ProgressTask("Long Operation", "Long Operation", "Cancel",
-		[](std::function<bool(size_t, size_t)> progress) {
+		[](ProgressFunction progress) {
 			doLongOperationWithProgress(progress);
 
 			// Report progress by calling the progress function
@@ -107,7 +107,7 @@ class BINARYNINJAUIAPI ProgressTask : public QObject
 	Q_OBJECT
 
 	ProgressDialog* m_dialog;
-	std::function<void(std::function<bool(size_t, size_t)>)> m_func;
+	std::function<void(BinaryNinja::ProgressFunction)> m_func;
 	std::thread m_thread;
 	std::mutex m_mutex;
 	std::condition_variable m_cv;
@@ -133,7 +133,7 @@ class BINARYNINJAUIAPI ProgressTask : public QObject
 	   cancellation.
 	 */
 	ProgressTask(QWidget* parent, const QString& name, const QString& text, const QString& cancel,
-	    std::function<void(std::function<bool(size_t, size_t)>)> func);
+	    std::function<void(BinaryNinja::ProgressFunction)> func);
 	virtual ~ProgressTask();
 
 	/*!
@@ -279,7 +279,7 @@ class BINARYNINJAUIAPI BackgroundThread : public QObject
 	Q_OBJECT
 
   public:
-	typedef std::function<bool(size_t, size_t)> ProgressFunction;
+	typedef BinaryNinja::ProgressFunction ProgressFunction;
 
 	typedef std::function<QVariant(QVariant value)> ThenFunction;
 	typedef std::function<void(std::exception_ptr exc)> CatchFunction;
