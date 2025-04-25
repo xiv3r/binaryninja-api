@@ -513,7 +513,10 @@ fn get_supplementary_build_id(bv: &BinaryView) -> Option<String> {
     }
 }
 
-fn parse_range_data_offsets(bv: &BinaryView, dwo_file: bool) -> Option<Result<IntervalMap<u64, i64>, ()>> {
+fn parse_range_data_offsets(
+    bv: &BinaryView,
+    dwo_file: bool,
+) -> Option<Result<IntervalMap<u64, i64>, ()>> {
     if bv.section_by_name(".eh_frame").is_some() || bv.section_by_name("__eh_frame").is_some() {
         let eh_frame_endian = get_endian(bv);
         let eh_frame_section_reader = |section_id: SectionId| -> _ {
@@ -526,8 +529,10 @@ fn parse_range_data_offsets(bv: &BinaryView, dwo_file: bool) -> Option<Result<In
             }
         }
         eh_frame.set_address_size(bv.address_size() as u8);
-        Some(parse_unwind_section(bv, eh_frame)
-            .map_err(|e| error!("Error parsing .eh_frame: {}", e)))
+        Some(
+            parse_unwind_section(bv, eh_frame)
+                .map_err(|e| error!("Error parsing .eh_frame: {}", e)),
+        )
     } else if bv.section_by_name(".debug_frame").is_some()
         || bv.section_by_name("__debug_frame").is_some()
     {
@@ -542,8 +547,10 @@ fn parse_range_data_offsets(bv: &BinaryView, dwo_file: bool) -> Option<Result<In
             }
         }
         debug_frame.set_address_size(bv.address_size() as u8);
-        Some(parse_unwind_section(bv, debug_frame)
-            .map_err(|e| error!("Error parsing .debug_frame: {}", e)))
+        Some(
+            parse_unwind_section(bv, debug_frame)
+                .map_err(|e| error!("Error parsing .debug_frame: {}", e)),
+        )
     } else {
         None
     }
