@@ -33,7 +33,8 @@ void DeleteController(const FileMetadata& file)
 	{
 		auto controller = it->second;
 		// Someone is still holding the controller, lets warn about this.
-		if (controller->m_refs > 1)
+		// 2 is expected here because we have one held in `controllers` and one held by `controller`.
+		if (controller->m_refs > 2)
 			LogWarn("Deleting SharedCacheController for view %llx, but there are still %d references", id,
 				controller->m_refs.load());
 
