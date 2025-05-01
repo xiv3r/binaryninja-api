@@ -498,6 +498,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				self._intrinsics[intrinsic] = intrinsic_index
 				self._intrinsics_by_index[intrinsic_index] = (intrinsic, info)
 				intrinsic_index = IntrinsicIndex(intrinsic_index + 1)
+				self.intrinsics[intrinsic] = info
 
 		self._pending_reg_lists = {}
 		self._pending_token_lists = {}
@@ -2336,6 +2337,7 @@ class CoreArchitecture(Architecture):
 			self._intrinsics_info[name] = IntrinsicInfo(input_list, output_list)
 			self._intrinsics[name] = intrinsics[i]
 			self._intrinsics_by_index[intrinsics[i]] = (name, self._intrinsics_info[name])
+			self.intrinsics[name] = self._intrinsics_info[name]
 		core.BNFreeRegisterList(intrinsics)
 		if type(self) is CoreArchitecture:
 			global _architecture_cache
