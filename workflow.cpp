@@ -164,6 +164,18 @@ bool WorkflowMachine::PostJsonRequest(const std::string& request)
 }
 
 
+Ref<FlowGraph> WorkflowMachine::GetGraph(const std::string& activity, bool sequential)
+{
+	BNFlowGraph* graph;
+	if (m_function)
+		graph = BNGetWorkflowGraphForFunction(m_function->GetObject(), activity.c_str(), sequential);
+	else
+		graph = BNGetWorkflowGraphForBinaryView(m_view->GetObject(), activity.c_str(), sequential);
+
+	return new CoreFlowGraph(graph);
+}
+
+
 void WorkflowMachine::ShowTopology()
 {
 	if (m_function)

@@ -1177,7 +1177,7 @@ namespace BinaryNinja {
 			return result;
 		}
 	};
-	
+
 	std::string EscapeString(const std::string& s);
 	std::string UnescapeString(const std::string& s);
 
@@ -10151,6 +10151,8 @@ namespace BinaryNinja {
 		WorkflowMachine(Ref<Function> function);
 
 		bool PostJsonRequest(const std::string& request);
+
+		Ref<FlowGraph> GetGraph(const std::string& activity = "", bool sequential = false);
 
 		void ShowTopology();
 

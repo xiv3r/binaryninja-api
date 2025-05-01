@@ -6,12 +6,17 @@
 #include <QIcon>
 #include <QLabel>
 #include <QPropertyAnimation>
+#include <QTabWidget>
 #include "binaryninjaapi.h"
+#include "flowgraphwidget.h"
+#include "fontsettings.h"
+#include "pane.h"
 #include "sidebarwidget.h"
 #include "uicontext.h"
+#include "viewframe.h"
 
 
-class BINARYNINJAUIAPI WorkflowMonitorWidget : public SidebarWidget
+class BINARYNINJAUIAPI WorkflowMonitorWidget : public QWidget
 {
 	Q_OBJECT
 	Q_PROPERTY(qreal dotBrightness READ dotBrightness WRITE setDotBrightness)
@@ -21,10 +26,12 @@ class BINARYNINJAUIAPI WorkflowMonitorWidget : public SidebarWidget
 	WorkflowRef m_workflow;
 
 	Menu* m_menu;
-	ContextMenuManager* m_contextMenuManager;
+	//ContextMenuManager* m_contextMenuManager;
 	UIActionHandler m_actionHandler;
 
 	QToolBar* m_toolbar;
+	QTabWidget* m_tabs;
+	FlowGraphWidget* m_flowGraphWidget;
 
 	QAction* m_startAction;
 	QAction* m_haltAction;
@@ -32,7 +39,6 @@ class BINARYNINJAUIAPI WorkflowMonitorWidget : public SidebarWidget
 	QAction* m_resetAction;
 	QAction* m_toggleSuspendAction;
 	QAction* m_toggleLogAction;
-	QAction* m_topologyAction;
 	QPushButton* m_contextButton;
 	QLabel* m_contextLabel;
 
@@ -48,8 +54,6 @@ class BINARYNINJAUIAPI WorkflowMonitorWidget : public SidebarWidget
 	qreal m_dotBrightness;
 	bool m_animationRunning;
 
-	virtual void contextMenuEvent(QContextMenuEvent*) override;
-
 	void updateToolbarActions(bool force = false);
 	void updateToolbarIcons();
 	void setupToolbar();
@@ -60,24 +64,80 @@ class BINARYNINJAUIAPI WorkflowMonitorWidget : public SidebarWidget
 	void setDotBrightness(qreal brightness);
 
 public:
-	WorkflowMonitorWidget(BinaryViewRef data);
+	WorkflowMonitorWidget(BinaryViewRef data, FunctionRef function = nullptr);
 	~WorkflowMonitorWidget();
 
-	void notifyRefresh() override;
-	void notifyFontChanged() override;
-	void notifyThemeChanged() override;
-	void notifyViewLocationChanged(View* view, const ViewLocation& viewLocation) override;
+	FunctionRef getCurrentFunction() const { return m_function; }
+
+	void notifyRefresh();
+	void notifyFontChanged();
+	void notifyThemeChanged();
+	void notifyViewLocationChanged(View* view, const ViewLocation& viewLocation);
 
 	void startDotAnimation();
 	void stopDotAnimation();
 };
 
 
-class BINARYNINJAUIAPI WorkflowMonitorWidgetType : public SidebarWidgetType
+class BINARYNINJAUIAPI WorkflowMonitorSidebarWidget : public SidebarWidget
+{
+	Q_OBJECT
+
+	WorkflowMonitorWidget* m_widget;
+
+public:
+	WorkflowMonitorSidebarWidget(BinaryViewRef data);
+
+	void notifyRefresh() override { m_widget->notifyRefresh(); }
+	void notifyFontChanged() override { m_widget->notifyFontChanged(); }
+	void notifyThemeChanged() override { m_widget->notifyThemeChanged(); }
+	void notifyViewLocationChanged(View* view, const ViewLocation& viewLocation) override { m_widget->notifyViewLocationChanged(view, viewLocation); }
+};
+
+
+class BINARYNINJAUIAPI WorkflowMonitorSidebarWidgetType : public SidebarWidgetType
 {
 public:
-	WorkflowMonitorWidgetType();
-	SidebarWidget* createWidget(ViewFrame* frame, BinaryViewRef data) override;
+	WorkflowMonitorSidebarWidgetType();
+
 	SidebarWidgetLocation defaultLocation() const override { return SidebarWidgetLocation::LeftReference; }
 	SidebarContextSensitivity contextSensitivity() const override { return PerViewTypeSidebarContext; }
+
+	SidebarWidget* createWidget(ViewFrame* frame, BinaryViewRef data) override;
+
+	bool canUseAsPane(SplitPaneWidget* panes, BinaryViewRef data) const override { return true; }
+	Pane* createPane(SplitPaneWidget* panes, BinaryViewRef data) override;
+};
+
+
+class BINARYNINJAUIAPI WorkflowView : public QWidget, public View
+{
+	Q_OBJECT
+
+	BinaryViewRef m_data;
+	uint64_t m_currentOffset = 0;
+	WorkflowMonitorWidget* m_widget;
+
+public:
+	WorkflowView(BinaryViewRef data, ViewFrame* frame);
+
+	void notifyRefresh() override { m_widget->notifyRefresh(); }
+	BinaryViewRef getData() override { return m_data; }
+	uint64_t getCurrentOffset() override { return m_currentOffset; }
+	void setSelectionOffsets(BNAddressRange range) override { m_currentOffset = range.start; }
+	bool navigate(uint64_t offset) override;
+	QFont getFont() override { return getMonospaceFont(m_widget); }
+	FunctionRef getCurrentFunction() override { return m_widget->getCurrentFunction(); }
+};
+
+
+class BINARYNINJAUIAPI WorkflowViewType : public ViewType
+{
+	static WorkflowViewType* m_instance;
+
+public:
+	WorkflowViewType();
+	virtual int getPriority(BinaryViewRef data, const QString& filename);
+	virtual QWidget* create(BinaryViewRef data, ViewFrame* viewFrame);
+	static void init();
 };
