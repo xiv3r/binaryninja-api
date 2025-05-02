@@ -265,7 +265,7 @@ uint64_t VirtualMemoryReader::ReadPointer()
 
 uint64_t VirtualMemoryReader::ReadPointer(uint64_t address)
 {
-	m_cursor = m_memory->GetAddressSize();
+	m_cursor = address + m_addressSize;
 	return m_memory->ReadPointer(address);
 }
 
