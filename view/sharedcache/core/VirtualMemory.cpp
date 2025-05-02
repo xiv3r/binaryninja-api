@@ -178,10 +178,9 @@ void VirtualMemory::Read(void* dest, uint64_t address, size_t length)
 	region->fileAccessor.lock()->Read(dest, offset, length);
 }
 
-VirtualMemoryReader::VirtualMemoryReader(std::shared_ptr<VirtualMemory> memory, uint64_t addressSize)
+VirtualMemoryReader::VirtualMemoryReader(std::shared_ptr<VirtualMemory> memory)
 {
 	m_memory = memory;
-	m_addressSize = addressSize;
 	m_cursor = 0;
 }
 
@@ -265,7 +264,7 @@ uint64_t VirtualMemoryReader::ReadPointer()
 
 uint64_t VirtualMemoryReader::ReadPointer(uint64_t address)
 {
-	m_cursor = address + m_addressSize;
+	m_cursor = address + m_memory->GetAddressSize();
 	return m_memory->ReadPointer(address);
 }
 

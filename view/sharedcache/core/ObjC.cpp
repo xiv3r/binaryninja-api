@@ -88,7 +88,7 @@ std::shared_ptr<ObjCReader> SharedCacheObjCProcessor::GetReader()
 	// TODO: This should never happen.
 	if (!controller)
 		throw std::runtime_error("SharedCacheController not found for SharedCacheObjCProcessor::GetReader!");
-	auto reader = VirtualMemoryReader(controller->GetCache().GetVirtualMemory(), m_data->GetAddressSize());
+	auto reader = VirtualMemoryReader(controller->GetCache().GetVirtualMemory());
 	return std::make_shared<SharedCacheObjCReader>(reader);
 }
 

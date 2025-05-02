@@ -94,11 +94,10 @@ class VirtualMemoryReader
 {
 	std::shared_ptr<VirtualMemory> m_memory;
 	uint64_t m_cursor;
-	uint64_t m_addressSize;
 	BNEndianness m_endianness = LittleEndian;
 
 public:
-	explicit VirtualMemoryReader(std::shared_ptr<VirtualMemory> memory, uint64_t addressSize = 8);
+	explicit VirtualMemoryReader(std::shared_ptr<VirtualMemory> memory);
 
 	void SetEndianness(BNEndianness endianness) { m_endianness = endianness; }
 
