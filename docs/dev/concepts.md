@@ -159,6 +159,20 @@ But what if the code takes multiple paths and could have different values depend
 
 Binary Ninja uses this capability internally for its own value set analysis and constant dataflow propagation but plugins can also leverage this information to great effect. For example, want to find an uninitialized value? Simply look for an SSA variable being read from with a version of zero that isn't in the list of arguments to the function. Want to implement your own inter-procedural data-flow system? Binary Ninja does not for performance reasons, but in instances where you can prevent the state space explosion problem, you can build on top of the existing SSA forms to implement exactly this. A simple example might look for vulnerable function calls like printf() where the first argument is user-data. While most trivial cases of this type of flaw tend to be found quickly, it's often the case that subtler versions with functions that wrap functions that wrap functions that call a printf with user data are more tedious to identify. However, using an SSA-based script, it's super easy to see that, for example, the first parameter to a `printf` call originated in a calling function as the second parameter, and THAT function was called with input that came directly from some sort of user input. While one or two layers might be easy to check by hand with few cross-references, with a large embedded firmware, there might be hundreds or thousands of potential locations to check out, and a script using SSA can dramatically reduce the number of cases to investigate. 
 
+### When IL APIs Return None
+
+Binary Ninja automatically maintains a cache of recent generated IL (configurable with the [`analysis.limits.cacheSize`](https://docs.binary.ninja/guide/settings.html#analysis.limits.cacheSize) setting). Normally, when accessing properties such as `current_function.llil`, if the analysis is not currently available, it will be transparently generated and returned. However, in some cases, such as when analysis limits are triggered, `None` will be returned instead.
+
+Alternatively, the property `current_function.llil_if_available` will immediately return existing IL only if it is already generated and in the cache.
+
+Even in cases where `.llil` returns `None`, it is possible to override the analysis limits by using the [`analysis_skip_override`](https://api.binary.ninja/binaryninja.function-module.html#binaryninja.function.Function.analysis_skip_override) setter.
+
+???+ Danger "Warning"
+    Overriding analysis limits is DANGEROUS! These limits exist for a reason. Whether they are because the function is too large, because analysis was taking too long, or whatever the reason, you override these limits at your own risk.
+
+It's possible to query the reason for the override by querying the [`analysis_skip_reason`](https://api.binary.ninja/binaryninja.function-module.html#binaryninja.function.Function.analysis_skip_reason) property.
+
+
 ## Memory Permissions Impact on Analysis
 
 Memory permissions and annotations directly impact Binary Ninja's analysis. The system employs a **most-specific-wins** strategy for memory granularity.
