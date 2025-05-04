@@ -6,27 +6,57 @@ using namespace BinaryNinja;
 
 namespace {
 
-// Attempt to recover an Objective-C class name from the symbol's name.
-// Note: classes defined in the current image should be looked up in m_classes
-// rather than using this function.
-std::optional<std::string> ClassNameFromSymbolName(const Ref<Symbol>& symbol)
-{
-	std::string_view symbolName = symbol->GetFullNameRef();
+	// Attempt to recover an Objective-C class name from the symbol's name.
+	// Note: classes defined in the current image should be looked up in m_classes
+	// rather than using this function.
+	std::optional<std::string> ClassNameFromSymbolName(const Ref<Symbol>& symbol)
+	{
+		std::string_view symbolName = symbol->GetFullNameRef();
 
-	// Symbols named `_OBJC_CLASS_$_` are references to external classes.
-	if (symbolName.size() > 14 && symbolName.rfind("_OBJC_CLASS_$_", 0) == 0)
-		return std::string(symbolName.substr(14));
+		// Symbols named `_OBJC_CLASS_$_` are references to external classes.
+		if (symbolName.size() > 14 && symbolName.rfind("_OBJC_CLASS_$_", 0) == 0)
+			return std::string(symbolName.substr(14));
 
-	// Symbols named `cls_` are classes defined in a loaded image other than
-	// the image currently being analyzed.
-	if (symbolName.size() > 4 && symbolName.rfind("cls_", 0) == 0)
-		return std::string(symbolName.substr(4));
+		// Symbols named `cls_` are classes defined in a loaded image other than
+		// the image currently being analyzed.
+		if (symbolName.size() > 4 && symbolName.rfind("cls_", 0) == 0)
+			return std::string(symbolName.substr(4));
 
-	return std::nullopt;
+		return std::nullopt;
+	}
+
+	// Given a selector component such as `initWithPath' and a prefix of `initWith`, returns `path`.
+	std::optional<std::string> SelectorComponentWithoutPrefix(std::string_view prefix, std::string_view component)
+	{
+		if (component.size() <= prefix.size() || component.rfind(prefix.data(), 0) != 0
+			|| !isupper(component[prefix.size()]))
+		{
+			return std::nullopt;
+		}
+
+		std::string result(component.substr(prefix.size()));
+
+		// Lowercase the first character if the second character is not also uppercase.
+		// This ensures we leave initialisms such as `URL` alone.
+		if (result.size() > 1 && islower(result[1]))
+			result[0] = tolower(result[0]);
+
+		return result;
+	}
+
+	std::string ArgumentNameFromSelectorComponent(std::string component)
+	{
+		// TODO: Handle other common patterns such as <do some action>With<arg>: and <do some action>For<arg>:
+		for (const auto& prefix : {"initWith", "with", "and", "using", "set", "read", "to", "for"})
+		{
+			if (auto argumentName = SelectorComponentWithoutPrefix(prefix, component); argumentName.has_value())
+				return std::move(*argumentName);
+		}
+
+		return component;
+	}
+
 }
-
-}  // namespace
-
 
 Ref<Metadata> ObjCProcessor::SerializeMethod(uint64_t loc, const Method& method)
 {
@@ -1131,10 +1161,13 @@ bool ObjCProcessor::ApplyMethodType(Class& cls, Method& method, bool isInstanceM
 
 	for (size_t i = 3; i < typeTokens.size(); i++)
 	{
-		std::string suffix;
+		std::string name;
+		if (selectorTokens.size() > i - 3)
+			name = ArgumentNameFromSelectorComponent(selectorTokens[i - 3]);
+		else
+			name = "arg";
 
-		params.push_back({selectorTokens.size() > i - 3 ? selectorTokens[i - 3] : "arg",
-			typeForQualifiedNameOrType(typeTokens[i]), true, BinaryNinja::Variable()});
+		params.push_back({std::move(name), typeForQualifiedNameOrType(typeTokens[i]), true, BinaryNinja::Variable()});
 	}
 
 	auto funcType = BinaryNinja::Type::FunctionType(retType, cc, params);
