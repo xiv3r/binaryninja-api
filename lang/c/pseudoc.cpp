@@ -1618,6 +1618,15 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 						tokens.Append(OperationToken, "&");
 					}
 				}
+				else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
+				{
+					if (srcExpr.GetType() && srcExpr.GetType()->GetClass() != StructureTypeClass && srcExpr.size > instr.size)
+					{
+						tokens.AppendOpenParen();
+						AppendSizeToken(instr.size, false, tokens);
+						tokens.AppendCloseParen();
+					}
+				}
 
 				GetExprTextInternal(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
 			}

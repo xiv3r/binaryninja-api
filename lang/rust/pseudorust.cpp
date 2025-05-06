@@ -1689,6 +1689,16 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 						castedSrcExpr = true;
 					}
 				}
+				else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
+				{
+					if (srcExpr.GetType() && srcExpr.GetType()->GetClass() != StructureTypeClass && srcExpr.size > instr.size)
+					{
+						GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
+						tokens.Append(KeywordToken, " as ");
+						AppendSizeToken(instr.size, false, tokens);
+						castedSrcExpr = true;
+					}
+				}
 
 				if (!castedSrcExpr)
 					GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
