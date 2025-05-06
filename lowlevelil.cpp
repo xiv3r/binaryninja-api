@@ -389,6 +389,7 @@ ExprId LowLevelILFunction::AddLabelMap(const map<uint64_t, BNLowLevelILLabel*>& 
 		i++;
 	}
 	ExprId result = (ExprId)BNLowLevelILAddLabelMap(m_object, valueList, labelList, labels.size());
+	delete[] valueList;
 	delete[] labelList;
 	return result;
 }
