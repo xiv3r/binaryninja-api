@@ -2605,18 +2605,25 @@ class BinaryView:
 		self._platform = None
 		self._endianness = None
 
-	def __enter__(self) -> 'BinaryView':
-		return self
-
-	def __exit__(self, type, value, traceback):
-		self.file.close()
-
-	def __del__(self):
+	def _cleanup(self):
 		if core is None:
 			return
 		for i in self._notifications.values():
 			i._unregister()
-		core.BNFreeBinaryView(self.handle)
+		self._notifications.clear()
+		if self.handle is not None:
+			core.BNFreeBinaryView(self.handle)
+			self.handle = None
+
+	def __enter__(self) -> 'BinaryView':
+		return self
+
+	def __exit__(self, type, value, traceback):
+		self._cleanup()
+		self.file.close()
+
+	def __del__(self):
+		self._cleanup()
 
 	def __repr__(self):
 		start = self.start
