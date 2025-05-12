@@ -288,43 +288,38 @@ void ObjCProcessor::DefineObjCSymbol(
 			new Symbol(type, shortName, fullName, name, addr, LocalBinding, nameSpace), typeRef);
 	};
 
-	if (deferred)
-	{
-		m_symbolQueue->Append(process, [this, addr = addr](Symbol* symbol, Type* type) {
-			// Armv7/Thumb: This will rewrite the symbol's address.
-			// e.g. We pass in 0xc001, it will rewrite it to 0xc000 and create the function w/ the "thumb2" arch.
-			if (Ref<Symbol> existingSymbol = m_data->GetSymbolByAddress(addr))
-				m_data->UndefineAutoSymbol(existingSymbol);
-			auto funcSym = m_data->DefineAutoSymbolAndVariableOrFunction(m_data->GetDefaultPlatform(), symbol, type);
-			if (funcSym->GetType() == FunctionSymbol)
-			{
-				uint64_t target = symbol->GetAddress();
-				Ref<Platform> targetPlatform =
-					m_data->GetDefaultPlatform()->GetAssociatedPlatformByAddress(target);  // rewrites target.
-				if (Ref<Function> targetFunction = m_data->GetAnalysisFunction(targetPlatform, target))
-				{
-					if (!m_isBackedByDatabase)
-						targetFunction->SetUserType(type);
-				}
-			}
-		});
-		return;
-	}
-
-	if (Ref<Symbol> existingSymbol = m_data->GetSymbolByAddress(addr))
-		m_data->UndefineAutoSymbol(existingSymbol);
-	auto result = process();
-	auto sym = m_data->DefineAutoSymbolAndVariableOrFunction(m_data->GetDefaultPlatform(), result.first, result.second);
-	if (sym->GetType() == FunctionSymbol)
-	{
-		uint64_t target = result.first->GetAddress();
-		Ref<Platform> targetPlatform = m_data->GetDefaultPlatform()->GetAssociatedPlatformByAddress(target);  // rewrites
-		                                                                                                      // target.
-		if (Ref<Function> targetFunction = m_data->GetAnalysisFunction(targetPlatform, target))
+	auto defineSymbol = [this](Ref<Symbol> symbol, Ref<Type> type) {
+		uint64_t symbolAddress = symbol->GetAddress();
+		// Armv7/Thumb: This will rewrite the symbol's address.
+		// e.g. We pass in 0xc001, it will rewrite it to 0xc000 and create the function w/ the "thumb2" arch.
+		if (Ref<Symbol> existingSymbol = m_data->GetSymbolByAddress(symbolAddress))
+			m_data->UndefineAutoSymbol(existingSymbol);
+		Ref<Platform> targetPlatform = m_data->GetDefaultPlatform()->GetAssociatedPlatformByAddress(symbolAddress);
+		if (symbol->GetType() == FunctionSymbol)
 		{
-			if (!m_isBackedByDatabase)
-				targetFunction->SetUserType(result.second);
+			// For thumb2 we want to get the adjusted address, we can do that using the target function.
+			Ref<Function> targetFunction = m_data->GetAnalysisFunction(targetPlatform, symbolAddress);
+			if (targetFunction && type)
+				targetFunction->ApplyAutoDiscoveredType(type);
+
+			auto adjustedSym = new Symbol(FunctionSymbol, symbol->GetShortName(), symbol->GetFullName(), symbol->GetRawName(), symbolAddress);
+			m_data->DefineAutoSymbol(adjustedSym);
 		}
+		else
+		{
+			// Other symbol types can just use this, they don't need to worry about linear sweep removing them.
+			m_data->DefineAutoSymbolAndVariableOrFunction(targetPlatform, symbol, type);
+		}
+	};
+
+	if (!deferred)
+	{
+		m_symbolQueue->Append(process, defineSymbol);
+	}
+	else
+	{
+		auto [symbol, type]  = process();
+		defineSymbol(symbol, type);
 	}
 }
 
@@ -1455,11 +1450,9 @@ void ObjCProcessor::ProcessObjCData()
 
 	PostProcessObjCSections(reader.get());
 
-	auto id = m_data->BeginUndoActions();
 	m_symbolQueue->Process();
 	m_data->EndBulkModifySymbols();
 	delete m_symbolQueue;
-	m_data->ForgetUndoActions(id);
 
 	auto meta = SerializeMetadata();
 	m_data->StoreMetadata("Objective-C", meta, true);
@@ -1577,12 +1570,10 @@ void ObjCProcessor::ProcessCFStrings()
 				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.cfString), "cfstr_" + str, i, true);
 			}
 		}
-		auto id = m_data->BeginUndoActions();
 		m_symbolQueue->Process();
 		m_data->EndBulkModifySymbols();
-		m_data->ForgetUndoActions(id);
+		delete m_symbolQueue;
 	}
-	delete m_symbolQueue;
 }
 
 void ObjCProcessor::AddRelocatedPointer(uint64_t location, uint64_t rewrite)

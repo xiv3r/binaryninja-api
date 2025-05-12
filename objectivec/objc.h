@@ -280,7 +280,7 @@ namespace BinaryNinja {
 		// TODO(WeiN76LQh): this is to avoid a bug with defining a classes protocol list in the DSC plugin. Remove once fixed
 		bool m_skipClassBaseProtocols;
 
-		SymbolQueue* m_symbolQueue = nullptr;
+		SymbolQueue* m_symbolQueue;
 		std::map<uint64_t, Class> m_classes;
 		std::map<uint64_t, Class> m_categories;
 		std::map<uint64_t, Protocol> m_protocols;
@@ -331,7 +331,6 @@ namespace BinaryNinja {
 		virtual ~ObjCProcessor() = default;
 
 		ObjCProcessor(BinaryView* data, const char* loggerName, bool isBackedByDatabase, bool skipClassBaseProtocols = false);
-		// TODO: Instead of passing in image name the processor must be given section refs in a structure that outlines all objc sections.
 		void ProcessObjCData();
 		void ProcessCFStrings();
 		void AddRelocatedPointer(uint64_t location, uint64_t rewrite);
