@@ -13,13 +13,13 @@ file(GLOB RUST_API_SOURCES CONFIGURE_DEPENDS
 	src/*/*.rs)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-	set(CARGO_CHECK_OPTS --workspace)
+	set(CARGO_CHECK_OPTS --workspace --target-dir=${PROJECT_BINARY_DIR}/target)
 	# Documentation for both binaryninja and binaryninjacore-sys crates
-	set(CARGO_DOC_OPTS --no-deps -p binaryninja -p binaryninjacore-sys)
+	set(CARGO_DOC_OPTS --no-deps -p binaryninja -p binaryninjacore-sys --target-dir=${PROJECT_BINARY_DIR}/target)
 else()
-	set(CARGO_CHECK_OPTS --workspace --release)
+	set(CARGO_CHECK_OPTS --workspace --release --target-dir=${PROJECT_BINARY_DIR}/target)
 	# Documentation for both binaryninja and binaryninjacore-sys crates
-	set(CARGO_DOC_OPTS --no-deps --release -p binaryninja -p binaryninjacore-sys)
+	set(CARGO_DOC_OPTS --no-deps --release -p binaryninja -p binaryninjacore-sys --target-dir=${PROJECT_BINARY_DIR}/target)
 endif()
 
 if (BN_BUILD_NUMBER)
