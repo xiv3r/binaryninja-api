@@ -606,59 +606,106 @@ bool SharedCacheMachOHeader::AddExportTerminalSymbol(
 	return true;
 }
 
-// TODO: This is like 90% of the runtime.
-bool SharedCacheMachOHeader::ProcessLinkEditTrie(std::vector<CacheSymbol>& symbols, const std::string& currentText,
-	const uint8_t* begin, const uint8_t* current, const uint8_t* end) const
-{
-	if (current >= end)
-		return false;
-
-	uint64_t terminalSize = readValidULEB128(current, end);
-	const uint8_t* child = current + terminalSize;
-
-	// The terminal is an export symbol.
-	if (terminalSize != 0)
-		AddExportTerminalSymbol(symbols, currentText, current, end);
-
-	// TODO: Make this look better
-	current = child;
-	uint8_t childCount = *current++;
-	std::string childText = currentText;
-	for (uint8_t i = 0; i < childCount; ++i)
-	{
-		if (current >= end)
-			return false;
-		const auto it = std::find(current, end, 0);
-		childText.append(current, it);
-		current = it + 1;
-		if (current >= end)
-			return false;
-		const auto next = readValidULEB128(current, end);
-		if (next == 0)
-			return false;
-		if (!ProcessLinkEditTrie(symbols, childText, begin, begin + next, end))
-			return false;
-		childText.resize(currentText.size());
-	}
-
-	return true;
-}
-
 std::vector<CacheSymbol> SharedCacheMachOHeader::ReadExportSymbolTrie(VirtualMemory& vm) const
 {
-	if (exportTrie.datasize == 0)
+	// nothing to do if there’s no export‐trie
+	if (exportTrie.datasize == 0 || exportTrie.dataoff == 0)
 		return {};
-
-	uint64_t exportTrieAddress = GetLinkEditFileBase() + exportTrie.dataoff;
 	std::vector<CacheSymbol> symbols = {};
-	try
-	{
-		auto [begin, end] = vm.ReadSpan(exportTrieAddress, exportTrie.datasize);
-		ProcessLinkEditTrie(symbols, "", begin, begin, end);
+	try {
+		auto [begin, end] = vm.ReadSpan(GetLinkEditFileBase() + exportTrie.dataoff, exportTrie.datasize);
+		const uint8_t *cursor = begin;
+
+		struct Node
+		{
+			const uint8_t* cursor;
+			std::string text;
+		};
+		std::vector<Node> stack;
+		stack.reserve(64);
+		stack.push_back({ /* cursor */ begin, /* text */ "" });
+
+		while (!stack.empty())
+		{
+			Node node = std::move(stack.back());
+			stack.pop_back();
+
+			cursor = node.cursor;
+			const std::string currentText = std::move(node.text);
+
+			if (cursor > end)
+			{
+				LogError("Export Trie: Cursor left trie during initial bounds check");
+				throw ReadException();
+			}
+
+			uint64_t terminalSize = readValidULEB128(cursor, end);
+			const uint8_t* childCursor = cursor + terminalSize;
+
+			// If there's terminal data, define the symbol
+			if (terminalSize != 0)
+			{
+				AddExportTerminalSymbol(symbols, currentText, cursor, end);
+			}
+
+			cursor = childCursor;
+			if (cursor > end)
+			{
+				LogError("Export Trie: Cursor left trie while moving to child offset");
+				throw ReadException();
+			}
+
+			uint8_t childCount = *cursor;
+			cursor++;
+			if (cursor > end)
+			{
+				LogError("Export Trie: Cursor left trie while reading child count");
+				throw ReadException();
+			}
+
+			std::vector<Node> children;
+			children.reserve(childCount);
+			for (uint8_t i = 0; i < childCount; ++i)
+			{
+				if (cursor > end)
+				{
+					LogError("Export Trie: Cursor left trie while reading children");
+					throw ReadException();
+				}
+
+				std::string childText;
+				while (cursor <= end && *cursor != 0) {
+					childText.push_back(*cursor);
+					cursor++;
+				}
+				cursor++;  // skip the `\0`
+				if (cursor > end)
+				{
+					LogError("Export Trie: Cursor left trie while reading child text");
+					throw ReadException();
+				}
+
+				uint64_t nextOffset = readValidULEB128(cursor, end);
+				if (nextOffset == 0)
+				{
+					LogError("Export Trie: Child offset is zero");
+					throw ReadException();
+				}
+
+				children.push_back({ begin + nextOffset, currentText + childText });
+			}
+
+			// Push in reverse so that the first child is processed next
+			for (auto it = children.rbegin(); it != children.rend(); ++it)
+			{
+				stack.push_back(*it);
+			}
+		}
 	}
-	catch (std::exception& e)
+	catch (ReadException&)
 	{
-		BNLogError("Failed to read Export Trie: %s", e.what());
+		LogError("Export trie is malformed. Could not load Exported symbol names.");
 	}
+
 	return symbols;
 }

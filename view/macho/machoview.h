@@ -1483,6 +1483,7 @@ namespace BinaryNinja
 		void ParseFunctionStarts(Platform* platform, uint64_t textBase, function_starts_command functionStarts);
 		bool ParseRelocationEntry(const relocation_info& info, uint64_t start, BNRelocationInfo& result);
 
+		bool AddExportTerminalSymbol(const std::string& symbolName, uint64_t symbolFlags, uint64_t imageOffset);
 		void ParseExportTrie(BinaryReader& reader, linkedit_data_command exportTrie);
 		void ReadExportNode(uint64_t viewStart, DataBuffer& buffer, const std::string& currentText,
 			size_t cursor, uint32_t endGuard);

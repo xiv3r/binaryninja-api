@@ -2498,57 +2498,170 @@ bool MachoView::GetSectionPermissions(MachOHeader& header, uint64_t address, uin
 	return false;
 }
 
+
+bool MachoView::AddExportTerminalSymbol(
+	const std::string& symbolName, uint64_t symbolFlags, uint64_t imageOffset)
+{
+	if (symbolFlags & EXPORT_SYMBOL_FLAGS_REEXPORT)
+	{
+		m_logger->LogTrace("Export symbol is a re-export, not supported: %s", symbolName.c_str());
+		return false;
+	}
+
+	uint64_t symbolAddress = GetStart() + imageOffset;
+	if (symbolName.empty() || symbolAddress == 0)
+	{
+		m_logger->LogTrace("Export symbol is malformed: %s", symbolName.c_str());
+		return false;
+	}
+
+	// Tries to get the symbol type based off the section containing it.
+	auto sectionSymbolType = [&]() -> BNSymbolType {
+		uint32_t sectionFlags = 0;
+		for (const auto& section : m_allSections)
+		{
+			if (symbolAddress >= section.addr && symbolAddress < section.addr + section.size)
+			{
+				// Take the flags from the first containing section.
+				sectionFlags = section.flags;
+				break;
+			}
+		}
+
+		// TODO: Is this enough to determine a function symbol?
+		// TODO: Might be the cause of https://github.com/Vector35/binaryninja-api/issues/6526
+		// Check the sections flags to see if we actually have a function symbol instead.
+		if (sectionFlags & S_ATTR_PURE_INSTRUCTIONS || sectionFlags & S_ATTR_SOME_INSTRUCTIONS)
+			return FunctionSymbol;
+
+		// FIXME: See above, no it is not. Fallback on old logic here to avoid breaking export symbols in __text on regular Mach-Os.
+		auto symbolType = GetAnalysisFunctionsForAddress(GetStart() + imageOffset).size() ? FunctionSymbol : DataSymbol;
+		return symbolType;
+	};
+
+	switch (symbolFlags & EXPORT_SYMBOL_FLAGS_KIND_MASK)
+	{
+	case EXPORT_SYMBOL_FLAGS_KIND_REGULAR:
+	case EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL:
+		m_logger->LogTrace("Export symbol is a regular or thread local symbol: %d %s", sectionSymbolType(), symbolName.c_str());
+		DefineMachoSymbol(sectionSymbolType(), symbolName, symbolAddress, GlobalBinding, false);
+		break;
+	case EXPORT_SYMBOL_FLAGS_KIND_ABSOLUTE:
+		m_logger->LogTrace("Export symbol is an absolute symbol: %s", symbolName.c_str());
+		DefineMachoSymbol(DataSymbol, symbolName, symbolAddress, GlobalBinding, false);
+		break;
+	default:
+		m_logger->LogWarn("Unhandled export symbol kind: %llx", symbolFlags & EXPORT_SYMBOL_FLAGS_KIND_MASK);
+		return false;
+	}
+
+	m_logger->LogTrace("Successfully added export symbol: %s", symbolName.c_str());
+
+	return true;
+}
+
 void MachoView::ParseExportTrie(BinaryReader& reader, linkedit_data_command exportTrie)
 {
 	try {
 		uint32_t endGuard = exportTrie.datasize;
-		DataBuffer buffer = GetParentView()->ReadBuffer(m_universalImageOffset + exportTrie.dataoff, exportTrie.datasize);
+		DataBuffer buffer = GetParentView()
+								->ReadBuffer(m_universalImageOffset + exportTrie.dataoff, exportTrie.datasize);
 
-		ReadExportNode(GetStart(), buffer, "", 0, endGuard);
+		struct Node
+		{
+			uint64_t cursor;
+			std::string text;
+		};
+		std::vector<Node> stack;
+		stack.reserve(64);
+		stack.push_back({ /* cursor */ 0, /* text */ "" });
+
+		while (!stack.empty())
+		{
+			m_logger->LogTrace("Export Trie: Processing node %s with cursor %llu", stack.back().text.c_str(), stack.back().cursor);
+			Node node = std::move(stack.back());
+			stack.pop_back();
+
+			uint64_t cursor = node.cursor;
+			const std::string currentText = std::move(node.text);
+
+			if (cursor > endGuard)
+			{
+				m_logger->LogError("Export Trie: Cursor left trie during initial bounds check");
+				throw ReadException();
+			}
+
+			size_t localCursor = cursor;
+			uint64_t terminalSize = readValidULEB128(buffer, localCursor);
+			uint64_t childOffset = localCursor + terminalSize;
+
+			// If there's terminal data, define the symbol
+			if (terminalSize != 0)
+			{
+				uint64_t flags = readValidULEB128(buffer, localCursor);
+				uint64_t imageOffset = readValidULEB128(buffer, localCursor);
+				m_logger->LogTrace("Export Trie: Found terminal node %s with flags %llx and image offset %llx", currentText.c_str(), flags, imageOffset);
+
+				AddExportTerminalSymbol(currentText, flags, imageOffset);
+			}
+
+			localCursor = childOffset;
+			if (localCursor > endGuard)
+			{
+				m_logger->LogError("Export Trie: Cursor left trie while moving to child offset");
+				throw ReadException();
+			}
+
+			uint8_t childCount = buffer[localCursor++];
+			if (localCursor > endGuard)
+			{
+				m_logger->LogError("Export Trie: Cursor left trie while reading child count");
+				throw ReadException();
+			}
+
+			std::vector<Node> children;
+			children.reserve(childCount);
+			for (uint8_t i = 0; i < childCount; ++i)
+			{
+				if (localCursor > endGuard)
+				{
+					m_logger->LogError("Export Trie: Cursor left trie while reading child count");
+					throw ReadException();
+				}
+
+				std::string childText;
+				while (localCursor <= endGuard && buffer[localCursor] != 0) {
+					childText.push_back(buffer[localCursor++]);
+				}
+				localCursor++;  // skip the `\0`
+				if (localCursor > endGuard)
+				{
+					m_logger->LogError("Export Trie: Cursor left trie while reading child text");
+					throw ReadException();
+				}
+
+				uint64_t nextOffset = readValidULEB128(buffer, localCursor);
+				if (nextOffset == 0)
+				{
+					m_logger->LogError("Export Trie: Child offset is zero");
+					throw ReadException();
+				}
+
+				children.push_back({ nextOffset, currentText + childText });
+			}
+
+			// Push in reverse so that the first child is processed next
+			for (auto it = children.rbegin(); it != children.rend(); ++it)
+			{
+				stack.push_back(*it);
+			}
+		}
 	}
 	catch (ReadException&)
 	{
-		m_logger->LogError("Error while parsing Export Trie");
+		m_logger->LogError("Export trie is malformed. Could not load Exported symbol names.");
 	}
 }
-
-void MachoView::ReadExportNode(uint64_t viewStart, DataBuffer& buffer, const std::string& currentText, size_t cursor, uint32_t endGuard)
-{
-	if (cursor > endGuard)
-		throw ReadException();
-
-	uint64_t terminalSize = readValidULEB128(buffer, cursor);
-	uint64_t childOffset = cursor + terminalSize;
-	if (terminalSize != 0) {
-		uint64_t imageOffset = 0;
-		uint64_t flags = readValidULEB128(buffer, cursor);
-		if (!(flags & EXPORT_SYMBOL_FLAGS_REEXPORT))
-		{
-			imageOffset = readValidULEB128(buffer, cursor);
-			auto symbolType = GetAnalysisFunctionsForAddress(viewStart + imageOffset).size() ? FunctionSymbol : DataSymbol;
-			DefineMachoSymbol(symbolType, currentText, imageOffset + viewStart, GlobalBinding, true);
-		}
-	}
-	cursor = childOffset;
-	uint8_t childCount = buffer[cursor];
-	cursor++;
-	if (cursor > endGuard)
-		throw ReadException();
-	for (uint8_t i = 0; i < childCount; ++i)
-	{
-		std::string childText;
-		while (buffer[cursor] != 0 & cursor <= endGuard)
-			childText.push_back(buffer[cursor++]);
-		cursor++;
-		if (cursor > endGuard)
-			throw ReadException();
-		auto next = readValidULEB128(buffer, cursor);
-		if (next == 0)
-			throw ReadException();
-		ReadExportNode(viewStart, buffer, currentText + childText, next, endGuard);
-	}
-}
-
 
 void MachoView::ParseRebaseTable(BinaryReader& reader, MachOHeader& header, uint32_t tableOffset, uint32_t tableSize)
 {
