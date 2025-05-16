@@ -1,7 +1,32 @@
 #include "objc.h"
 #include "inttypes.h"
+#include <optional>
 
 using namespace BinaryNinja;
+
+namespace {
+
+// Attempt to recover an Objective-C class name from the symbol's name.
+// Note: classes defined in the current image should be looked up in m_classes
+// rather than using this function.
+std::optional<std::string> ClassNameFromSymbolName(const Ref<Symbol>& symbol)
+{
+	std::string_view symbolName = symbol->GetFullNameRef();
+
+	// Symbols named `_OBJC_CLASS_$_` are references to external classes.
+	if (symbolName.size() > 14 && symbolName.rfind("_OBJC_CLASS_$_", 0) == 0)
+		return std::string(symbolName.substr(14));
+
+	// Symbols named `cls_` are classes defined in a loaded image other than
+	// the image currently being analyzed.
+	if (symbolName.size() > 4 && symbolName.rfind("cls_", 0) == 0)
+		return std::string(symbolName.substr(4));
+
+	return std::nullopt;
+}
+
+}  // namespace
+
 
 Ref<Metadata> ObjCProcessor::SerializeMethod(uint64_t loc, const Method& method)
 {
@@ -530,6 +555,39 @@ void ObjCProcessor::LoadClasses(ObjCReader* reader, Ref<Section> classPtrSection
 	}
 }
 
+std::optional<std::string> ObjCProcessor::ClassNameForTargetOfPointerAt(ObjCReader* reader, uint64_t offset)
+{
+	auto savedOffset = reader->GetOffset();
+	reader->Seek(offset);
+	auto target = ReadPointerAccountingForRelocations(reader);
+	reader->Seek(savedOffset);
+
+	if (target) {
+		// Classes defined in the current image must be looked up in m_classes
+		// as adding their symbol may be deferred.
+		if (auto it = m_classes.find(target); it != m_classes.end())
+			return it->second.name;
+
+		// Classes defined in other images are looked up by their symbol name.
+		// This is common for cross-image references in the shared cache.
+		if (auto symbol = GetSymbol(target))
+		{
+			if (auto className = ClassNameFromSymbolName(symbol))
+				return *className;
+		}
+	}
+
+	// If there's no target, or we can't find a symbol for it, check whether the pointer has a relocation
+	// that contains a symbol. This is the case for cross-image references outside of the shared cache.
+	for (const auto& relocation : m_data->GetRelocationsAt(offset))
+	{
+		if (auto symbol = relocation->GetSymbol())
+			return ClassNameFromSymbolName(symbol);
+	}
+
+	return std::nullopt;
+}
+
 void ObjCProcessor::LoadCategories(ObjCReader* reader, Ref<Section> classPtrSection)
 {
 	if (!classPtrSection)
@@ -569,29 +627,9 @@ void ObjCProcessor::LoadCategories(ObjCReader* reader, Ref<Section> classPtrSect
 		}
 
 		std::string categoryAdditionsName;
-		std::string categoryBaseClassName;
+		std::string categoryBaseClassName =
+			ClassNameForTargetOfPointerAt(reader, catLocation + ptrSize).value_or(std::string());
 
-		if (const auto& it = m_classes.find(cat.cls); it != m_classes.end())
-		{
-			categoryBaseClassName = it->second.name;
-			category.associatedName = it->second.associatedName;
-		}
-		else if (const auto symbol = GetSymbol(cat.cls))
-		{
-			if (symbol->GetType() == ImportedDataSymbol || symbol->GetType() == ImportAddressSymbol
-				|| symbol->GetType() == DataSymbol || symbol->GetType() == ExternalSymbol)
-			{
-				// Symbols named `_OBJC_CLASS_$_` are references to external classes.
-				// Symbols named `cls_` are classes defined in a loaded image other than
-				// the image currently being analyzed. Classes from the current image
-				// are found via `m_classes`.
-				const std::string_view symbolName = symbol->GetFullNameRef();
-				if (symbolName.size() > 14 && symbolName.rfind("_OBJC_CLASS_$_", 0) == 0)
-					categoryBaseClassName = symbolName.substr(14);
-				else if (symbolName.size() > 4 && symbolName.rfind("cls_", 0) == 0)
-					categoryBaseClassName = symbolName.substr(4);
-			}
-		}
 		if (categoryBaseClassName.empty())
 		{
 			m_logger->LogInfo("Using base address as stand-in classname for category at 0x%llx", catLocation);
@@ -1166,15 +1204,8 @@ void ObjCProcessor::PostProcessObjCSections(ObjCReader* reader)
 		auto type = Type::PointerType(ptrSize, Type::NamedType(m_data, m_typeNames.cls));
 		for (view_ptr_t i = start; i < end; i += ptrSize)
 		{
-			reader->Seek(i);
-			auto clsLoc = ReadPointerAccountingForRelocations(reader);
-			if (const auto& it = m_classes.find(clsLoc); it != m_classes.end())
-			{
-				auto& cls = it->second;
-				std::string name = cls.name;
-				if (!name.empty())
-					DefineObjCSymbol(DataSymbol, type, "clsRef_" + name, i, true);
-			}
+			if (auto className = ClassNameForTargetOfPointerAt(reader, i))
+				DefineObjCSymbol(DataSymbol, type, "clsRef_" + *className, i, true);
 		}
 	}
 	if (auto superRefs = GetSectionWithName("__objc_superrefs"))

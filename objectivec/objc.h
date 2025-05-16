@@ -313,6 +313,8 @@ namespace BinaryNinja {
 		bool ApplyMethodType(Class& cls, Method& method, bool isInstanceMethod);
 		void ApplyMethodTypes(Class& cls);
 
+		std::optional<std::string> ClassNameForTargetOfPointerAt(ObjCReader* reader, uint64_t offset);
+
 		void PostProcessObjCSections(ObjCReader* reader);
 
 	protected:
