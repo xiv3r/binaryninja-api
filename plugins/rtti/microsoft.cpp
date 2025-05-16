@@ -790,8 +790,8 @@ void MicrosoftRTTIProcessor::ProcessVFT()
         }
 
         vftFinished.insert(vftAddr);
-        auto vftInfo = ProcessVFT(vftAddr, classInfo, baseClassInfo);
-        classInfo.vft = vftInfo.value();
+        if (auto vftInfo = ProcessVFT(vftAddr, classInfo, baseClassInfo))
+            classInfo.vft = vftInfo.value();
     };
 
     size_t processedNum = 0;
