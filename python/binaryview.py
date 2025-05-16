@@ -2381,6 +2381,11 @@ class MemoryMap:
 		"""
 		core.BNSetLogicalMemoryMapEnabled(self.handle, enabled)
 
+	@property
+	def is_activated(self):
+		"""Whether the memory map is activated for the associated view."""
+		return core.BNIsMemoryMapActivated(self.handle)
+
 	def add_memory_region(self, name: str, start: int, source: Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor'], flags: SegmentFlag = 0) -> bool:
 		"""
 		Adds a memory region to the memory map. Depending on the source parameter, the memory region is created as one of the following types:

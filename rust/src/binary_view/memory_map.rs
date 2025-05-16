@@ -40,6 +40,11 @@ impl MemoryMap {
         unsafe { BNSetLogicalMemoryMapEnabled(self.view.handle, enabled) };
     }
 
+    /// Whether the memory map is activated for the associated view.
+    pub fn is_activated(&self) -> bool {
+        unsafe { BNIsMemoryMapActivated(self.view.handle) }
+    }
+
     pub fn add_binary_memory_region(
         &mut self,
         name: &str,
