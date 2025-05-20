@@ -7607,11 +7607,11 @@ extern "C"
 
 	// LLVM Services APIs
 	BINARYNINJACOREAPI void BNLlvmServicesInit(void);
-
 	BINARYNINJACOREAPI int BNLlvmServicesAssemble(const char* src, int dialect, const char* triplet, int codeModel,
 	    int relocMode, char** outBytes, int* outBytesLen, char** err, int* errLen);
-
 	BINARYNINJACOREAPI void BNLlvmServicesAssembleFree(char* outBytes, char* err);
+	BINARYNINJACOREAPI int BNLlvmServicesDisasmInstruction(const char *triplet, uint8_t *src, int srcLen,
+		uint64_t addr, char *result, size_t resultMaxSize);
 
 	// Filesystem functionality
 	BINARYNINJACOREAPI bool BNDeleteFile(const char* path);
