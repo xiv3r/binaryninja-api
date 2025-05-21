@@ -20973,20 +20973,25 @@ namespace std
 
 template<typename T> struct fmt::formatter<BinaryNinja::Ref<T>>
 {
+	fmt::formatter<T> inner;
 	format_context::iterator format(const BinaryNinja::Ref<T>& obj, format_context& ctx) const
 	{
-		return fmt::formatter<T>().format(*obj.GetPtr(), ctx);
+		return inner.format(*obj.GetPtr(), ctx);
 	}
-	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return ctx.begin(); }
+	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return inner.parse(ctx); }
 };
 
 template<typename T> struct fmt::formatter<BinaryNinja::Confidence<T>>
 {
+	fmt::formatter<T> inner;
 	format_context::iterator format(const BinaryNinja::Confidence<T>& obj, format_context& ctx) const
 	{
-		return fmt::format_to(ctx.out(), "{} ({} confidence)", obj.GetValue(), obj.GetConfidence());
+		auto out = ctx.out();
+		out = inner.format(obj.GetValue(), ctx);
+		ctx.advance_to(out);
+		return fmt::format_to(out, " ({} confidence)", obj.GetConfidence());
 	}
-	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return ctx.begin(); }
+	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return inner.parse(ctx); }
 };
 
 template<> struct fmt::formatter<BinaryNinja::Metadata>
