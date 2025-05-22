@@ -21,14 +21,28 @@ void RTTIAnalysis(const Ref<AnalysisContext>& analysisContext)
 	if (platformName.find("window") != std::string::npos)
 	{
 		// We currently only want to check for MSVC rtti on windows platforms
-		auto processor = RTTI::Microsoft::MicrosoftRTTIProcessor(view);
+		try
+		{
+			auto processor = RTTI::Microsoft::MicrosoftRTTIProcessor(view);
+			processor.ProcessRTTI();
+			view->StoreMetadata(VIEW_METADATA_RTTI, processor.SerializedMetadata(), true);
+		}
+		catch (std::exception& e)
+		{
+			LogErrorF("MSVC RTTI Analysis failed with uncaught exception: %s", e.what());
+		}
+	}
+
+	try
+	{
+		auto processor = RTTI::Itanium::ItaniumRTTIProcessor(view);
 		processor.ProcessRTTI();
 		view->StoreMetadata(VIEW_METADATA_RTTI, processor.SerializedMetadata(), true);
 	}
-
-	auto processor = RTTI::Itanium::ItaniumRTTIProcessor(view);
-	processor.ProcessRTTI();
-	view->StoreMetadata(VIEW_METADATA_RTTI, processor.SerializedMetadata(), true);
+	catch (std::exception& e)
+	{
+		LogErrorF("Itanium RTTI Analysis failed with uncaught exception: %s", e.what());
+	}
 }
 
 
@@ -37,13 +51,28 @@ void VFTAnalysis(const Ref<AnalysisContext>& analysisContext)
 	auto view = analysisContext->GetBinaryView();
 	if (!MetadataExists(view))
 		return;
-	auto microsoftProcessor = RTTI::Microsoft::MicrosoftRTTIProcessor(view);
-	microsoftProcessor.ProcessVFT();
-	// TODO: We have to store the data for the second processor to pick up the info.
-	view->StoreMetadata(VIEW_METADATA_RTTI, microsoftProcessor.SerializedMetadata(), true);
-	auto itaniumProcessor = RTTI::Itanium::ItaniumRTTIProcessor(view);
-	itaniumProcessor.ProcessVFT();
-	view->StoreMetadata(VIEW_METADATA_RTTI, itaniumProcessor.SerializedMetadata(), true);
+	try
+	{
+		auto microsoftProcessor = RTTI::Microsoft::MicrosoftRTTIProcessor(view);
+		microsoftProcessor.ProcessVFT();
+		// TODO: We have to store the data for the second processor to pick up the info.
+		view->StoreMetadata(VIEW_METADATA_RTTI, microsoftProcessor.SerializedMetadata(), true);
+	}
+	catch (std::exception& e)
+	{
+		LogErrorF("MSVC VFT Analysis failed with uncaught exception: %s", e.what());
+	}
+
+	try
+	{
+		auto itaniumProcessor = RTTI::Itanium::ItaniumRTTIProcessor(view);
+		itaniumProcessor.ProcessVFT();
+		view->StoreMetadata(VIEW_METADATA_RTTI, itaniumProcessor.SerializedMetadata(), true);
+	}
+	catch (std::exception& e)
+	{
+		LogErrorF("Itanium VFT Analysis failed with uncaught exception: %s", e.what());
+	}
 }
 
 
