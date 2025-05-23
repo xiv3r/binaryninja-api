@@ -99,6 +99,7 @@ extern "C" {
 			"name": "analysis.rtti.rttiAnalysis",
 			"role": "action",
 			"description": "This analysis step attempts to parse and symbolize rtti information.",
+			"aliases": ["plugin.msvc.rttiAnalysis"],
 			"eligibility": {
 				"runOnce": true,
 				"auto": {}
@@ -110,6 +111,7 @@ extern "C" {
 			"name": "analysis.rtti.vftAnalysis",
 			"role": "action",
 			"description": "This analysis step attempts to parse and symbolize virtual function table information.",
+			"aliases": ["plugin.msvc.vftAnalysis"],
 			"eligibility": {
 				"runOnce": true,
 				"auto": {}
