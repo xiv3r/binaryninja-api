@@ -657,7 +657,7 @@ fn write_dwarf<T: gimli::Endianity>(
     arch: Architecture,
     endian: T,
     dwarf: &mut DwarfUnit,
-) {
+) -> Result<(), String> {
     // TODO : Look in to other options (mangling, flags, etc (see Object::new))
     let mut out_object = write::Object::new(
         BinaryFormat::Elf,
@@ -671,7 +671,7 @@ fn write_dwarf<T: gimli::Endianity>(
 
     // Finally, write the DWARF data to the sections.
     let mut sections = Sections::new(EndianVec::new(endian));
-    dwarf.write(&mut sections).unwrap();
+    dwarf.write(&mut sections).map_err(|e| e.to_string())?;
 
     sections
         .for_each(|input_id, input_data| {
@@ -685,15 +685,14 @@ fn write_dwarf<T: gimli::Endianity>(
             // Write data to section in output object
             let out_section = out_object.section_mut(output_id);
             if out_section.is_bss() {
-                panic!("Please report this as a bug: output section is bss");
+                return Err("Please report this as a bug: output section is bss".to_string());
             } else {
                 out_section.set_data(input_data.clone().into_vec(), 1);
             }
             // out_section.flags = in_section.flags(); // TODO
 
-            Ok::<(), ()>(())
-        })
-        .unwrap();
+            Ok(())
+        })?;
 
     if let Ok(out_data) = out_object.write() {
         if let Err(err) = fs::write(file_path, out_data) {
@@ -704,6 +703,8 @@ fn write_dwarf<T: gimli::Endianity>(
     } else {
         error!("Failed to write DWARF with requested settings");
     }
+
+    Ok(())
 }
 
 fn export_dwarf(bv: &BinaryView) {
@@ -771,11 +772,14 @@ fn export_dwarf(bv: &BinaryView) {
     // TODO: Export all symbols instead of just data vars?
     // TODO: Sections? Segments?
 
-    if bv.default_endianness() == binaryninja::Endianness::LittleEndian {
-        write_dwarf(&save_loc_path, arch, gimli::LittleEndian, &mut dwarf);
-    } else {
-        write_dwarf(&save_loc_path, arch, gimli::BigEndian, &mut dwarf);
+    let endianness = match bv.default_endianness() {
+        binaryninja::Endianness::LittleEndian => gimli::RunTimeEndian::Little,
+        binaryninja::Endianness::BigEndian => gimli::RunTimeEndian::Big,
     };
+
+    if let Err(e) = write_dwarf(&save_loc_path, arch, endianness, &mut dwarf) {
+        error!("Error writing DWARF: {}", e);
+    }
 }
 
 struct MyCommand;
