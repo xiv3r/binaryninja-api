@@ -118,7 +118,7 @@ namespace fmt
 	template<typename... T>
 	QString qformat(format_string<T...> fmt, T&&... args)
 	{
-		return QString::fromStdString(vformat(fmt, make_format_args(args...)));
+		return QString::fromStdString(vformat(fmt, fmt::make_format_args(args...)));
 	}
 }
 

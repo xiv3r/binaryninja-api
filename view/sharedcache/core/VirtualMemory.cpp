@@ -3,7 +3,7 @@
 void VirtualMemory::MapRegion(WeakFileAccessor fileAccessor, AddressRange mappedRange, uint64_t fileOffset)
 {
 	// Create a new VirtualMemoryRegion object
-	VirtualMemoryRegion region {fileOffset, std::move(fileAccessor)};
+	VirtualMemoryRegion region(fileOffset, std::move(fileAccessor));
 
 	// TODO: How to handle overlapping regions?
 	for (const auto& [existingRange, existingRegion] : m_regions)

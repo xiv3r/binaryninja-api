@@ -26,6 +26,10 @@ struct VirtualMemoryRegion
 	// NOTE: Any read through this should be seeked to `fileOffset`
 	WeakFileAccessor fileAccessor;
 
+	VirtualMemoryRegion(uint64_t offset, WeakFileAccessor accessor)
+		: fileOffset(offset), fileAccessor(std::move(accessor)) {}
+
+
 	VirtualMemoryRegion(const VirtualMemoryRegion&) = default;
 
 	VirtualMemoryRegion& operator=(const VirtualMemoryRegion&) = default;
