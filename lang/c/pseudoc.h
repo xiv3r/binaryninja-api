@@ -55,6 +55,7 @@ protected:
 
 	BinaryNinja::TypePrinter* GetTypePrinter() const;
 
+	virtual bool ShouldSkipStatement(const BinaryNinja::HighLevelILInstruction& instr);
 	virtual void GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelILInstruction& instr,
 		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
 		BNOperatorPrecedence precedence, bool statement);

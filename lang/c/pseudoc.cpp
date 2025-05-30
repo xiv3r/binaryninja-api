@@ -615,8 +615,11 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				needSeparator = hasBlocks;
 
 				// Emit the lines for the statement itself
-				GetExprTextInternal(*i, tokens, settings, TopLevelOperatorPrecedence, true);
-				tokens.NewLine();
+				if (!ShouldSkipStatement(*i))
+				{
+					GetExprTextInternal(*i, tokens, settings, TopLevelOperatorPrecedence, true);
+					tokens.NewLine();
+				}
 			}
 		}();
 		break;
@@ -2846,6 +2849,10 @@ TypePrinter* PseudoCFunction::GetTypePrinter() const
 	return m_typePrinter;
 }
 
+bool PseudoCFunction::ShouldSkipStatement(const BinaryNinja::HighLevelILInstruction& instr)
+{
+	return false;
+}
 
 PseudoCFunctionType::PseudoCFunctionType(): LanguageRepresentationFunctionType("Pseudo C")
 {
