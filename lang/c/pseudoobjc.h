@@ -47,4 +47,5 @@ public:
 	PseudoObjCFunctionType();
 	BinaryNinja::Ref<BinaryNinja::LanguageRepresentationFunction> Create(BinaryNinja::Architecture* arch,
 		BinaryNinja::Function* owner, BinaryNinja::HighLevelILFunction* highLevelILFunction) override;
+	BinaryNinja::Ref<BinaryNinja::TypePrinter> GetTypePrinter() override;
 };

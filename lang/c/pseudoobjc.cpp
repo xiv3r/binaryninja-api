@@ -2,6 +2,7 @@
 
 #include "binaryninjaapi.h"
 #include "highlevelilinstruction.h"
+#include "objctypes.h"
 #include <optional>
 #include <string>
 #include <string_view>
@@ -517,4 +518,9 @@ Ref<LanguageRepresentationFunction> PseudoObjCFunctionType::Create(
 	Architecture* arch, Function* owner, HighLevelILFunction* highLevelILFunction)
 {
 	return new PseudoObjCFunction(this, arch, owner, highLevelILFunction);
+}
+
+Ref<TypePrinter> PseudoObjCFunctionType::GetTypePrinter()
+{
+	return new PseudoObjCTypePrinter();
 }
