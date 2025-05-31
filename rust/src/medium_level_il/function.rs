@@ -47,11 +47,10 @@ impl MediumLevelILFunction {
         loc: L,
     ) -> Option<MediumLevelInstructionIndex> {
         let loc: Location = loc.into();
-        let arch = loc
-            .arch
-            .map(|a| a.handle)
-            .unwrap_or_else(std::ptr::null_mut);
-        let instr_idx = unsafe { BNMediumLevelILGetInstructionStart(self.handle, arch, loc.addr) };
+        // If the location does not specify an architecture, use the function's architecture.
+        let arch = loc.arch.unwrap_or_else(|| self.function().arch());
+        let instr_idx =
+            unsafe { BNMediumLevelILGetInstructionStart(self.handle, arch.handle, loc.addr) };
         // `instr_idx` will equal self.instruction_count() if the instruction is not valid.
         if instr_idx >= self.instruction_count() {
             None

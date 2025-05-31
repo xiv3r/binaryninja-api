@@ -106,7 +106,8 @@ where
     ) -> Option<LowLevelInstructionIndex> {
         use binaryninjacore_sys::BNLowLevelILGetInstructionStart;
         let loc: Location = loc.into();
-        let arch = loc.arch.unwrap_or_else(|| *self.arch().as_ref());
+        // If the location does not specify an architecture, use the function's architecture.
+        let arch = loc.arch.unwrap_or_else(|| self.arch());
         let instr_idx =
             unsafe { BNLowLevelILGetInstructionStart(self.handle, arch.handle, loc.addr) };
         // `instr_idx` will equal self.instruction_count() if the instruction is not valid.

@@ -164,9 +164,14 @@ fn test_mlil_possible_values() {
         _ => panic!("Expected SetVar"),
     }
 
+    // As an aside, we also test to make sure `instruction_index_at` works.
+    let instr_21_idx = mlil_function
+        .instruction_index_at(image_base + 0x0002af9a)
+        .expect("Failed to get instruction index");
+
     // 21 @ 0002af9a  (MLIL_RET return (MLIL_VAR.d eax_2))
     let instr_21 = mlil_function
-        .instruction_from_index(MediumLevelInstructionIndex(21))
+        .instruction_from_index(instr_21_idx)
         .expect("Failed to get instruction");
     let lifted_instr_21 = instr_21.lift();
     match lifted_instr_21.kind {
