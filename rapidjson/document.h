@@ -15,6 +15,14 @@
 #ifndef RAPIDJSON_DOCUMENT_H_
 #define RAPIDJSON_DOCUMENT_H_
 
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+
+
 /*! \file document.h */
 
 #include "reader.h"
