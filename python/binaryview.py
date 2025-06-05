@@ -2998,13 +2998,15 @@ class BinaryView:
 	def mlil_basic_blocks(self) -> Generator['mediumlevelil.MediumLevelILBasicBlock', None, None]:
 		"""A generator of all MediumLevelILBasicBlock objects in the BinaryView"""
 		for func in self.mlil_functions():
-			yield from func.basic_blocks
+			if func is not None:
+				yield from func.basic_blocks
 
 	@property
 	def hlil_basic_blocks(self) -> Generator['highlevelil.HighLevelILBasicBlock', None, None]:
 		"""A generator of all HighLevelILBasicBlock objects in the BinaryView"""
 		for func in self.hlil_functions():
-			yield from func.basic_blocks
+			if func is not None:
+				yield from func.basic_blocks
 
 	@property
 	def instructions(self) -> InstructionsType:
