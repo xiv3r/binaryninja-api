@@ -3176,14 +3176,14 @@ namespace BinaryNinja {
 
 		/*! Get the BinaryView for a specific View type
 
-		    \param name View name. e.g. ``Linear:ELF``, ``Graph:PE``
+		    \param name View type. e.g. ``ELF``, ``PE``
 		    \return The BinaryView, if it exists
 		*/
 		BinaryNinja::Ref<BinaryNinja::BinaryView> GetViewOfType(const std::string& name);
 
-		/*! List of View names that exist within the current file
+		/*! List of View types that exist within the current file
 
-		    \return List of View Names
+		    \return List of View Types
 		*/
 		std::vector<std::string> GetExistingViews() const;
 
