@@ -2782,7 +2782,8 @@ extern "C"
 	typedef enum BNFindFlag
 	{
 		FindCaseSensitive = 0,
-		FindCaseInsensitive = 1
+		FindCaseInsensitive = 1,
+		FindIgnoreWhitespace = 2,
 	} BNFindFlag;
 
 	typedef enum BNFindRangeType
