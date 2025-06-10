@@ -28,6 +28,9 @@ private:
 	bool GetExpr_GenericObjCRuntimeCall(uint64_t address, const BinaryNinja::HighLevelILInstruction& expr,
 		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
 		const std::vector<BinaryNinja::HighLevelILInstruction>& parameterExprs, const std::vector<std::string_view>& selectorTokens);
+	bool GetExpr_TwoParamObjCRuntimeCall(uint64_t address, const BinaryNinja::HighLevelILInstruction& expr,
+		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
+		const std::vector<BinaryNinja::HighLevelILInstruction>& parameterExprs, std::string_view selectorToken);
 	bool GetExpr_OBJC_CLASS(const BinaryNinja::Symbol& symbol, uint64_t constant,
 		const BinaryNinja::HighLevelILInstruction& expr, BinaryNinja::HighLevelILTokenEmitter& tokens,
 		BinaryNinja::DisassemblySettings* settings, BNOperatorPrecedence precedence, bool statement);

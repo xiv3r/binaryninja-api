@@ -112,6 +112,9 @@ struct RuntimeCall
 		Autorelease,
 		RetainAutorelease,
 		Class,
+		Self,
+		RespondsToSelector,
+		IsKindOfClass
 	};
 
 	Type type;
@@ -129,6 +132,9 @@ constexpr std::array RUNTIME_CALLS = {
 	std::make_pair("_objc_msgSendSuper2", RuntimeCall::MessageSendSuper),
 	std::make_pair("_objc_opt_class", RuntimeCall::Class),
 	std::make_pair("_objc_opt_new", RuntimeCall::New),
+	std::make_pair("_objc_opt_self", RuntimeCall::Self),
+	std::make_pair("_objc_opt_respondsToSelector", RuntimeCall::RespondsToSelector),
+	std::make_pair("_objc_opt_isKindOfClass", RuntimeCall::IsKindOfClass),
 	std::make_pair("_objc_release", RuntimeCall::Release),
 	std::make_pair("_objc_retain", RuntimeCall::Retain),
 	std::make_pair("_objc_retainAutoreleasedReturnValue", RuntimeCall::Retain),
@@ -143,6 +149,9 @@ constexpr std::array RUNTIME_CALLS = {
 	std::make_pair("j__objc_msgSendSuper2", RuntimeCall::MessageSendSuper),
 	std::make_pair("j__objc_opt_class", RuntimeCall::Class),
 	std::make_pair("j__objc_opt_new", RuntimeCall::New),
+	std::make_pair("j__objc_opt_self", RuntimeCall::Self),
+	std::make_pair("j__objc_opt_respondsToSelector", RuntimeCall::RespondsToSelector),
+	std::make_pair("j__objc_opt_isKindOfClass", RuntimeCall::IsKindOfClass),
 	std::make_pair("j__objc_release", RuntimeCall::Release),
 	std::make_pair("j__objc_retain", RuntimeCall::Retain),
 	std::make_pair("j__objc_retainAutoreleasedReturnValue", RuntimeCall::Retain),
@@ -244,7 +253,20 @@ void PseudoObjCFunction::GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelIL
 	case RuntimeCall::Class:
 		runtimeCallTokens = {"class"};
 		break;
-	default:
+	case RuntimeCall::Self:
+		runtimeCallTokens = {"self"};
+		break;
+	case RuntimeCall::RespondsToSelector:
+	case RuntimeCall::IsKindOfClass:
+		std::string_view selectorToken =
+			objCRuntimeCall->type == RuntimeCall::RespondsToSelector ? "respondsToSelector:" : "isKindOfClass:";
+		if (GetExpr_TwoParamObjCRuntimeCall(
+				objCRuntimeCall->address, instr, tokens, settings, parameterExprs, selectorToken))
+		{
+			if (statement)
+				tokens.AppendSemicolon();
+			return;
+		}
 		break;
 	}
 
@@ -329,6 +351,24 @@ bool PseudoObjCFunction::GetExpr_GenericObjCRuntimeCall(uint64_t address, const 
 		tokens.Append(CodeSymbolToken, StringReferenceTokenContext, std::string(token), instr.address, address);
 		tokens.AppendCloseBracket();
 	}
+	return true;
+}
+
+bool PseudoObjCFunction::GetExpr_TwoParamObjCRuntimeCall(uint64_t address, const HighLevelILInstruction& instr,
+	HighLevelILTokenEmitter& tokens, DisassemblySettings* settings,
+	const std::vector<HighLevelILInstruction>& parameterExprs, std::string_view selectorToken)
+{
+	if (parameterExprs.size() < 2)
+		return false;
+
+	tokens.AppendOpenBracket();
+
+	GetExprText(parameterExprs[0], tokens, settings);
+	tokens.Append(TextToken, " ");
+	tokens.Append(CodeSymbolToken, StringReferenceTokenContext, std::string(selectorToken), instr.address, address);
+	GetExprText(parameterExprs[1], tokens, settings, MemberAndFunctionOperatorPrecedence);
+	tokens.AppendCloseBracket();
+
 	return true;
 }
 
