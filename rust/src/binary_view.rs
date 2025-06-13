@@ -192,11 +192,6 @@ pub trait BinaryViewExt: BinaryViewBase {
         }
     }
 
-    fn type_name(&self) -> String {
-        let ptr: *mut c_char = unsafe { BNGetViewType(self.as_ref().handle) };
-        unsafe { BnString::into_string(ptr) }
-    }
-
     fn parent_view(&self) -> Option<Ref<BinaryView>> {
         let raw_view_ptr = unsafe { BNGetParentView(self.as_ref().handle) };
         match raw_view_ptr.is_null() {
@@ -284,15 +279,43 @@ pub trait BinaryViewExt: BinaryViewBase {
         unsafe { BNSetAnalysisHold(self.as_ref().handle, enable) }
     }
 
+    /// Runs the analysis pipeline, analyzing any data that has been marked for updates.
+    ///
+    /// You can explicitly mark a function to be updated with:
+    /// - [`Function::mark_updates_required`]
+    /// - [`Function::mark_caller_updates_required`]
+    ///
+    /// NOTE: This is a **non-blocking** call, use [`BinaryViewExt::update_analysis_and_wait`] if you
+    /// require analysis to have completed before moving on.
     fn update_analysis(&self) {
         unsafe {
             BNUpdateAnalysis(self.as_ref().handle);
         }
     }
 
+    /// Runs the analysis pipeline, analyzing any data that has been marked for updates.
+    ///
+    /// You can explicitly mark a function to be updated with:
+    /// - [`Function::mark_updates_required`]
+    /// - [`Function::mark_caller_updates_required`]
+    ///
+    /// NOTE: This is a **blocking** call, use [`BinaryViewExt::update_analysis`] if you do not
+    /// need to wait for the analysis update to finish.
     fn update_analysis_and_wait(&self) {
         unsafe {
             BNUpdateAnalysisAndWait(self.as_ref().handle);
+        }
+    }
+
+    /// Causes **all** functions to be reanalyzed.
+    ///
+    /// Use [`BinaryViewExt::update_analysis`] or [`BinaryViewExt::update_analysis_and_wait`] instead
+    /// if you want to incrementally update analysis.
+    ///
+    /// NOTE: This function does not wait for the analysis to finish.
+    fn reanalyze(&self) {
+        unsafe {
+            BNReanalyzeAllFunctions(self.as_ref().handle);
         }
     }
 
@@ -570,7 +593,7 @@ pub trait BinaryViewExt: BinaryViewBase {
         }
     }
 
-    /// You likely would also like to call [`Self::define_user_symbol`] to bind this data variable with a name
+    /// You likely would also like to call [`BinaryViewExt::define_user_symbol`] to bind this data variable with a name
     fn define_user_data_var<'a, T: Into<Conf<&'a Type>>>(&self, addr: u64, ty: T) {
         let mut owned_raw_ty = Conf::<&Type>::into_raw(ty.into());
         unsafe {
@@ -2034,7 +2057,7 @@ unsafe impl Sync for BinaryView {}
 impl std::fmt::Debug for BinaryView {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BinaryView")
-            .field("type_name", &self.type_name())
+            .field("view_type", &self.view_type())
             .field("file", &self.file())
             .field("original_image_base", &self.original_image_base())
             .field("start", &self.start())
