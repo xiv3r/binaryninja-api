@@ -3975,7 +3975,7 @@ class LowLevelILFunction:
 			return dest.reg_stack_free_reg(expr.dest, loc)
 		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_FREE_REL:
 			expr: LowLevelILRegStackFreeRel
-			return dest.reg_stack_free_top_relative(expr.stack, expr.dest, loc)
+			return dest.reg_stack_free_top_relative(expr.stack, sub_expr_handler(expr.dest), loc)
 		if expr.operation == LowLevelILOperation.LLIL_FLAG:
 			expr: LowLevelILFlag
 			return dest.flag(expr.src, loc)
