@@ -3611,6 +3611,296 @@ class MediumLevelILFunction:
 
 		core.BNReplaceMediumLevelILExpr(self.handle, original, new)
 
+	def copy_expr_to(
+		self,
+		expr: MediumLevelILInstruction,
+		dest: 'MediumLevelILFunction',
+		sub_expr_handler: Optional[Callable[[MediumLevelILInstruction], ExpressionIndex]] = None
+	) -> ExpressionIndex:
+		"""
+		``copy_expr_to`` deep copies an expression from this function into a target function
+		If provided, the function ``sub_expr_handler`` will be called on every copied sub-expression
+
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
+
+		:param MediumLevelILInstruction expr: Expression in this function to copy
+		:param MediumLevelILFunction dest: Function to copy the expression to
+		:param sub_expr_handler: Optional function to call on every copied sub-expression
+		:return: Index of the copied expression in the target function
+		"""
+
+		if sub_expr_handler is None:
+			sub_expr_handler = lambda sub_expr: self.copy_expr_to(sub_expr, dest)
+
+		def do_copy(
+			expr: MediumLevelILInstruction,
+			dest: 'MediumLevelILFunction',
+			sub_expr_handler: Optional[Callable[[MediumLevelILInstruction], ExpressionIndex]] = None
+		) -> ExpressionIndex:
+			loc = ILSourceLocation.from_instruction(expr)
+			if expr.operation == MediumLevelILOperation.MLIL_NOP:
+				expr: MediumLevelILNop
+				return dest.nop(loc)
+			if expr.operation == MediumLevelILOperation.MLIL_SET_VAR:
+				expr: MediumLevelILSetVar
+				return dest.set_var(expr.size, expr.dest, sub_expr_handler(expr.src), loc)
+			if expr.operation == MediumLevelILOperation.MLIL_SET_VAR_SPLIT:
+				expr: MediumLevelILSetVarSplit
+				return dest.set_var_split(expr.size, expr.high, expr.low, sub_expr_handler(expr.src), loc)
+			if expr.operation == MediumLevelILOperation.MLIL_SET_VAR_FIELD:
+				expr: MediumLevelILSetVarField
+				return dest.set_var_field(expr.size, expr.dest, expr.offset, sub_expr_handler(expr.src), loc)
+			if expr.operation == MediumLevelILOperation.MLIL_VAR:
+				expr: MediumLevelILVar
+				return dest.var(expr.size, expr.src, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_VAR_FIELD:
+				expr: MediumLevelILVarField
+				return dest.var_field(expr.size, expr.src, expr.offset, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_VAR_SPLIT:
+				expr: MediumLevelILVarSplit
+				return dest.var_split(expr.size, expr.high, expr.low, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_FORCE_VER:
+				expr: MediumLevelILForceVer
+				return dest.force_ver(expr.size, expr.dest, expr.src, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_ASSERT:
+				expr: MediumLevelILAssert
+				return dest.assert_expr(expr.size, expr.src, expr.constraint, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_ADDRESS_OF:
+				expr: MediumLevelILAddressOf
+				return dest.address_of(expr.src, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_ADDRESS_OF_FIELD:
+				expr: MediumLevelILAddressOfField
+				return dest.address_of_field(expr.src, expr.offset, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_CALL:
+				expr: MediumLevelILCall
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.call(expr.output, sub_expr_handler(expr.dest), params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_CALL_UNTYPED:
+				expr: MediumLevelILCallUntyped
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.call_untyped(
+					expr.output,
+					sub_expr_handler(expr.dest),
+					params,
+					sub_expr_handler(expr.stack),
+					loc
+				)
+			if expr.operation == MediumLevelILOperation.MLIL_SYSCALL:
+				expr: MediumLevelILSyscall
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.system_call(expr.output, params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_SYSCALL_UNTYPED:
+				expr: MediumLevelILSyscallUntyped
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.system_call_untyped(
+					expr.output,
+					params,
+					sub_expr_handler(expr.stack),
+					loc
+				)
+			if expr.operation == MediumLevelILOperation.MLIL_TAILCALL:
+				expr: MediumLevelILTailcall
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.tailcall(expr.output, sub_expr_handler(expr.dest), params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_TAILCALL_UNTYPED:
+				expr: MediumLevelILTailcallUntyped
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.tailcall_untyped(
+					expr.output,
+					sub_expr_handler(expr.dest),
+					params,
+					sub_expr_handler(expr.stack),
+					loc
+				)
+			# if expr.operation == MediumLevelILOperation.MLIL_SEPARATE_PARAM_LIST:
+			# 	expr: MediumLevelILSeparateParamList
+			# 	params = [sub_expr_handler(param) for param in expr.params]
+			# 	return dest.separate_param_list(params, loc)
+			# if expr.operation == MediumLevelILOperation.MLIL_SHARED_PARAM_SLOT:
+			# 	expr: MediumLevelILSharedParamSlot
+			# 	params = [sub_expr_handler(param) for param in expr.params]
+			# 	return dest.shared_param_slot(params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_RET:
+				expr: MediumLevelILRet
+				params = [sub_expr_handler(src) for src in expr.src]
+				return dest.ret(params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_NORET:
+				expr: MediumLevelILNoret
+				return dest.no_ret(loc)
+			if expr.operation == MediumLevelILOperation.MLIL_STORE:
+				expr: MediumLevelILStore
+				return dest.store(expr.size, sub_expr_handler(expr.dest), sub_expr_handler(expr.src), loc)
+			if expr.operation == MediumLevelILOperation.MLIL_STORE_STRUCT:
+				expr: MediumLevelILStoreStruct
+				return dest.store_struct(expr.size, sub_expr_handler(expr.dest), expr.offset, sub_expr_handler(expr.src), loc)
+			if expr.operation == MediumLevelILOperation.MLIL_LOAD:
+				expr: MediumLevelILLoad
+				return dest.load(expr.size, sub_expr_handler(expr.src), loc)
+			if expr.operation == MediumLevelILOperation.MLIL_LOAD_STRUCT:
+				expr: MediumLevelILLoadStruct
+				return dest.load_struct(expr.size, sub_expr_handler(expr.src), expr.offset, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_JUMP:
+				expr: MediumLevelILJump
+				return dest.jump(sub_expr_handler(expr.dest), loc)
+			if expr.operation in [
+				MediumLevelILOperation.MLIL_NEG,
+				MediumLevelILOperation.MLIL_NOT,
+				MediumLevelILOperation.MLIL_SX,
+				MediumLevelILOperation.MLIL_ZX,
+				MediumLevelILOperation.MLIL_LOW_PART,
+				MediumLevelILOperation.MLIL_BOOL_TO_INT,
+				MediumLevelILOperation.MLIL_RET_HINT,
+				MediumLevelILOperation.MLIL_UNIMPL_MEM,
+				MediumLevelILOperation.MLIL_FSQRT,
+				MediumLevelILOperation.MLIL_FNEG,
+				MediumLevelILOperation.MLIL_FABS,
+				MediumLevelILOperation.MLIL_FLOAT_TO_INT,
+				MediumLevelILOperation.MLIL_INT_TO_FLOAT,
+				MediumLevelILOperation.MLIL_FLOAT_CONV,
+				MediumLevelILOperation.MLIL_ROUND_TO_INT,
+				MediumLevelILOperation.MLIL_FLOOR,
+				MediumLevelILOperation.MLIL_CEIL,
+				MediumLevelILOperation.MLIL_FTRUNC
+			]:
+				expr: MediumLevelILUnaryBase
+				return dest.expr(expr.operation, sub_expr_handler(expr.src), size=expr.size, source_location=loc)
+			if expr.operation in [
+				MediumLevelILOperation.MLIL_ADD,
+				MediumLevelILOperation.MLIL_SUB,
+				MediumLevelILOperation.MLIL_AND,
+				MediumLevelILOperation.MLIL_OR,
+				MediumLevelILOperation.MLIL_XOR,
+				MediumLevelILOperation.MLIL_LSL,
+				MediumLevelILOperation.MLIL_LSR,
+				MediumLevelILOperation.MLIL_ASR,
+				MediumLevelILOperation.MLIL_ROL,
+				MediumLevelILOperation.MLIL_ROR,
+				MediumLevelILOperation.MLIL_MUL,
+				MediumLevelILOperation.MLIL_MULU_DP,
+				MediumLevelILOperation.MLIL_MULS_DP,
+				MediumLevelILOperation.MLIL_DIVU,
+				MediumLevelILOperation.MLIL_DIVS,
+				MediumLevelILOperation.MLIL_MODU,
+				MediumLevelILOperation.MLIL_MODS,
+				MediumLevelILOperation.MLIL_DIVU_DP,
+				MediumLevelILOperation.MLIL_DIVS_DP,
+				MediumLevelILOperation.MLIL_MODU_DP,
+				MediumLevelILOperation.MLIL_MODS_DP,
+				MediumLevelILOperation.MLIL_CMP_E,
+				MediumLevelILOperation.MLIL_CMP_NE,
+				MediumLevelILOperation.MLIL_CMP_SLT,
+				MediumLevelILOperation.MLIL_CMP_ULT,
+				MediumLevelILOperation.MLIL_CMP_SLE,
+				MediumLevelILOperation.MLIL_CMP_ULE,
+				MediumLevelILOperation.MLIL_CMP_SGE,
+				MediumLevelILOperation.MLIL_CMP_UGE,
+				MediumLevelILOperation.MLIL_CMP_SGT,
+				MediumLevelILOperation.MLIL_CMP_UGT,
+				MediumLevelILOperation.MLIL_TEST_BIT,
+				MediumLevelILOperation.MLIL_ADD_OVERFLOW,
+				MediumLevelILOperation.MLIL_FADD,
+				MediumLevelILOperation.MLIL_FSUB,
+				MediumLevelILOperation.MLIL_FMUL,
+				MediumLevelILOperation.MLIL_FDIV,
+				MediumLevelILOperation.MLIL_FCMP_E,
+				MediumLevelILOperation.MLIL_FCMP_NE,
+				MediumLevelILOperation.MLIL_FCMP_LT,
+				MediumLevelILOperation.MLIL_FCMP_LE,
+				MediumLevelILOperation.MLIL_FCMP_GE,
+				MediumLevelILOperation.MLIL_FCMP_GT,
+				MediumLevelILOperation.MLIL_FCMP_O,
+				MediumLevelILOperation.MLIL_FCMP_UO
+			]:
+				expr: MediumLevelILBinaryBase
+				return dest.expr(
+					expr.operation,
+					sub_expr_handler(expr.left),
+					sub_expr_handler(expr.right),
+					size=expr.size,
+					source_location=loc
+				)
+			if expr.operation in [
+				MediumLevelILOperation.MLIL_ADC,
+				MediumLevelILOperation.MLIL_SBB,
+				MediumLevelILOperation.MLIL_RLC,
+				MediumLevelILOperation.MLIL_RRC
+			]:
+				expr: MediumLevelILCarryBase
+				return dest.expr(
+					expr.operation,
+					sub_expr_handler(expr.left),
+					sub_expr_handler(expr.right),
+					sub_expr_handler(expr.carry),
+					size=expr.size,
+					source_location=loc
+				)
+			if expr.operation == MediumLevelILOperation.MLIL_JUMP_TO:
+				expr: MediumLevelILJumpTo
+				label_list = {}
+				for a, b in expr.targets.items():
+					label_a = dest.get_label_for_source_instruction(b)
+					if label_a is None:
+						return dest.jump(sub_expr_handler(expr.dest), loc)
+					label_list[a] = label_a
+				return dest.jump_to(sub_expr_handler(expr.dest), label_list, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_GOTO:
+				expr: MediumLevelILGoto
+				label_a = dest.get_label_for_source_instruction(expr.dest)
+				if label_a is None:
+					return dest.jump(dest.const_pointer(expr.function.arch.address_size, expr.function[expr.dest].address), loc)
+				return dest.goto(label_a, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_IF:
+				expr: MediumLevelILIf
+				label_a = dest.get_label_for_source_instruction(expr.true)
+				label_b = dest.get_label_for_source_instruction(expr.false)
+				if label_a is None or label_b is None:
+					return dest.undefined(loc)
+				return dest.if_expr(sub_expr_handler(expr.condition), label_a, label_b, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_CONST:
+				expr: MediumLevelILConst
+				return dest.const(expr.size, expr.constant, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_CONST_PTR:
+				expr: MediumLevelILConstPtr
+				return dest.const_pointer(expr.size, expr.constant, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_EXTERN_PTR:
+				expr: MediumLevelILExternPtr
+				return dest.extern_pointer(expr.size, expr.constant, expr.offset, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_FLOAT_CONST:
+				expr: MediumLevelILFloatConst
+				return dest.float_const_raw(expr.size, expr.raw_operands[0], loc)
+			if expr.operation == MediumLevelILOperation.MLIL_IMPORT:
+				expr: MediumLevelILImport
+				return dest.imported_address(expr.size, expr.constant, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_CONST_DATA:
+				expr: MediumLevelILConstData
+				return dest.const_data(expr.size, expr.constant_data, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_BP:
+				expr: MediumLevelILBp
+				return dest.breakpoint(loc)
+			if expr.operation == MediumLevelILOperation.MLIL_TRAP:
+				expr: MediumLevelILTrap
+				return dest.trap(expr.vector, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_INTRINSIC:
+				expr: MediumLevelILIntrinsic
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.intrinsic(expr.output, expr.intrinsic, params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_FREE_VAR_SLOT:
+				expr: MediumLevelILFreeVarSlot
+				return dest.free_var_slot(expr.dest, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_UNDEF:
+				expr: MediumLevelILUndef
+				return dest.undefined(loc)
+			if expr.operation == MediumLevelILOperation.MLIL_UNIMPL:
+				expr: MediumLevelILUnimpl
+				return dest.unimplemented(loc)
+			raise NotImplementedError(f"unknown expr operation {expr.operation} in copy_expr_to")
+
+		new_index = do_copy(expr, dest, sub_expr_handler)
+		# Copy expression metadata as well
+		dest.set_expr_attributes(new_index, expr.attributes)
+		dest.set_expr_type(new_index, self.get_expr_type(expr.expr_index))
+		return new_index
+
 	def set_expr_attributes(self, expr: InstructionOrExpression, value: ILInstructionAttributeSet):
 		"""
 		``set_expr_attributes`` allows modification of instruction attributes but ONLY during lifting.
@@ -4890,6 +5180,20 @@ class MediumLevelILFunction:
 			source_location=loc
 		)
 
+	def free_var_slot(
+		self,
+		var: 'variable.Variable',
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``free_var_slot`` return an expression that clears the slot of the variable ``var`` which is in a register stack
+
+		:param Variable var: variable to free
+		:param ILSourceLocation loc: location of returned expression
+		:return: the expression ``free_var_slot(var)``
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_FREE_VAR_SLOT, var.identifier, source_location=loc)
+
 	def undefined(self, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
 		``undefined`` returns the undefined expression. This should be used for instructions which perform functions but
@@ -5384,6 +5688,37 @@ class MediumLevelILFunction:
 			known_alias_list[i] = known_aliases[i].to_BNVariable()
 		core.BNGenerateMediumLevelILSSAForm(self.handle, analyze_conditionals, handle_aliases, known_not_alias_list, len(known_not_alias_list), known_alias_list, len(known_alias_list))
 
+	def prepare_to_copy_function(self, src: 'MediumLevelILFunction'):
+		"""
+		``prepare_to_copy_function`` sets up state in this MLIL function in preparation
+		of copying instructions from ``src``
+
+		:param MediumLevelILFunction src: function about to be copied from
+		"""
+		core.BNPrepareToCopyMediumLevelILFunction(self.handle, src.handle)
+
+	def prepare_to_copy_block(self, src: 'MediumLevelILBasicBlock'):
+		"""
+		``prepare_to_copy_block`` sets up state when copying a function in preparation
+		of copying the instructions from the block ``src``
+
+		:param MediumLevelILBasicBlock src: block about to be copied from
+		"""
+		core.BNPrepareToCopyMediumLevelILBasicBlock(self.handle, src.handle)
+
+	def get_label_for_source_instruction(self, i: InstructionIndex) -> Optional['MediumLevelILLabel']:
+		"""
+		Get the MediumLevelILLabel for a given source instruction. The returned label is to an internal object with
+		the same lifetime as the containing MediumLevelILFunction.
+
+		:param i: The source instruction index
+		:return: The MediumLevelILLabel for the source instruction
+		"""
+		label = core.BNGetLabelForMediumLevelILSourceInstruction(self.handle, i)
+		if not label:
+			return None
+		return MediumLevelILLabel(handle=label)
+
 	def get_ssa_instruction_index(self, instr: InstructionIndex) -> InstructionIndex:
 		return InstructionIndex(core.BNGetMediumLevelILSSAInstructionIndex(self.handle, instr))
 
@@ -5742,7 +6077,7 @@ class MediumLevelILFunction:
 			)
 		return None
 
-	def set_expr_type(self, expr_index: int, expr_type: StringOrType) -> None:
+	def set_expr_type(self, expr_index: int, expr_type: Optional[StringOrType]) -> None:
 		"""
 		Set type of expression
 
@@ -5754,9 +6089,14 @@ class MediumLevelILFunction:
 		:param int expr_index: index of the expression to set
 		:param StringOrType: new type of the expression
 		"""
-		if isinstance(expr_type, str):
-			(expr_type, _) = self.view.parse_type_string(expr_type)
-		tc = expr_type._to_core_struct()
+		if expr_type is not None:
+			if isinstance(expr_type, str):
+				(expr_type, _) = self.view.parse_type_string(expr_type)
+			tc = expr_type._to_core_struct()
+		else:
+			tc = core.BNTypeWithConfidence()
+			tc.type = None
+			tc.confidence = 0
 		core.BNSetMediumLevelILExprType(self.handle, expr_index, tc)
 
 
