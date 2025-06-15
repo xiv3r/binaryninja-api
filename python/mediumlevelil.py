@@ -3784,6 +3784,47 @@ class MediumLevelILFunction:
 		"""
 		return self.expr(MediumLevelILOperation.MLIL_VAR_SPLIT, hi.identifier, lo.identifier, size=size, source_location=loc)
 
+	def assert_expr(
+		self,
+		size: int,
+		src: 'variable.Variable',
+		constraint: 'variable.PossibleValueSet',
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``assert_expr`` assert ``constraint`` is the value of the given variable ``src``.
+		Used when setting user variable values.
+
+		:param int size: size of value in the constraint
+		:param Variable src: variable to constrain
+		:param variable.PossibleValueSet constraint: asserted value of variable
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``ASSERT(src, constraint)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_ASSERT, src.identifier, ExpressionIndex(self.cache_possible_value_set(constraint)), size=size, source_location=loc)
+
+	def force_ver(
+		self,
+		size: int,
+		dest: 'variable.Variable',
+		src: 'variable.Variable',
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``force_ver`` creates a new version of the variable ``dest`` in ``src``
+		Effectively, this is like saying src = dest, which analysis can then use as a new
+		variable definition site.
+
+		:param int size: size of the variable
+		:param Variable dest: the variable to force a new version of
+		:param Variable src: the variable created with the new version
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``FORCE_VER(reg)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_FORCE_VER, dest.identifier, src.identifier, size=size, source_location=loc)
+
 	def address_of(self, var: 'variable.Variable', loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
 		``address_of`` takes the address of ``var``
@@ -5286,6 +5327,14 @@ class MediumLevelILFunction:
 		for i in range(len(vars)):
 			operand_list[i] = vars[i].identifier
 		return ExpressionIndex(core.BNMediumLevelILAddOperandList(self.handle, operand_list, len(vars)))
+
+	def cache_possible_value_set(self, pvs: 'variable.PossibleValueSet') -> int:
+		"""
+		Cache a PossibleValueSet in the IL function, returning its index for use in an expression operand
+		:param pvs: PossibleValueSet to cache
+		:return: Index of the PossibleValueSet in the cache
+		"""
+		return core.BNCacheMediumLevelILPossibleValueSet(self.handle, pvs._to_core_struct())
 
 	def finalize(self) -> None:
 		"""
