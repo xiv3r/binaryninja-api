@@ -40,17 +40,22 @@ public:
 				continue;
 			}
 
-			// Grab stack offset value from function
-			auto stackOffset = block->GetFunction()->GetRegisterValueAtInstruction(
-				block->GetArchitecture(),
-				line.addr,
-				block->GetArchitecture()->GetStackPointerRegister()
-			);
-			auto stackOffsetAfter = block->GetFunction()->GetRegisterValueAfterInstruction(
-				block->GetArchitecture(),
-				line.addr,
-				block->GetArchitecture()->GetStackPointerRegister()
-			);
+			RegisterValue stackOffset;
+			RegisterValue stackOffsetAfter;
+			if (block->GetFunction()->GetMediumLevelILIfAvailable())
+			{
+				// Grab stack offset value from function
+				stackOffset = block->GetFunction()->GetRegisterValueAtInstruction(
+					block->GetArchitecture(),
+					line.addr,
+					block->GetArchitecture()->GetStackPointerRegister()
+				);
+				stackOffsetAfter = block->GetFunction()->GetRegisterValueAfterInstruction(
+					block->GetArchitecture(),
+					line.addr,
+					block->GetArchitecture()->GetStackPointerRegister()
+				);
+			}
 			if (stackOffset.state == StackFrameOffset)
 			{
 				// Stack pointer is resolved to an offset: show the offset
