@@ -17125,9 +17125,10 @@ namespace BinaryNinja {
 
 		/*! Determine if the active settings schema is empty
 
+			\param scope the settings scope to check, defaults to SettingsAutoScope
 			\return True if the active settings schema is empty, False otherwise
 		*/
-		bool IsEmpty();
+		bool IsEmpty(BNSettingsScope scope = SettingsAutoScope);
 
 		/*! Retrieve the list of setting identifiers in the active settings schema
 
@@ -17154,6 +17155,7 @@ namespace BinaryNinja {
 		    const std::string& contents, Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope);
 		std::string SerializeSettings(Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope);
 
+		bool IsEmpty(Ref<BinaryView> view, BNSettingsScope scope = SettingsAutoScope);
 		bool Reset(const std::string& key, Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope);
 		bool ResetAll(
 		    Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope, bool schemaOnly = true);
@@ -17210,6 +17212,7 @@ namespace BinaryNinja {
 		bool DeserializeSettings(const std::string& contents, Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 		std::string SerializeSettings(Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 
+		bool IsEmpty(Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 		bool Reset(const std::string& key, Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 		bool ResetAll(Ref<Function> func, BNSettingsScope scope = SettingsAutoScope, bool schemaOnly = true);
 

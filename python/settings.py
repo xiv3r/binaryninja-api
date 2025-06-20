@@ -244,14 +244,25 @@ class Settings:
 		"""
 		return core.BNSettingsContains(self.handle, key)
 
-	def is_empty(self) -> bool:
+	def is_empty(self, resource: Optional[Union['binaryview.BinaryView', 'function.Function']] = None, scope: 'SettingsScope' = SettingsScope.SettingsAutoScope) -> bool:
 		"""
 		``is_empty`` determine if the active settings schema is empty
 
+		:param resource: a BinaryView or Function object to check for emptiness
+		:param scope: the SettingsScope to check for emptiness
 		:return: True if the active settings schema is empty, False otherwise
 		:rtype: bool
 		"""
-		return core.BNSettingsIsEmpty(self.handle)
+		view_handle = None
+		func_handle = None
+		if resource is not None:
+			if isinstance(resource, binaryview.BinaryView):
+				view_handle = resource.handle
+			elif isinstance(resource, function.Function):
+				func_handle = resource.handle
+			else:
+				raise TypeError("Expected resource to be either a BinaryView or a Function.")
+		return core.BNSettingsIsEmpty(self.handle, view_handle, func_handle, scope)
 
 	def keys(self) -> List[str]:
 		"""
