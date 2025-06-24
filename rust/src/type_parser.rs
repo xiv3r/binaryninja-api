@@ -442,9 +442,9 @@ impl TypeParserResult {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ParsedType {
-    name: QualifiedName,
-    ty: Ref<Type>,
-    user: bool,
+    pub name: QualifiedName,
+    pub ty: Ref<Type>,
+    pub user: bool,
 }
 
 impl ParsedType {
