@@ -84,7 +84,7 @@ class Settings:
 		"hidden"              bool                                     "type" is "string"   Yes        Indicates the UI should conceal the content. The "ignore" property is required to specify the applicable storage scopes
 		"requiresRestart"     boolean                                  None                 Yes        Enable restart notification in the UI upon change
 		"uiSelectionAction"   string                                   "type" is "string"   Yes        {"file", "directory", <Registered UIAction Name>} Informs the UI to add a button to open a selection dialog or run a registered UIAction
-		"quickSettingsGroup"  string                                   None                 Yes        Informs the submenu name in the UI when added to quick settings context menu
+		"quickSettingsGroup"  string                                   None                 Yes        Groups related items in the quick settings context menu using dividers to separate groups
 		====================  ======================================   ==================   ========   =======================================================================
 
 	.. note:: In order to facilitate deterministic analysis results, settings from the *'default'* schema that impact analysis are serialized \
