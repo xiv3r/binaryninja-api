@@ -588,7 +588,8 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
             {
                 // TODO: Is likely a function check here?
                 m_logger->LogDebug("Discovered function from virtual function table... %llx", vFuncAddr);
-                m_view->AddFunctionForAnalysis(m_view->GetDefaultPlatform(), vFuncAddr, true);
+                auto vftPlatform = m_view->GetDefaultPlatform()->GetAssociatedPlatformByAddress(vFuncAddr);
+                m_view->AddFunctionForAnalysis(vftPlatform, vFuncAddr, true);
             }
         }
         // Only ever add one function.

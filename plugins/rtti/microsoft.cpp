@@ -499,7 +499,8 @@ std::optional<VirtualFunctionTableInfo> MicrosoftRTTIProcessor::ProcessVFT(uint6
             }
             // TODO: Is likely a function check here?
             m_logger->LogDebug("Discovered function from virtual function table... %llx", vFuncAddr);
-            auto vFunc = m_view->AddFunctionForAnalysis(m_view->GetDefaultPlatform(), vFuncAddr, true);
+            auto vftPlatform = m_view->GetDefaultPlatform()->GetAssociatedPlatformByAddress(vFuncAddr);
+            auto vFunc = m_view->AddFunctionForAnalysis(vftPlatform, vFuncAddr, true);
             virtualFunctions.emplace_back(vFuncAddr, vFunc ? std::optional(vFunc) : std::nullopt);
         }
         else
