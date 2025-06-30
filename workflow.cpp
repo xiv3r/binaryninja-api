@@ -100,7 +100,8 @@ void AnalysisContext::SetLowLevelILFunction(Ref<LowLevelILFunction> lowLevelIL)
 
 void AnalysisContext::SetMediumLevelILFunction(Ref<MediumLevelILFunction> mediumLevelIL)
 {
-	BNSetMediumLevelILFunction(m_object, mediumLevelIL->m_object);
+	// TODO: Mappings FFI
+	BNSetMediumLevelILFunction(m_object, mediumLevelIL->m_object, nullptr, 0, nullptr, 0);
 }
 
 

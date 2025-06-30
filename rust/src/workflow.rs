@@ -10,6 +10,7 @@ use crate::medium_level_il::MediumLevelILFunction;
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
 use crate::string::{BnString, IntoCStr};
 use std::ffi::{c_char, c_void};
+use std::ptr;
 use std::ptr::NonNull;
 
 #[repr(transparent)]
@@ -83,7 +84,8 @@ impl AnalysisContext {
     }
 
     pub fn set_mlil_function(&self, value: &MediumLevelILFunction) {
-        unsafe { BNSetMediumLevelILFunction(self.handle.as_ptr(), value.handle) }
+        // TODO: Mappings FFI
+        unsafe { BNSetMediumLevelILFunction(self.handle.as_ptr(), value.handle, ptr::null_mut(), 0, ptr::null_mut(), 0) }
     }
 
     /// [`HighLevelILFunction`] used to represent High Level IL

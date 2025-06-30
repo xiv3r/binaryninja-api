@@ -3711,6 +3711,16 @@ extern "C"
 		AlwaysEnabledRenderLayerDefaultEnableState,
 	} BNRenderLayerDefaultEnableState;
 
+	typedef struct BNExprMapInfo
+	{
+		size_t lowerIndex;
+		size_t higherIndex;
+		bool mapLowerToHigher;
+		bool mapHigherToLower;
+		bool lowerToHigherDirect;
+		bool higherToLowerDirect;
+	} BNExprMapInfo;
+
 	BINARYNINJACOREAPI char* BNAllocString(const char* contents);
 	BINARYNINJACOREAPI char* BNAllocStringWithLength(const char* contents, size_t len);
 	BINARYNINJACOREAPI void BNFreeString(char* str);
@@ -5647,7 +5657,9 @@ extern "C"
 	BINARYNINJACOREAPI void BNSetLowLevelILFunction(
 	    BNAnalysisContext* analysisContext, BNLowLevelILFunction* lowLevelIL);
 	BINARYNINJACOREAPI void BNSetMediumLevelILFunction(
-	    BNAnalysisContext* analysisContext, BNMediumLevelILFunction* mediumLevelIL);
+	    BNAnalysisContext* analysisContext, BNMediumLevelILFunction* mediumLevelIL,
+	    size_t* llilSSAToMLILSSAInstrMap, size_t instrCount,
+	    BNExprMapInfo* llilSSAToMLILSSAExprMap, size_t exprCount);
 	BINARYNINJACOREAPI void BNSetHighLevelILFunction(
 	    BNAnalysisContext* analysisContext, BNHighLevelILFunction* highLevelIL);
 	BINARYNINJACOREAPI bool BNAnalysisContextInform(BNAnalysisContext* analysisContext, const char* request);

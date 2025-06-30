@@ -1,3 +1,4 @@
+import functools
 import json
 import math
 
@@ -67,7 +68,14 @@ def assert_llil_eq(old_insn: LowLevelILInstruction, new_insn: LowLevelILInstruct
             assert old_op[1] == new_op[1], err_msg
 
 
-def assert_mlil_eq(old_insn: LowLevelILInstruction, new_insn: LowLevelILInstruction):
+@functools.lru_cache(maxsize=8)
+def get_mlil_maps(mlil: MediumLevelILFunction, builders: bool) -> Tuple[LLILSSAToMLILInstructionMapping, LLILSSAToMLILExpressionMapping]:
+    instr_map = mlil._get_llil_ssa_to_mlil_instr_map(builders)
+    expr_map = mlil._get_llil_ssa_to_mlil_expr_map(builders)
+    return instr_map, expr_map
+
+
+def assert_mlil_eq(old_insn: MediumLevelILInstruction, new_insn: MediumLevelILInstruction):
     """
     Make sure that these two instructions are the same (probably correct). Asserts otherwise.
 
@@ -78,10 +86,23 @@ def assert_mlil_eq(old_insn: LowLevelILInstruction, new_insn: LowLevelILInstruct
     """
     err_msg = (hex(old_insn.address), old_insn, new_insn)
     assert old_insn.operation == new_insn.operation, err_msg
-    # assert old_insn.attributes == new_insn.attributes, err_msg
+    assert old_insn.attributes == new_insn.attributes, err_msg
     assert old_insn.size == new_insn.size, err_msg
     assert old_insn.source_location == new_insn.source_location, err_msg
     assert len(old_insn.operands) == len(new_insn.operands), err_msg
+    # Type only applies once we've generated SSA form (probably not consistent)
+    # assert old_insn.expr_type == new_insn.expr_type, f"{err_msg} {old_insn.expr_type} {new_insn.expr_type}"
+
+    instr_map, expr_map = get_mlil_maps(new_insn.function, True)
+
+    # Compare that the instruction's LLIL SSA map is the same as the old function
+    if old_insn.instr_index is not None and old_insn.function.get_expr_index_for_instruction(old_insn.instr_index) == old_insn.expr_index:
+        old_llil_ssa = old_insn.function.get_low_level_il_instruction_index(old_insn.instr_index)
+        if old_llil_ssa is not None:
+            assert [mlil for (llil, mlil) in instr_map.items() if llil == old_llil_ssa] == [new_insn.instr_index], err_msg
+        else:
+            assert [mlil for (llil, mlil) in instr_map.items() if llil == old_llil_ssa] == [], err_msg
+
     # Can't compare operands directly since IL expression indices might change when
     # copying an instruction to another function
     for i, (old_op, new_op) in enumerate(zip(old_insn.detailed_operands, new_insn.detailed_operands)):
@@ -231,6 +252,11 @@ def mlil_action(context: AnalysisContext):
         report.append(FlowGraphReport("new graph", new_mlil.create_graph_immediate(settings)))
         show_report_collection("copy expr test", report)
 
+    # Check expr mappings are the same
+    new_map = list(sorted(new_mlil._get_llil_ssa_to_mlil_expr_map(True), key=lambda o: (o.lower_index, o.higher_index)))
+    old_map = list(sorted(old_mlil._get_llil_ssa_to_mlil_expr_map(False), key=lambda o: (o.lower_index, o.higher_index)))
+    assert old_map == new_map
+
     # Check all BBs have all the same instructions
     # Technically, this misses any instructions outside a BB, but those are not
     # picked up by analysis anyway, and therefore don't matter.
@@ -240,15 +266,26 @@ def mlil_action(context: AnalysisContext):
         for old_insn, new_insn in zip(old_bb, new_bb):
             assert_mlil_eq(old_insn, new_insn)
 
+    # Make sure mappings update correctly following set
+    new_map = list(sorted(new_mlil._get_llil_ssa_to_mlil_expr_map(True), key=lambda o: (o.lower_index, o.higher_index)))
+    context.mlil = new_mlil
+    newer_map = list(sorted(context.mlil._get_llil_ssa_to_mlil_expr_map(False), key=lambda o: (o.lower_index, o.higher_index)))
+    assert new_map == newer_map
 
-wf = Workflow("core.function.metaAnalysis").clone("TestCopyExpr")
+
+wf = Workflow("core.function.metaAnalysis").clone("core.function.metaAnalysis")
 
 # Define the custom activity configuration
 wf.register_activity(Activity(
     configuration=json.dumps({
         "name": "extension.test_copy_expr.lil_action",
         "title": "Lifted IL copy_expr Test",
-        "description": "Makes sure copy_expr works on Lifted IL functions."
+        "description": "Makes sure copy_expr works on Lifted IL functions.",
+        "eligibility": {
+            "auto": {
+                "default": False
+            }
+        }
     }),
     action=lil_action
 ))
@@ -256,7 +293,12 @@ wf.register_activity(Activity(
     configuration=json.dumps({
         "name": "extension.test_copy_expr.llil_action",
         "title": "Low Level IL copy_expr Test",
-        "description": "Makes sure copy_expr works on Low Level IL functions."
+        "description": "Makes sure copy_expr works on Low Level IL functions.",
+        "eligibility": {
+            "auto": {
+                "default": False
+            }
+        }
     }),
     action=llil_action
 ))
@@ -264,7 +306,12 @@ wf.register_activity(Activity(
     configuration=json.dumps({
         "name": "extension.test_copy_expr.mlil_action",
         "title": "Medium Level IL copy_expr Test",
-        "description": "Makes sure copy_expr works on Medium Level IL functions."
+        "description": "Makes sure copy_expr works on Medium Level IL functions.",
+        "eligibility": {
+            "auto": {
+                "default": False
+            }
+        }
     }),
     action=mlil_action
 ))

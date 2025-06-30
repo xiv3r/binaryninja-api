@@ -20,7 +20,7 @@
 
 import ctypes
 import struct
-from typing import (Optional, List, Union, Mapping,
+from typing import (Optional, List, Union, Mapping, MutableMapping,
 	Generator, NewType, Tuple, ClassVar, Dict, Set, Callable, Any, Iterator, overload)
 from dataclasses import dataclass
 from . import deprecation
@@ -43,7 +43,7 @@ from .commonil import (
     BaseILInstruction, Constant, BinaryOperation, UnaryOperation, Comparison, SSA, Phi, FloatingPoint, ControlFlow,
     Terminal, Call, Localcall, Syscall, Tailcall, Return, Signed, Arithmetic, Carry, DoublePrecision, Memory, Load,
     Store, RegisterStack, SetVar, Intrinsic, VariableInstruction, SSAVariableInstruction, AliasedVariableInstruction,
-    ILSourceLocation
+    ILSourceLocation, invalid_il_index
 )
 
 TokenList = List['function.InstructionTextToken']
@@ -61,6 +61,30 @@ MediumLevelILOperandType = Union[int, float, 'MediumLevelILOperationAndSize', 'M
 MediumLevelILVisitorCallback = Callable[[str, MediumLevelILOperandType, str, Optional['MediumLevelILInstruction']], bool]
 StringOrType = Union[str, '_types.Type', '_types.TypeBuilder']
 ILInstructionAttributeSet = Union[Set[ILInstructionAttribute], List[ILInstructionAttribute]]
+LLILSSAToMLILInstructionMapping = MutableMapping['lowlevelil.InstructionIndex', InstructionIndex]
+
+
+@dataclass(frozen=True)
+class LLILSSAToMLILExpressionMap:
+	lower_index: 'lowlevelil.ExpressionIndex'
+	higher_index: ExpressionIndex
+	map_lower_to_higher: bool
+	map_higher_to_lower: bool
+	lower_to_higher_direct: bool
+	higher_to_lower_direct: bool
+
+	def _to_core_struct(self):
+		result = core.BNExprMapInfo()
+		result.lowerIndex = self.lower_index
+		result.higherIndex = self.higher_index
+		result.mapLowerToHigher = self.map_lower_to_higher
+		result.mapHigherToLower = self.map_higher_to_lower
+		result.lowerToHigherDirect = self.lower_to_higher_direct
+		result.higherToLowerDirect = self.higher_to_lower_direct
+		return result
+
+
+LLILSSAToMLILExpressionMapping = List['LLILSSAToMLILExpressionMap']
 
 
 @dataclass(frozen=True, repr=False, order=True)
@@ -3300,6 +3324,11 @@ class MediumLevelILFunction:
 		self._arch = _arch
 		self._source_function = _source_function
 
+		self._mlil_to_mlil_expr_map: dict['MediumLevelILInstruction', List[Tuple[ExpressionIndex, bool]]] = {}
+		self._mlil_to_mlil_instr_map: dict['MediumLevelILInstruction', List[Tuple[InstructionIndex, bool]]] = {}
+		self._llil_ssa_to_mlil_expr_map: dict['lowlevelil.LowLevelILInstruction', List[Tuple[ExpressionIndex, bool]]] = {}
+		self._llil_ssa_to_mlil_instr_map: dict['lowlevelil.LowLevelILInstruction', List[Tuple[InstructionIndex, bool]]] = {}
+
 	def __del__(self):
 		if core is not None:
 			core.BNFreeMediumLevelILFunction(self.handle)
@@ -3546,7 +3575,7 @@ class MediumLevelILFunction:
 		elif isinstance(operation, MediumLevelILOperation):
 			_operation = operation.value
 		if source_location is not None:
-			return ExpressionIndex(core.BNMediumLevelILAddExprWithLocation(
+			index = ExpressionIndex(core.BNMediumLevelILAddExprWithLocation(
 				self.handle,
 				_operation,
 				source_location.address,
@@ -3558,6 +3587,8 @@ class MediumLevelILFunction:
 				d,
 				e
 			))
+			self._record_mlil_to_mlil_expr_map(index, source_location)
+			return index
 		else:
 			return ExpressionIndex(core.BNMediumLevelILAddExpr(self.handle, _operation, size, a, b, c, d, e))
 
@@ -3914,7 +3945,6 @@ class MediumLevelILFunction:
 		new_index = do_copy(expr, dest, sub_expr_handler)
 		# Copy expression metadata as well
 		dest.set_expr_attributes(new_index, expr.attributes)
-		dest.set_expr_type(new_index, self.get_expr_type(expr.expr_index))
 		return new_index
 
 	def translate(
@@ -3944,7 +3974,7 @@ class MediumLevelILFunction:
 			for instr_index in range(block.start, block.end):
 				instr: MediumLevelILInstruction = self[InstructionIndex(instr_index)]
 				propagated_func.set_current_address(instr.address, block.arch)
-				propagated_func.append(expr_handler(propagated_func, block, instr))
+				propagated_func.append(expr_handler(propagated_func, block, instr), ILSourceLocation.from_instruction(instr))
 
 		return propagated_func
 
@@ -3968,7 +3998,7 @@ class MediumLevelILFunction:
 			result |= flag.value
 		core.BNSetMediumLevelILExprAttributes(self.handle, expr, result)
 
-	def append(self, expr: ExpressionIndex) -> InstructionIndex:
+	def append(self, expr: ExpressionIndex, source_location: Optional['ILSourceLocation'] = None) -> InstructionIndex:
 		"""
 		``append`` adds the ExpressionIndex ``expr`` to the current MediumLevelILFunction.
 
@@ -3976,7 +4006,115 @@ class MediumLevelILFunction:
 		:return: Index of added instruction in the current function
 		:rtype: int
 		"""
-		return InstructionIndex(core.BNMediumLevelILAddInstruction(self.handle, expr))
+		index = InstructionIndex(core.BNMediumLevelILAddInstruction(self.handle, expr))
+		self._record_mlil_to_mlil_instr_map(index, source_location)
+		return index
+
+	def _record_mlil_to_mlil_instr_map(self, index, source_location: 'ILSourceLocation'):
+		# Update internal mappings to remember this
+		if source_location is not None:
+			if source_location.source_mlil_instruction is not None:
+				if source_location.source_mlil_instruction not in self._mlil_to_mlil_instr_map:
+					self._mlil_to_mlil_instr_map[source_location.source_mlil_instruction] = []
+				self._mlil_to_mlil_instr_map[source_location.source_mlil_instruction].append((index, source_location.il_direct))
+			if source_location.source_llil_instruction is not None \
+				and source_location.source_llil_instruction.function.il_form == FunctionGraphType.LowLevelILSSAFormFunctionGraph:
+				if source_location.source_llil_instruction not in self._llil_ssa_to_mlil_instr_map:
+					self._llil_ssa_to_mlil_instr_map[source_location.source_llil_instruction] = []
+				self._llil_ssa_to_mlil_instr_map[source_location.source_llil_instruction].append((index, source_location.il_direct))
+
+	def _record_mlil_to_mlil_expr_map(self, index, source_location: 'ILSourceLocation'):
+		# Update internal mappings to remember this
+		if source_location.source_mlil_instruction is not None:
+			if source_location.source_mlil_instruction not in self._mlil_to_mlil_expr_map:
+				self._mlil_to_mlil_expr_map[source_location.source_mlil_instruction] = []
+			self._mlil_to_mlil_expr_map[source_location.source_mlil_instruction].append((index, source_location.il_direct))
+		if source_location.source_llil_instruction is not None \
+			and source_location.source_llil_instruction.function.il_form == FunctionGraphType.LowLevelILSSAFormFunctionGraph:
+			if source_location.source_llil_instruction not in self._llil_ssa_to_mlil_expr_map:
+				self._llil_ssa_to_mlil_expr_map[source_location.source_llil_instruction] = []
+			self._llil_ssa_to_mlil_expr_map[source_location.source_llil_instruction].append((index, source_location.il_direct))
+
+	def _get_llil_ssa_to_mlil_instr_map(self, from_builders: bool) -> LLILSSAToMLILInstructionMapping:
+		llil_ssa_to_mlil_instr_map = {}
+
+		if from_builders:
+			for (old_instr, new_indices) in self._mlil_to_mlil_instr_map.items():
+				old_instr: MediumLevelILInstruction
+				new_indices: List[InstructionIndex]
+
+				# Look up the LLIL SSA instruction for the old instr in its function
+				# And then store that mapping for the new function
+
+				for (new_index, new_direct) in new_indices:
+					# Instructions are always mapped 1 to 1. If the map is marked indirect
+					# then just ignore it
+					if new_direct:
+						old_llil_ssa_index = old_instr.function.get_low_level_il_instruction_index(old_instr.instr_index)
+						if old_llil_ssa_index is not None:
+							llil_ssa_to_mlil_instr_map[old_llil_ssa_index] = new_index
+		else:
+			for instr in self.instructions:
+				llil_ssa_index = self.get_low_level_il_instruction_index(instr.instr_index)
+				llil_ssa_to_mlil_instr_map[llil_ssa_index] = instr.instr_index
+
+		return llil_ssa_to_mlil_instr_map
+
+	def _get_llil_ssa_to_mlil_expr_map(self, from_builders: bool) -> LLILSSAToMLILExpressionMapping:
+		llil_ssa_to_mlil_expr_map = []
+
+		if from_builders:
+			for (old_expr, new_indices) in self._mlil_to_mlil_expr_map.items():
+				old_expr: MediumLevelILInstruction
+				new_indices: List[ExpressionIndex]
+
+				# Look up the LLIL SSA expression for the old expr in its function
+				# And then store that mapping for the new function
+
+				old_llil_ssa_direct = old_expr.function.get_low_level_il_expr_index(old_expr.expr_index)
+				old_llil_ssa_indices = old_expr.function.get_low_level_il_expr_indexes(old_expr.expr_index)
+				for old_index in old_llil_ssa_indices:
+					old_reverse_direct = old_expr.function.low_level_il.ssa_form.get_medium_level_il_expr_index(old_index)
+					old_reverse_all = old_expr.function.low_level_il.ssa_form.get_medium_level_il_expr_indexes(old_index)
+
+					for (new_index, new_direct) in new_indices:
+						lower_to_higher_direct = new_direct and old_reverse_direct == old_expr.expr_index
+						higher_to_lower_direct = new_direct and old_index == old_llil_ssa_direct
+						map_lower_to_higher = old_expr.expr_index in old_reverse_all
+						map_higher_to_lower = True
+
+						llil_ssa_to_mlil_expr_map.append(LLILSSAToMLILExpressionMap(
+							old_index,
+							new_index,
+							map_lower_to_higher,
+							map_higher_to_lower,
+							lower_to_higher_direct,
+							higher_to_lower_direct
+						))
+		else:
+			for instr in self.instructions:
+				for expr in instr.traverse(lambda e: e):
+					llil_ssa_direct = self.get_low_level_il_expr_index(expr.expr_index)
+					llil_ssa_indices = self.get_low_level_il_expr_indexes(expr.expr_index)
+					for llil_ssa_index in llil_ssa_indices:
+						reverse_direct = self.low_level_il.ssa_form.get_medium_level_il_expr_index(llil_ssa_index)
+						reverse_all = self.low_level_il.ssa_form.get_medium_level_il_expr_indexes(llil_ssa_index)
+
+						lower_to_higher_direct = reverse_direct == expr.expr_index
+						higher_to_lower_direct = llil_ssa_index == llil_ssa_direct
+						map_lower_to_higher = expr.expr_index in reverse_all
+						map_higher_to_lower = True
+
+						llil_ssa_to_mlil_expr_map.append(LLILSSAToMLILExpressionMap(
+							llil_ssa_index,
+							expr.expr_index,
+							map_lower_to_higher,
+							map_higher_to_lower,
+							lower_to_higher_direct,
+							higher_to_lower_direct
+						))
+
+		return llil_ssa_to_mlil_expr_map
 
 	def nop(self, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
@@ -5619,7 +5757,9 @@ class MediumLevelILFunction:
 		:rtype: ExpressionIndex
 		"""
 		if loc is not None:
-			return ExpressionIndex(core.BNMediumLevelILGotoWithLocation(self.handle, label.handle, loc.address, loc.source_operand))
+			index = ExpressionIndex(core.BNMediumLevelILGotoWithLocation(self.handle, label.handle, loc.address, loc.source_operand))
+			self._record_mlil_to_mlil_expr_map(index, loc)
+			return index
 		else:
 			return ExpressionIndex(core.BNMediumLevelILGoto(self.handle, label.handle))
 
@@ -5639,7 +5779,9 @@ class MediumLevelILFunction:
 		:rtype: ExpressionIndex
 		"""
 		if loc is not None:
-			return ExpressionIndex(core.BNMediumLevelILIfWithLocation(self.handle, operand, t.handle, f.handle, loc.address, loc.source_operand))
+			index = ExpressionIndex(core.BNMediumLevelILIfWithLocation(self.handle, operand, t.handle, f.handle, loc.address, loc.source_operand))
+			self._record_mlil_to_mlil_expr_map(index, loc)
+			return index
 		else:
 			return ExpressionIndex(core.BNMediumLevelILIf(self.handle, operand, t.handle, f.handle))
 
