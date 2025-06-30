@@ -13646,7 +13646,7 @@ namespace BinaryNinja {
 	        BNFreeMediumLevelILFunction>
 	{
 	  public:
-		MediumLevelILFunction(Architecture* arch, Function* func = nullptr);
+		MediumLevelILFunction(Architecture* arch, Function* func, LowLevelILFunction* lowLevelIL);
 		MediumLevelILFunction(BNMediumLevelILFunction* func);
 
 		Ref<Function> GetFunction() const;

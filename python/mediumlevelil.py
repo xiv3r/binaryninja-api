@@ -3251,8 +3251,11 @@ class MediumLevelILFunction:
 	methods which return ExpressionIndex objects.
 	"""
 	def __init__(
-	    self, arch: Optional['architecture.Architecture'] = None, handle: Optional[core.BNMediumLevelILFunction] = None,
-	    source_func: Optional['function.Function'] = None
+	    self,
+	    arch: Optional['architecture.Architecture'] = None,
+	    handle: Optional[core.BNMediumLevelILFunction] = None,
+	    source_func: Optional['function.Function'] = None,
+	    low_level_il: Optional['lowlevelil.LowLevelILFunction'] = None
 	):
 		_arch = arch
 		_source_function = source_func
@@ -3264,12 +3267,16 @@ class MediumLevelILFunction:
 			if _arch is None:
 				_arch = _source_function.arch
 		else:
+			if low_level_il is None:
+				raise ValueError("MLIL functions must be created with an associated LLIL function")
+			_source_function = low_level_il.source_function
 			if _source_function is None:
 				raise ValueError("IL functions must be created with an associated function")
 			if _arch is None:
-				_arch = _source_function.arch
+				_arch = low_level_il.arch
 			func_handle = _source_function.handle
-			_handle = core.BNCreateMediumLevelILFunction(_arch.handle, func_handle)
+			llil_handle = low_level_il.handle
+			_handle = core.BNCreateMediumLevelILFunction(_arch.handle, func_handle, llil_handle)
 		assert _source_function is not None
 		assert _arch is not None
 		assert _handle is not None
