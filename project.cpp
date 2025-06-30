@@ -552,6 +552,14 @@ std::string ProjectFile::GetPathOnDisk() const
 	return result;
 }
 
+std::string ProjectFile::GetPathInProject() const
+{
+	char* path = BNProjectFileGetPathInProject(m_object);
+	std::string result = path;
+	BNFreeString(path);
+	return result;
+}
+
 
 bool ProjectFile::ExistsOnDisk() const
 {

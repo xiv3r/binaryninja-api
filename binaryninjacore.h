@@ -4037,6 +4037,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNFreeProjectFile(BNProjectFile* file);
 	BINARYNINJACOREAPI void BNFreeProjectFileList(BNProjectFile** files, size_t count);
 	BINARYNINJACOREAPI char* BNProjectFileGetPathOnDisk(BNProjectFile* file);
+	BINARYNINJACOREAPI char* BNProjectFileGetPathInProject(BNProjectFile* file);
 	BINARYNINJACOREAPI bool BNProjectFileExistsOnDisk(BNProjectFile* file);
 	BINARYNINJACOREAPI char* BNProjectFileGetName(BNProjectFile* file);
 	BINARYNINJACOREAPI bool BNProjectFileSetName(BNProjectFile* file, const char* name);

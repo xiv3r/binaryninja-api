@@ -72,8 +72,17 @@ FileInfoWidget::FileInfoWidget(QWidget* parent, BinaryViewRef bv)
 	this->m_layout->setVerticalSpacing(1);
 
 	const auto view = bv->GetParentView() ? bv->GetParentView() : bv;
-	const auto filePath = bv->GetFile()->GetOriginalFilename();
+
+	const auto file = bv->GetFile();
+	const auto filePath = file->GetOriginalFilename();
 	this->addCopyableField("Path: ", filePath.c_str());
+
+	// If triage view is opened from a project, show both actual filepath and path relative to project
+	if (const auto fileProjectRef = file->GetProjectFile())
+	{
+		const auto projectFilePath = file->GetProjectFile()->GetPathInProject();
+		this->addCopyableField("Path in project: ", projectFilePath.c_str());
+	}
 
 	const auto fileSize = QString::number(view->GetLength(), 16).prepend("0x");
 	this->addCopyableField("Size: ", fileSize);

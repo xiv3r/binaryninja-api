@@ -2878,6 +2878,7 @@ namespace BinaryNinja {
 
 		Ref<Project> GetProject() const;
 		std::string GetPathOnDisk() const;
+		std::string GetPathInProject() const;
 		bool ExistsOnDisk() const;
 		std::string GetName() const;
 		std::string GetDescription() const;
