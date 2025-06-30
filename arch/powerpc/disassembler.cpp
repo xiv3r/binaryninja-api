@@ -139,7 +139,7 @@ bool PushOperandTokens(string& result, const Operand* op)
 	return true;
 }
 
-int disassemble(uint8_t *data, uint32_t addr, string& result)
+int disassemble(uint8_t *data, uint32_t addr, string& result, uint32_t decodeFlags)
 {
 	int rc = -1;
 
@@ -148,7 +148,10 @@ int disassemble(uint8_t *data, uint32_t addr, string& result)
 	Instruction instruction;
 	const char* mnemonic = NULL;
 	size_t len = 4;
-	uint32_t decodeFlags = DECODE_FLAGS_PPC64;
+	if (decodeFlags == 0)
+		// TODO: There are no QPX instructions currently supported by the decoder, so leave that disabled for now.
+		// decodeFlags = DECODE_FLAGS_PPC64 | DECODE_FLAGS_ALTIVEC | DECODE_FLAGS_VSX | DECODE_FLAGS_QPX | DECODE_FLAGS_PS;
+		decodeFlags = DECODE_FLAGS_PPC64 | DECODE_FLAGS_ALTIVEC | DECODE_FLAGS_VSX | DECODE_FLAGS_PS;
 
 	//MYLOG("%s()\n", __func__);
 	size_t instructionLength = GetInstructionLength(data, len, decodeFlags);
@@ -159,7 +162,7 @@ int disassemble(uint8_t *data, uint32_t addr, string& result)
 	}
 
 	len = instructionLength;
-	if (!FillInstruction(&instruction, data, instructionLength, addr))
+	if (!FillInstruction(&instruction, data, instructionLength, addr, 0, decodeFlags))
 	{
 		MYLOG("ERROR: FillInstruction()\n");
 		return -1;
