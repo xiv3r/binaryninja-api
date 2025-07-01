@@ -43,7 +43,7 @@ bool FillInstruction(Instruction* instruction, const uint8_t* data, size_t lengt
 
 	default:
 		MYLOG("FillInstruction: unrecognized length %d", length);
-		LogWarn("FillInstruction: unrecognized length %d", length);
+		LogWarn("FillInstruction: unrecognized length %zu", length);
 		return false;
 	}
 }
@@ -141,10 +141,6 @@ bool PushOperandTokens(string& result, const Operand* op)
 
 int disassemble(uint8_t *data, uint32_t addr, string& result, uint32_t decodeFlags)
 {
-	int rc = -1;
-
-	char buf[32];
-	size_t strlenMnem;
 	Instruction instruction;
 	const char* mnemonic = NULL;
 	size_t len = 4;
