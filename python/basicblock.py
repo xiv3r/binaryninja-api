@@ -478,7 +478,6 @@ class BasicBlock:
 		.. note:: This method is intended for use by architecture plugins only.
 
 		:return: List of PendingBasicBlockEdge objects.
-		:rtype: list[PendingBasicBlockEdge]
 		"""
 		count = ctypes.c_ulonglong(0)
 		pending_edges = core.BNGetBasicBlockPendingOutgoingEdges(self.handle, ctypes.byref(count))
@@ -513,7 +512,6 @@ class BasicBlock:
 		.. note:: This method is intended for use by architecture plugins only.
 
 		:return: Raw instruction data as bytes.
-		:rtype: bytes
 		"""
 
 		size = ctypes.c_ulonglong(0)
