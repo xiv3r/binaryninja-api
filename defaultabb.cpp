@@ -117,7 +117,7 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 	}
 
 	// Start by processing the entry point of the function
-	auto funcPlatform = function->GetPlatform();
+	Ref<Platform> funcPlatform = function->GetPlatform();
 	auto start = function->GetStart();
 	blocksToProcess.emplace(funcPlatform->GetArchitecture(), start);
 	seenBlocks.emplace(funcPlatform->GetArchitecture(), start);
@@ -363,7 +363,7 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 							if (data->ShouldSkipTargetAnalysis(location, function, instrEnd, target))
 								break;
 
-							Platform* targetPlatform = funcPlatform;
+							Ref<Platform> targetPlatform = funcPlatform;
 							if (target.arch != funcPlatform->GetArchitecture())
 								targetPlatform = funcPlatform->GetRelatedPlatform(target.arch);
 
