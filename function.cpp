@@ -3566,6 +3566,9 @@ AdvancedFunctionAnalysisDataRequestor& AdvancedFunctionAnalysisDataRequestor::op
 
 void AdvancedFunctionAnalysisDataRequestor::SetFunction(Function* func)
 {
+	if (m_func.GetPtr() == func)
+		return;
+
 	if (m_func)
 		m_func->ReleaseAdvancedAnalysisData();
 
