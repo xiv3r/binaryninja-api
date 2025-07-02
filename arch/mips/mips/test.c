@@ -10,6 +10,10 @@ b mips_disassemble
 #include <stdint.h>
 #include <inttypes.h>
 
+#ifndef WIN32
+#include <arpa/inet.h>
+#endif
+
 #include "mips.h"
 
 int disassemble(uint32_t insword, uint64_t address, MipsVersion version, int flags, char *result)
