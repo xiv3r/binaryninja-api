@@ -19,7 +19,7 @@ endif()
 # Make sure the core rust dylib is built before warp_api.
 add_dependencies(warp_api warp_ninja)
 
-target_link_libraries(warp_api binaryninjaui)
+target_link_libraries(warp_api binaryninjaapi)
 
 if (NOT DEMO)
     add_subdirectory(python)
