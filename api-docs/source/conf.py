@@ -174,7 +174,19 @@ Full Class List
 					if first_line and not first_line.startswith(classname + "("):
 						summary = first_line
 						if len(summary) > 100:
-							summary = summary[:97] + "..."
+							# Find a good break point to avoid cutting off Sphinx directives
+							truncate_at = 97
+							# Look for space before truncation to avoid breaking words
+							if ' ' in summary[80:97]:
+								space_pos = summary.rfind(' ', 80, 97)
+								if space_pos > 80:
+									truncate_at = space_pos
+							# Check if we're in the middle of a Sphinx directive
+							if ':py:' in summary[truncate_at-10:truncate_at+10]:
+								directive_start = summary.rfind(':py:', 0, truncate_at)
+								if directive_start != -1:
+									truncate_at = directive_start
+							summary = summary[:truncate_at] + "..."
 				
 				modulefile.write(f"   * - :{role}:`{inspect.getmodule(classref).__name__}.{classname}`\n")
 				modulefile.write(f"     - {summary}\n")
