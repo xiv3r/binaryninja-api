@@ -85,7 +85,16 @@ impl AnalysisContext {
 
     pub fn set_mlil_function(&self, value: &MediumLevelILFunction) {
         // TODO: Mappings FFI
-        unsafe { BNSetMediumLevelILFunction(self.handle.as_ptr(), value.handle, ptr::null_mut(), 0, ptr::null_mut(), 0) }
+        unsafe {
+            BNSetMediumLevelILFunction(
+                self.handle.as_ptr(),
+                value.handle,
+                ptr::null_mut(),
+                0,
+                ptr::null_mut(),
+                0,
+            )
+        }
     }
 
     /// [`HighLevelILFunction`] used to represent High Level IL
