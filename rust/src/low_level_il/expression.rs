@@ -400,6 +400,12 @@ where
             LLIL_FLAG | LLIL_FLAG_SSA => {
                 LowLevelILExpressionKind::Flag(Operation::new(function, op, index))
             }
+            LLIL_FLAG_GROUP => {
+                LowLevelILExpressionKind::FlagGroup(Operation::new(function, op, index))
+            }
+            LLIL_FLAG_COND => {
+                LowLevelILExpressionKind::FlagCond(Operation::new(function, op, index))
+            }
             LLIL_FLAG_BIT | LLIL_FLAG_BIT_SSA => {
                 LowLevelILExpressionKind::FlagBit(Operation::new(function, op, index))
             }
@@ -518,7 +524,7 @@ where
                 LowLevelILExpressionKind::UnimplMem(Operation::new(function, op, index))
             }
 
-            // TODO TEST_BIT ADD_OVERFLOW LLIL_REG_STACK_PUSH LLIL_REG_STACK_POP
+            // TODO TEST_BIT ADD_OVERFLOW LLIL_REG_STACK_PUSH 
             _ => {
                 #[cfg(debug_assertions)]
                 log::error!(
