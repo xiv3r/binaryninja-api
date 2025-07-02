@@ -1284,12 +1284,12 @@ class PythonScriptingProvider(ScriptingProvider):
 		"""
 		Add a magic variable to all scripting instances created by the scripting provider
 		:param name: Variable name identifier to be used in the interpreter
-		:param get_value: Function to call, before every time a script is evaluated,
+		:param get_value: Function to call, before every time a script is evaluated, \
 		                  to get the value of the variable
-		:param set_value: (Optional) Function to call after a script is evaluated, if the
-		                  value of the variable has changed during the course of the script.
-		                  If None, a warning will be printed stating that the variable is read-only.
-		                  Signature:
+		:param set_value: (Optional) Function to call after a script is evaluated, if the \
+		                  value of the variable has changed during the course of the script. \
+		                  If None, a warning will be printed stating that the variable is read-only. \
+		                  Signature: \
 		                  (instance: PythonScriptingInstance, old_value: any, new_value: any) -> None
 		:param depends_on: List of other variables whose values on which this variable's value depends
 		"""

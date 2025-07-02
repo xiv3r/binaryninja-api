@@ -773,9 +773,9 @@ class FirmwareNinja:
         """
         ``get_reference_tree`` returns a tree of reference nodes for a memory region, function, or address
 
-        :param Union[Section, FirmwareNinjaDevice, DataVariable, Function, int] location: Memory location to build the
+        :param Union[Section, FirmwareNinjaDevice, DataVariable, Function, int] location: Memory location to build the \
         reference tree for
-        :param list[FirmwareNinjaFunctionMemoryAccesses] fma: List of function memory accesses or None to use cross
+        :param list[FirmwareNinjaFunctionMemoryAccesses] fma: List of function memory accesses or None to use cross \
         references. None should only be supplied if location is a Function, DataVariable, or address.
         :param Optional[int] value: Only include the node in the tree if this value is written to the location
         :return: Root reference node containing the reference tree

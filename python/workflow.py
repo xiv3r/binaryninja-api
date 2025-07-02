@@ -124,10 +124,10 @@ class AnalysisContext:
 		Set the Medium Level IL function in the current analysis, giving updated
 		Low Level IL (SSA) to Medium Level IL instruction and expression mappings.
 		:param new_func: New MLIL function
-		:param llil_ssa_to_mlil_instr_map: Mapping from every LLIL SSA instruction to
+		:param llil_ssa_to_mlil_instr_map: Mapping from every LLIL SSA instruction to \
 		                                   every MLIL instruction
-		:param llil_ssa_to_mlil_expr_map: Mapping from every LLIL SSA expression to
-		                                  one or more MLIL expressions (first expression
+		:param llil_ssa_to_mlil_expr_map: Mapping from every LLIL SSA expression to \
+		                                  one or more MLIL expressions (first expression \
 		                                  will be the primary)
 		"""
 		if llil_ssa_to_mlil_instr_map is None or llil_ssa_to_mlil_expr_map is None:
