@@ -3957,7 +3957,7 @@ class MediumLevelILFunction:
 		:param expr_handler: Function to modify an expression and copy it to the new function.
 		                     The function should have the following signature:
 
-		                     .. function:: expr_handler(new_func: MediumLevelILFunction, old_block: MediumLevelILBasicBlock, old_instr: MediumLevelILInstruction) -> ExpressionIndex
+		                     expr_handler(new_func: MediumLevelILFunction, old_block: MediumLevelILBasicBlock, old_instr: MediumLevelILInstruction) -> ExpressionIndex
 
 		                     Where:
 		                         - **new_func** (*MediumLevelILFunction*): New function to receive translated instructions

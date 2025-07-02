@@ -4155,8 +4155,8 @@ class LowLevelILFunction:
 		:param expr_handler: Function to modify an expression and copy it to the new function.
 		                     The function should have the following signature:
 
-		                     .. function:: expr_handler(new_func: LowLevelILFunction, old_block: LowLevelILBasicBlock, old_instr: LowLevelILInstruction) -> ExpressionIndex
-
+		                     expr_handler(new_func: LowLevelILFunction, old_block: LowLevelILBasicBlock, old_instr: LowLevelILInstruction) -> ExpressionIndex
+		                    
 		                     Where:
 		                         - **new_func** (*LowLevelILFunction*): New function to receive translated instructions
 		                         - **old_block** (*LowLevelILBasicBlock*): Original block containing old_instr
