@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 118
+#define BN_CURRENT_CORE_ABI_VERSION 119
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -3728,6 +3728,18 @@ extern "C"
 		bool higherToLowerDirect;
 	} BNExprMapInfo;
 
+	typedef struct BNAllTypeFieldReferences
+	{
+		BNTypeFieldReference* codeRefs;
+		size_t codeRefCount;
+		uint64_t* dataRefsTo;
+		size_t dataRefToCount;
+		uint64_t* dataRefsFrom;
+		size_t dataRefFromCount;
+		BNTypeReferenceSource* typeRefs;
+		size_t typeRefCount;
+	} BNAllTypeFieldReferences;
+
 	BINARYNINJACOREAPI char* BNAllocString(const char* contents);
 	BINARYNINJACOREAPI char* BNAllocStringWithLength(const char* contents, size_t len);
 	BINARYNINJACOREAPI void BNFreeString(char* str);
@@ -5042,6 +5054,10 @@ extern "C"
 		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
 	BINARYNINJACOREAPI BNTypeReferenceSource* BNGetTypeReferencesForTypeField(
 	    BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
+
+	BINARYNINJACOREAPI BNAllTypeFieldReferences BNGetAllReferencesForTypeField(
+		BNBinaryView* view, BNQualifiedName* type, uint64_t offset);
+	BINARYNINJACOREAPI void BNFreeAllTypeFieldReferences(BNAllTypeFieldReferences* refs);
 
 	BINARYNINJACOREAPI BNTypeReferenceSource* BNGetCodeReferencesForTypeFrom(
 	    BNBinaryView* view, BNReferenceSource* addr, size_t* count);

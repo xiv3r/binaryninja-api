@@ -4546,6 +4546,14 @@ namespace BinaryNinja {
 		BNRegisterValue ToAPIObject();
 	};
 
+	struct AllTypeFieldReferences
+	{
+		std::vector<TypeFieldReference> codeRefs;
+		std::vector<uint64_t> dataRefsTo;
+		std::vector<uint64_t> dataRefsFrom;
+		std::vector<TypeReferenceSource> typeRefs;
+	};
+
 	struct QualifiedNameAndType;
 	struct PossibleValueSet;
 	class Metadata;
@@ -5638,13 +5646,21 @@ namespace BinaryNinja {
 		*/
 		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
 
+		/*! Returns a all references to a specific type field. This includes code, data, and type references.
+
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \return AllTypeFieldReferences structure with all references
+		*/
+		AllTypeFieldReferences GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+
 		/*! Returns a list of types referenced by code at ReferenceSource \c src
 
-			If no function is specified, references from all functions and containing the address will be returned.
-		 	If no architecture is specified, the architecture of the function will be used.
+		    If no function is specified, references from all functions and containing the address will be returned.
+		    If no architecture is specified, the architecture of the function will be used.
 
-			\param src Source of the reference to check
-		 	\return vector of TypeReferenceSources
+		    \param src Source of the reference to check
+		    \return vector of TypeReferenceSources
 		*/
 		std::vector<TypeReferenceSource> GetCodeReferencesForTypeFrom(ReferenceSource src);
 

@@ -2685,6 +2685,46 @@ vector<TypeReferenceSource> BinaryView::GetTypeReferencesForTypeField(const Qual
 }
 
 
+AllTypeFieldReferences BinaryView::GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset)
+{
+	BNQualifiedName nameObj = type.GetAPIObject();
+	BNAllTypeFieldReferences refs = BNGetAllReferencesForTypeField(m_object, &nameObj, offset);
+	QualifiedName::FreeAPIObject(&nameObj);
+
+	AllTypeFieldReferences result;
+
+	result.codeRefs.reserve(refs.codeRefCount);
+	for (size_t i = 0; i < refs.codeRefCount; i++)
+	{
+		TypeFieldReference src;
+		src.func = new Function(BNNewFunctionReference(refs.codeRefs[i].func));
+		src.arch = new CoreArchitecture(refs.codeRefs[i].arch);
+		src.addr = refs.codeRefs[i].addr;
+		src.size = refs.codeRefs[i].size;
+		BNTypeWithConfidence& tc = refs.codeRefs[i].incomingType;
+		Ref<Type> type = tc.type ? new Type(BNNewTypeReference(tc.type)) : nullptr;
+		src.incomingType = Confidence<Ref<Type>>(type, tc.confidence);
+		result.codeRefs.push_back(src);
+	}
+
+	result.dataRefsTo = vector<uint64_t>(refs.dataRefsTo, &refs.dataRefsTo[refs.dataRefToCount]);
+	result.dataRefsFrom = vector<uint64_t>(refs.dataRefsFrom, &refs.dataRefsFrom[refs.dataRefFromCount]);
+
+	result.typeRefs.reserve(refs.typeRefCount);
+	for (size_t i = 0; i < refs.typeRefCount; i++)
+	{
+		TypeReferenceSource src;
+		src.name = QualifiedName::FromAPIObject(&refs.typeRefs[i].name);
+		src.offset = refs.typeRefs[i].offset;
+		src.type = refs.typeRefs[i].type;
+		result.typeRefs.push_back(src);
+	}
+
+	BNFreeAllTypeFieldReferences(&refs);
+	return result;
+}
+
+
 vector<TypeReferenceSource> BinaryView::GetCodeReferencesForTypeFrom(ReferenceSource src)
 {
 	size_t count;
