@@ -3586,27 +3586,28 @@ class BinaryView:
 	def set_user_global_pointer_value(self, value: variable.RegisterValue, confidence = 255):
 		"""
 		Set a user global pointer value. This is useful when the auto analysis fails to find out the value of the global
-		pointer, or the value is wrong. In this case, we can call `set_user_global_pointer_value` with a
-		`ConstantRegisterValue` or `ConstantPointerRegisterValue`to provide a user global pointer value to assist the
+		pointer, or the value is wrong. In this case, we can call ``set_user_global_pointer_value`` with a
+		``ConstantRegisterValue`` or ``ConstantPointerRegisterValue`` to provide a user global pointer value to assist the
 		analysis.
 
 		On the other hand, if the auto analysis figures out a global pointer value, but there should not be one, we can
-		call `set_user_global_pointer_value` with an `Undetermined` value to override it.
+		call ``set_user_global_pointer_value`` with an `Undetermined` value to override it.
 
 		Whenever a user global pointer value is set/cleared, an analysis update must occur for it to take effect and
 		all functions using the global pointer to be updated.
 
-		We can use `user_global_pointer_value_set` to query whether a user global pointer value is set, and use
-		`clear_user_global_pointer_value` to clear a user global pointer value. Note, `clear_user_global_pointer_value`
-		is different from calling `set_user_global_pointer_value` with an `Undetermined` value. The former clears the
+		We can use ``user_global_pointer_value_set`` to query whether a user global pointer value is set, and use
+		``clear_user_global_pointer_value`` to clear a user global pointer value. Note, ``clear_user_global_pointer_value``
+		is different from calling ``set_user_global_pointer_value`` with an ``Undetermined`` value. The former clears the
 		user global pointer value and let the analysis decide the global pointer value, whereas the latte forces the
 		global pointer value to become undetermined.
 
 		:param variable.RegisterValue value: the user global pointer value to be set
-		:param int confidence: the confidence value of the user global pointer value. In most cases this should be set
-		to 255. Setting a value lower than the confidence of the global pointer value from the auto analysis will cause
-		undesired effect.
-		:return:
+		:param int confidence: the confidence value of the user global pointer value. In most cases this should be \
+			set to 255. Setting a value lower than the confidence of the global pointer value from the auto analysis \
+			will cause undesired effect.
+		:return: None
+		:rtype: None
 		:Example:
 
 			>>> bv.global_pointer_value
@@ -9287,12 +9288,12 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 	def search(self, pattern: str, start: int = None, end: int = None, raw: bool = False, ignore_case: bool = False, overlap: bool = False, align: int = 1,
 		limit: int = None, progress_callback: Optional[ProgressFuncType] = None, match_callback: Optional[DataMatchCallbackType] = None) -> QueueGenerator:
 		r"""
-		Searches for matches of the specified `pattern` within this BinaryView with an optionally provided address range specified by `start` and `end`.
+		Searches for matches of the specified ``pattern`` within this BinaryView with an optionally provided address range specified by ``start`` and ``end``.
 		The search pattern can be interpreted in various ways:
 
 			- specified as a string of hexadecimal digits where whitespace is ignored, and the '?' character acts as a wildcard
 			- a regular expression suitable for working with bytes
-			- or if the `raw` option is enabled, the pattern is interpreted as a raw string, and any special characters are escaped and interpreted literally
+			- or if the ``raw`` option is enabled, the pattern is interpreted as a raw string, and any special characters are escaped and interpreted literally
 
 		:param pattern: The pattern to search for.
 		:type pattern: :py:class:`str`
@@ -9306,10 +9307,10 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		:param int align: The alignment of matches, must be a power of 2 (default: 1).
 		:param int limit: The maximum number of matches to return (default: None).
 		:param callback progress_callback: An optional function to be called with the current progress and total count. \
-		This function should return a boolean value that decides whether the search should continue or stop.
+			This function should return a boolean value that decides whether the search should continue or stop.
 		:param callback match_callback: A function that gets called when a match is found. The callback takes two parameters: \
-		the address of the match, and the actual DataBuffer that satisfies the search. This function can return a boolean value \
-		that decides whether the search should continue or stop.
+			the address of the match, and the actual DataBuffer that satisfies the search. This function can return a boolean \
+			value that decides whether the search should continue or stop.
 
 		:return: A generator object that yields the offset and matched DataBuffer for each match found.
 		:rtype: QueueGenerator
