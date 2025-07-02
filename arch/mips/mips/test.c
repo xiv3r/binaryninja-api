@@ -174,9 +174,11 @@ int main(int ac, char **av)
 				result = -1;
 				goto cleanup;
 			}
+#if !(defined(__linux__) && defined(__aarch64__))
 #ifndef WIN32
 			if (version == MIPS_R5900)
 				insword = ntohl(insword);
+#endif
 #endif
 			if (0 == disassemble(insword, baseaddr, version, flags, instxt))
 			{
