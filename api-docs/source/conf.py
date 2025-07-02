@@ -135,20 +135,39 @@ Full Class List
 		modules.extend(modulelist(binaryninja.collaboration, basename="collaboration"))
 	modules = sorted(modules, key=lambda pair: pair[0])
 
+	# Separate top-level and nested modules for proper TOC structure
+	nested_modules = {"debugger": [], "collaboration": []}
+	
+	for modulename, module in modules:
+		filename = f"{module.__name__}-module.rst"
+		if modulename.count(".") == 0:
+			# Top-level module - always include in main TOC
+			pythonrst.write(f"   {modulename} <{filename}>\n")
+		else:
+			# This is a nested module - collect them for parent modules
+			parent = modulename.split(".")[0]
+			if parent in nested_modules:
+				nested_modules[parent].append((modulename, filename))
+
 	for modulename, module in modules:
 		# Since we put debugger python files in a folder, binaryninja.{modulename} is no longer the
 		# correct name of the module
 		filename = f"{module.__name__}-module.rst"
-		spaces = "   " * modulename.count(".")
-		# Dirty hack to skip polutting the main toc with nested modules
-		if modulename.count(".") == 0:
-			pythonrst.write(f"   {spaces}{modulename} <{filename}>\n")
 		modulefile = open(filename, "w")
 		underline = "="*len(f"{modulename} module")
 		modulefile.write(f'''{modulename} module
 {underline}
 
 ''')
+		
+		# Add sub-toctree for parent modules that have nested modules
+		if modulename.count(".") == 0 and modulename in nested_modules and nested_modules[modulename]:
+			modulefile.write(".. toctree::\n")
+			modulefile.write("   :maxdepth: 1\n")
+			modulefile.write("   :hidden:\n\n")
+			for nested_name, nested_filename in nested_modules[modulename]:
+				modulefile.write(f"   {nested_name} <{nested_filename}>\n")
+			modulefile.write("\n")
 		
 		# Generate custom summary table
 		classes = list(classlist(module))
