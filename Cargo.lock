@@ -110,9 +110,9 @@ source = "git+https://github.com/mdsteele/rust-ar#755fc742a292a84fc267b79ae34987
 
 [[package]]
 name = "arboard"
-version = "3.5.0"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1df21f715862ede32a0c525ce2ca4d52626bb0007f8c18b87a384503ac33e70"
+checksum = "55f533f8e0af236ffe5eb979b99381df3258853f00ba2e44b6e1955292c75227"
 dependencies = [
  "clipboard-win",
  "image",
@@ -958,9 +958,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.9.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cea70ddb795996207ad57735b50c5982d8844f38ba9ee5f1aedcfb708a2aa11e"
+checksum = "fe4cd85333e22411419a0bcae1297d25e58c9443848b11dc6a86fefe8c78a661"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.4",
@@ -1155,18 +1155,18 @@ dependencies = [
 
 [[package]]
 name = "minijinja"
-version = "2.10.2"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd72e8b4e42274540edabec853f607c015c73436159b06c39c7af85a20433155"
+checksum = "4e60ac08614cc09062820e51d5d94c2fce16b94ea4e5003bb81b99a95f84e876"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "minijinja-embed"
-version = "2.10.2"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5de0eb34c22c5cfb9b22509599e3942aa1cdfa00884fa76ceccff4163f572c67"
+checksum = "c34af97e83bb3b2e61428e7c35224c9c1e1f6a2f465aa2ace41a713e3e856468"
 
 [[package]]
 name = "minimal-lexical"
@@ -2236,7 +2236,7 @@ dependencies = [
 [[package]]
 name = "warp"
 version = "1.0.0"
-source = "git+https://github.com/Vector35/warp/?branch=next#f53145906401d4ea77658b052ac2feff2e6c748b"
+source = "git+https://github.com/Vector35/warp/?tag=1.0.0#57dcb5abea59a611466be9550ba25b36c5399ce6"
 dependencies = [
  "bon",
  "flatbuffers",
