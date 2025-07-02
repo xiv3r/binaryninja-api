@@ -148,21 +148,57 @@ Full Class List
 		modulefile.write(f'''{modulename} module
 {underline}
 
-.. autosummary::
-   :toctree:
-
 ''')
+		
+		# Generate custom summary table
+		classes = list(classlist(module))
+		if classes:
+			modulefile.write(".. list-table::\n")
+			modulefile.write("   :header-rows: 1\n")
+			modulefile.write("   :widths: 30 70\n\n")
+			modulefile.write("   * - Class\n")
+			modulefile.write("     - Description\n")
+			
+			for (classname, classref) in classes:
+				if inspect.isclass(classref):
+					role = 'py:class'
+				else:
+					role = 'py:func'
+				
+				# Get docstring summary (first line)
+				doc = inspect.getdoc(classref)
+				summary = ""
+				if doc and doc.strip():
+					first_line = doc.split('\n')[0].strip()
+					# Only use the description if it's actual documentation (not just prototype/signature)
+					if first_line and not first_line.startswith(classname + "("):
+						summary = first_line
+						if len(summary) > 100:
+							summary = summary[:97] + "..."
+				
+				modulefile.write(f"   * - :{role}:`{inspect.getmodule(classref).__name__}.{classname}`\n")
+				modulefile.write(f"     - {summary}\n")
 
-		for (classname, classref) in classlist(module):
-			modulefile.write(f"   {inspect.getmodule(classref).__name__}.{classname}\n")
-
-		modulefile.write('''\n.. toctree::
-   :maxdepth: 2\n''')
 
 		modulefile.write(f'''\n\n.. automodule:: {module.__name__}
    :members:
    :undoc-members:
-   :show-inheritance:''')
+   :show-inheritance:
+   :noindex:\n\n''')
+   
+		# Generate individual class sections with proper headers
+		for (classname, classref) in classes:
+			# Only include classes that actually belong to this module
+			if inspect.getmodule(classref).__name__ == module.__name__:
+				modulefile.write(f'''{classname}
+{"-" * len(classname)}
+
+.. autoclass:: {module.__name__}.{classname}
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+''')
 		modulefile.write(stats)
 		modulefile.close()
 
@@ -186,20 +222,23 @@ generaterst()
 
 extensions = [
 	'sphinx.ext.autodoc',
-	'sphinx.ext.autosummary',
 	'sphinx.ext.intersphinx',
 	'sphinxcontrib.jquery',
 	#'sphinx_tabs.tabs',
-	'sphinx.ext.viewcode'
+	'sphinx.ext.viewcode',
+	'sphinx.ext.autosectionlabel'
 ]
 
 simplify_optional_unions = True
 autodoc_typehints = 'both'
-autosummary_generate = False
 autodoc_member_order = 'groupwise'
+autodoc_class_signature = 'separated'
 autodoc_type_aliases = {
 	'int': 'ExpressionIndex'
 }
+
+# Auto section label configuration
+autosectionlabel_prefix_document = True
 
 python_use_unqualified_type_names=True
 # Add any paths that contain templates here, relative to this directory.
