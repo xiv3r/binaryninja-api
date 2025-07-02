@@ -2334,7 +2334,9 @@ impl Function {
         unsafe { BNSetAutoFunctionCanReturn(self.handle, &mut value_raw) }
     }
 
-    /// Whether function has explicitly defined types
+    /// Whether the function type was defined with [`Function::apply_auto_discovered_type`].
+    ///
+    /// NOTE: This is different from [`Function::has_user_type`].
     pub fn has_explicitly_defined_type(&self) -> bool {
         unsafe { BNFunctionHasExplicitlyDefinedType(self.handle) }
     }
