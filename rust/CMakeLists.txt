@@ -4,13 +4,13 @@ project(rust_api)
 
 set(CARGO_API_VERSION 1.83.0)
 
-file(GLOB RUST_API_SOURCES CONFIGURE_DEPENDS
+file(GLOB_RECURSE RUST_API_SOURCES CONFIGURE_DEPENDS
 	../binaryninjacore.h
 	binaryninjacore-sys/build.rs
 	binaryninjacore-sys/Cargo.toml
-	binaryninjacore-sys/src/*
+	binaryninjacore-sys/src/lib.rs
 	Cargo.toml
-	src/*/*.rs)
+	src/*.rs)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CARGO_CHECK_OPTS --workspace --target-dir=${PROJECT_BINARY_DIR}/target)
@@ -29,9 +29,7 @@ else()
 endif()
 
 # TODO : RUSTDOCFLAGS="--theme binja-dark.css --default-theme=binja-dark"
-
-add_custom_target(rust_api ALL DEPENDS)
-add_dependencies(rust_api binaryninjaapi)
+add_custom_target(rust_api ALL DEPENDS ${PROJECT_BINARY_DIR}/rust_api.stamp)
 
 add_custom_target(rust_docs ALL DEPENDS ${PROJECT_BINARY_DIR}/target/doc)
 add_dependencies(rust_docs binaryninjaapi rust_api)
@@ -47,10 +45,13 @@ set(RUSTUP_CHECK_COMMAND ${RUSTUP_PATH} run ${CARGO_API_VERSION} cargo check)
 set(RUSTUP_DOC_COMMAND ${RUSTUP_PATH} run ${CARGO_API_VERSION} cargo doc)
 
 add_custom_command(
-	TARGET rust_api
-	PRE_BUILD
+	OUTPUT ${PROJECT_BINARY_DIR}/rust_api.stamp
 	COMMAND ${CMAKE_COMMAND} -E env BINARYNINJADIR=${BN_INSTALL_BIN_DIR} ${RUSTUP_CHECK_COMMAND} ${CARGO_CHECK_OPTS}
+	COMMAND ${CMAKE_COMMAND} -E touch ${PROJECT_BINARY_DIR}/rust_api.stamp
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+	DEPENDS ${RUST_API_SOURCES} $<TARGET_FILE:binaryninjaapi>
+	COMMENT "Checking Rust API"
+	VERBATIM
 )
 
 add_custom_command(
