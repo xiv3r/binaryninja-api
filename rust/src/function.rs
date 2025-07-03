@@ -2371,8 +2371,8 @@ impl Function {
         unsafe { BNHasUnresolvedIndirectBranches(self.handle) }
     }
 
-    /// List of address of unresolved indirect branches
     /*
+    /// List of address of unresolved indirect branches
     pub fn unresolved_indirect_branches(&self) -> Array<Arch> {
         let mut count = 0;
         let result = unsafe { BNGetUnresolvedIndirectBranches(self.handle, &mut count) };
