@@ -174,13 +174,17 @@ pub fn insert_workflow() {
                 let bn_comment = comment_to_bn_comment(&function, comment);
                 function.set_comment_at(bn_comment.addr, &bn_comment.comment);
             }
-            function.add_tag(
-                &get_warp_tag_type(&view),
-                &matched_function.guid.to_string(),
-                None,
-                false,
-                None,
-            );
+            // TODO: Fix this before release.
+            // TODO: Any attempt to add a tag type will create a undo action
+            // TODO: Those are currently not thread safe when running in headless python.
+            // TODO: See Mason for more lore.
+            // function.add_tag(
+            //     &get_warp_tag_type(&view),
+            //     &matched_function.guid.to_string(),
+            //     None,
+            //     false,
+            //     None,
+            // );
         }
     };
 
