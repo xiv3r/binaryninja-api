@@ -477,12 +477,31 @@ Ref<ProjectFile> Project::GetFileById(const std::string& id) const
 }
 
 
-Ref<ProjectFile> Project::GetFileByPathOnDisk(const std::string& path)
+Ref<ProjectFile> Project::GetFileByPathOnDisk(const std::string& path) const
 {
 	BNProjectFile* file = BNProjectGetFileByPathOnDisk(m_object, path.c_str());
 	if (file == nullptr)
 		return nullptr;
 	return new ProjectFile(file);
+}
+
+
+std::vector<Ref<ProjectFile>> Project::GetFilesByPathInProject(
+	const std::string& path
+) const
+{
+	size_t count;
+	BNProjectFile** files = BNProjectGetFilesByPathInProject(m_object, path.c_str(), &count);
+
+	std::vector<Ref<ProjectFile>> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		result.emplace_back(new ProjectFile(BNNewProjectFileReference(files[i])));
+	}
+
+	BNFreeProjectFileList(files, count);
+	return result;
 }
 
 

@@ -4013,6 +4013,7 @@ extern "C"
 	BINARYNINJACOREAPI BNProjectFile** BNProjectGetFiles(BNProject* project, size_t* count);
 	BINARYNINJACOREAPI BNProjectFile* BNProjectGetFileById(BNProject* project, const char* id);
 	BINARYNINJACOREAPI BNProjectFile* BNProjectGetFileByPathOnDisk(BNProject* project, const char* path);
+	BINARYNINJACOREAPI BNProjectFile** BNProjectGetFilesByPathInProject(BNProject* project, const char* path, size_t* count);
 
 	BINARYNINJACOREAPI void BNProjectPushFile(BNProject* project, BNProjectFile* file);
 	BINARYNINJACOREAPI bool BNProjectDeleteFile(BNProject* project, BNProjectFile* file);
@@ -4037,7 +4038,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNFreeProjectFile(BNProjectFile* file);
 	BINARYNINJACOREAPI void BNFreeProjectFileList(BNProjectFile** files, size_t count);
 	BINARYNINJACOREAPI char* BNProjectFileGetPathOnDisk(BNProjectFile* file);
-	BINARYNINJACOREAPI char* BNProjectFileGetPathInProject(BNProjectFile* file);
+	BINARYNINJACOREAPI char* BNProjectFileGetPathInProject(const BNProjectFile* file);
 	BINARYNINJACOREAPI bool BNProjectFileExistsOnDisk(BNProjectFile* file);
 	BINARYNINJACOREAPI char* BNProjectFileGetName(BNProjectFile* file);
 	BINARYNINJACOREAPI bool BNProjectFileSetName(BNProjectFile* file, const char* name);

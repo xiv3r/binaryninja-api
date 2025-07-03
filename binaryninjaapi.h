@@ -2938,7 +2938,8 @@ namespace BinaryNinja {
 		Ref<ProjectFile> CreateFileUnsafe(const std::vector<uint8_t>& contents, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::string& id, int64_t creationTimestamp, const ProgressFunction& progressCallback = {});
 		std::vector<Ref<ProjectFile>> GetFiles() const;
 		Ref<ProjectFile> GetFileById(const std::string& id) const;
-		Ref<ProjectFile> GetFileByPathOnDisk(const std::string& path);
+		Ref<ProjectFile> GetFileByPathOnDisk(const std::string& path) const;
+		std::vector<Ref<ProjectFile>> GetFilesByPathInProject(const std::string& path) const;
 		void PushFile(Ref<ProjectFile> file);
 		bool DeleteFile_(Ref<ProjectFile> file);
 

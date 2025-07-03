@@ -106,7 +106,8 @@ fn test_binary_tags() {
     let view = binaryninja::load(out_dir.join("atox.obj")).expect("Failed to create view");
     let tag_ty = view.create_tag_type("Test", "");
     view.add_tag(0x0, &tag_ty, "t", false);
-    view.tag_type_by_name("Test").expect("Failed to get tag type");
+    view.tag_type_by_name("Test")
+        .expect("Failed to get tag type");
 }
 
 // These are the target files present in OUT_DIR

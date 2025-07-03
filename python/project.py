@@ -190,6 +190,22 @@ class ProjectFile:
 		"""
 		return core.BNProjectFileExport(self._handle, str(dest))
 
+	def get_path_on_disk(self) -> Optional[str]:
+		"""
+		Get this file's path on disk
+		
+		:return: The path on disk of the file or None
+		"""
+		return core.BNProjectFileGetPathOnDisk(self._handle)
+
+	def get_path_in_project(self) -> Optional[str]:
+		"""
+		Get this file's path in its parent project
+
+		:return: The path on disk of the file or None
+		"""
+		return core.BNProjectFileGetPathInProject(self._handle)
+
 
 class ProjectFolder:
 	"""
@@ -649,6 +665,43 @@ class Project:
 			return None
 		file = ProjectFile(handle)
 		return file
+
+	def get_file_by_path_on_disk(self, path: str) -> Optional[ProjectFile]:
+		"""
+		Retrieve a file in the project by its path on disk
+
+		:param path: Path of the file on the disk
+		:return: File with the requested path or None
+		"""
+		handle = core.BNProjectGetFileByPathOnDisk(self._handle, path)
+		if handle is None:
+			return None
+		file = ProjectFile(handle)
+		return file
+
+	def get_files_by_path_in_project(self, path: str) -> List[ProjectFile]:
+		"""
+		Retrieve a file(s) by path in the project
+		Note that files in a project can share names and paths within the project
+		but are uniquely identified by a disk path or id.
+
+		:param path: Path of the file(s) in the project, separate from their path on disk.
+		:return: List of files with the requested path
+		"""
+		count = ctypes.c_size_t()
+		value = core.BNProjectGetFilesByPathInProject(self._handle, path, count)
+		if value is None:
+			raise ProjectException("Failed to get list of project files by path in project")
+		result = []
+		try:
+			for i in range(count.value):
+				file_handle = core.BNNewProjectFileReference(value[i])
+				if file_handle is None:
+					raise ProjectException("core.BNNewProjectFileReference returned None")
+				result.append(ProjectFile(file_handle))
+			return result
+		finally:
+			core.BNFreeProjectFileList(value, count.value)
 
 	def delete_file(self, file: ProjectFile) -> bool:
 		"""
