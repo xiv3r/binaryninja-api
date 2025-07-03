@@ -99,6 +99,16 @@ fn test_binary_view_strings() {
     assert_eq!(str_15dc.length, 33);
 }
 
+#[test]
+fn test_binary_tags() {
+    let _session = Session::new().expect("Failed to initialize session");
+    let out_dir = env!("OUT_DIR").parse::<PathBuf>().unwrap();
+    let view = binaryninja::load(out_dir.join("atox.obj")).expect("Failed to create view");
+    let tag_ty = view.create_tag_type("Test", "");
+    view.add_tag(0x0, &tag_ty, "t", false);
+    view.tag_type_by_name("Test").expect("Failed to get tag type");
+}
+
 // These are the target files present in OUT_DIR
 // Add the files to fixtures/bin
 static TARGET_FILES: [&str; 2] = ["atox.obj", "atof.obj"];
