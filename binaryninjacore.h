@@ -5532,7 +5532,7 @@ extern "C"
 	BINARYNINJACOREAPI size_t BNGetAllTagReferencesOfTypeCount(BNBinaryView* view, BNTagType* tagType);
 	BINARYNINJACOREAPI void BNGetAllTagReferenceTypeCounts(
 	    BNBinaryView* view, BNTagType*** tagTypes, size_t** counts, size_t* count);
-	BINARYNINJACOREAPI void BNFreeTagReferenceTypeCounts(BNTagType** tagTypes, size_t* counts);
+	BINARYNINJACOREAPI void BNFreeTagReferenceTypeCounts(BNTagType** tagTypes, size_t* counts, size_t count);
 
 	BINARYNINJACOREAPI BNTagReference* BNGetFunctionAllTagReferences(BNFunction* func, size_t* count);
 	BINARYNINJACOREAPI BNTagReference* BNGetFunctionTagReferencesOfType(

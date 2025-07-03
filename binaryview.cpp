@@ -3373,7 +3373,7 @@ std::map<Ref<TagType>, size_t> BinaryView::GetAllTagReferenceTypeCounts()
 		result[new TagType(BNNewTagTypeReference(types[i]))] = counts[i];
 	}
 
-	BNFreeTagReferenceTypeCounts(types, counts);
+	BNFreeTagReferenceTypeCounts(types, counts, count);
 	return result;
 }
 
