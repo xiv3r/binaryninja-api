@@ -97,8 +97,12 @@ void SharedCacheObjCProcessor::GetRelativeMethod(ObjCReader* reader, method_t& m
 	if (m_customRelativeMethodSelectorBase.has_value())
 	{
 		meth.name = m_customRelativeMethodSelectorBase.value() + reader->ReadS32();
-		meth.types = reader->GetOffset() + reader->ReadS32();
-		meth.imp = reader->GetOffset() + reader->ReadS32();
+
+		uint64_t offset = reader->GetOffset();
+		meth.types = offset + reader->ReadS32();
+
+		offset += sizeof(int32_t);
+		meth.imp = offset + reader->ReadS32();
 	}
 	else
 	{

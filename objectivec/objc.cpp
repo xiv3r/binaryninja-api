@@ -838,9 +838,14 @@ void ObjCProcessor::LoadProtocols(ObjCReader* reader, Ref<Section> listSection)
 
 void ObjCProcessor::GetRelativeMethod(ObjCReader* reader, method_t& meth)
 {
-	meth.name = reader->GetOffset() + reader->ReadS32();
-	meth.types = reader->GetOffset() + reader->ReadS32();
-	meth.imp = reader->GetOffset() + reader->ReadS32();
+	uint64_t offset = reader->GetOffset();
+	meth.name = offset + reader->ReadS32();
+
+	offset += sizeof(int32_t);
+	meth.types = offset + reader->ReadS32();
+
+	offset += sizeof(int32_t);
+	meth.imp = offset + reader->ReadS32();
 }
 
 void ObjCProcessor::ReadListOfMethodLists(ObjCReader* reader, ClassBase& cls, std::string_view name, view_ptr_t start)
