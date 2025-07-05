@@ -451,16 +451,15 @@ bool ElfView::Init()
 	bool initialImageBaseSet = false;
 	for (const auto& i : m_programHeaders)
 	{
-		if ((i.type != ELF_PT_LOAD) || (!i.fileSize))
+		// Skip segments that are not loadable or have no memory size
+		if ((i.type != ELF_PT_LOAD) || (i.memorySize == 0))
 			continue;
 
-		if (!initialImageBaseSet)
+		if (!initialImageBaseSet || (i.virtualAddress < initialImageBase))
 		{
 			initialImageBase = i.virtualAddress;
 			initialImageBaseSet = true;
 		}
-		else if (i.virtualAddress < initialImageBase)
-			initialImageBase = i.virtualAddress;
 	}
 
 	SetOriginalImageBase(initialImageBase);
