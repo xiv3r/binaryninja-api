@@ -1,11 +1,10 @@
 #include <binaryninjaapi.h>
-#include "KCView.h"
-#include "KernelCache.h"
+#include "KernelCacheView.h"
+#include "transformers/KernelCacheTransforms.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-	// extern void RegisterSharedCacheWorkflow();
 #ifdef __cplusplus
 }
 #endif
@@ -16,8 +15,8 @@ extern "C"
 
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
-		InitKernelcache();
-		// RegisterSharedCacheWorkflow();
+		KernelCacheViewType::Register();
+		RegisterTransformers();
 		return true;
 	}
 }

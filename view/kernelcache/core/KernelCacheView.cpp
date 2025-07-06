@@ -1,49 +1,252 @@
-//
-// Created by kat on 5/23/23.
-//
+#include "KernelCacheView.h"
+#include <regex>
+#include <filesystem>
+#include <MachOProcessor.h>
 
-/*
- *
- * */
-
-#include "KCView.h"
-#include "view/macho/machoview.h"
-#include "KernelCache.h"
-
-[[maybe_unused]] KCViewType* g_kcViewType;
-
-
-#define COMPRESSION_DEBUG 1
+#include "KernelCacheController.h"
+#include "KernelCacheBuilder.h"
 
 using namespace BinaryNinja;
+using namespace BinaryNinja::KC;
 
+[[maybe_unused]] KernelCacheViewType* g_kcViewType;
 
-KCView::KCView(const std::string& typeName, BinaryView* data, bool parseOnly) :
+KernelCacheViewType::KernelCacheViewType() : BinaryViewType(KC_VIEW_NAME, KC_VIEW_NAME) {}
+
+// We register all our one-shot stuff here, such as the object destructor.
+void KernelCacheViewType::Register()
+{
+	RegisterKernelCacheControllerDestructor();
+
+	static KernelCacheViewType kcViewType;
+	BinaryViewType::Register(&kcViewType);
+
+	g_kcViewType = &kcViewType;
+}
+
+Ref<BinaryView> KernelCacheViewType::Create(BinaryView* data)
+{
+	uint32_t magic;
+	data->Read(&magic, data->GetStart(), 4);
+	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	{
+		uint32_t im4pMagic;
+		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
+		if (im4pMagic == 0x50344d49) // P4MI
+		{
+			auto img4 = Transform::GetByName("IMG4-Unencrypted");
+
+			DataBuffer img4Payload;
+			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
+
+			DataBuffer machOPayload;
+			uint32_t magic = ((uint32_t*)img4Payload.GetData())[0];
+			if (magic == FAT_MAGIC_64 || magic == MH_MAGIC_64 || magic == MH_MAGIC
+				|| magic == MH_CIGAM_64 || magic == MH_CIGAM )
+			{
+				machOPayload = img4Payload;
+			}
+			else if (strncmp((char*)img4Payload.GetData(), "bvx2", 4) == 0)
+			{
+				auto lzfse = Transform::GetByName("LZFSE");
+				if (lzfse)
+					lzfse->Decode(img4Payload, machOPayload);
+			}
+			else
+			{
+#ifdef COMPRESSION_DEBUG
+				LogError("Unknown compression type in IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
+				LogError("KernelCache parsing will now fail to proceed.");
+				data->WriteBuffer(0, img4Payload);
+				return new KernelCacheView(KC_VIEW_NAME, data, false);
+#else
+				LogError("Unknown compression type in IMG4 Payload, unable to proceed.");
+				LogError("You can manually extract the kernelcache using `kerneldec`,`ipsw`, or other tools.");
+				return nullptr;
+#endif
+			}
+
+			if (machOPayload.GetLength() == 0)
+			{
+#ifdef COMPRESSION_DEBUG
+				LogError("Failed to perform extraction on IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
+				LogError("KernelCache parsing will now fail to proceed.");
+				data->WriteBuffer(0, img4Payload);
+				return new KernelCacheView(KC_VIEW_NAME, data, false);
+#else
+				return nullptr;
+#endif
+			}
+
+			uint32_t machoMagic = ((uint32_t*)machOPayload.GetData())[0];
+			if (machoMagic == FAT_MAGIC_64)
+			{
+				DataBuffer output = machOPayload.GetSlice(0x1c, machOPayload.GetLength()-0x1c);
+				data->WriteBuffer(0, output);
+			}
+			else if (machoMagic == MH_MAGIC_64 || machoMagic == MH_MAGIC || machoMagic == MH_CIGAM_64 || machoMagic == MH_CIGAM)
+			{
+				data->WriteBuffer(0, machOPayload);
+			}
+			else
+			{
+#ifdef COMPRESSION_DEBUG
+				LogError("Unknown Mach-O magic in IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
+				LogError("KernelCache parsing will now fail to proceed.");
+				data->WriteBuffer(0, machOPayload);
+				return new KernelCacheView(KC_VIEW_NAME, data, false);
+#else
+				return nullptr;
+#endif
+			}
+
+			return new KernelCacheView(KC_VIEW_NAME, data, false);
+		}
+
+		return nullptr;
+	}
+
+	return new KernelCacheView(KC_VIEW_NAME, data, false);
+}
+
+Ref<Settings> KernelCacheViewType::GetLoadSettingsForData(BinaryView* data)
+{
+	Ref<BinaryView> viewRef = Parse(data);
+	if (!viewRef || !viewRef->Init())
+	{
+		LogWarn("Failed to initialize view of type '%s'. Generating default load settings.", GetName().c_str());
+		viewRef = data;
+	}
+
+	Ref<Settings> settings = GetDefaultLoadSettingsForData(viewRef);
+
+	// specify default load settings that can be overridden
+	std::vector<std::string> overrides = {"loader.imageBase", "loader.platform"};
+	settings->UpdateProperty("loader.imageBase", "message", "Note: File indicates image is not relocatable.");
+
+	for (const auto& override : overrides)
+	{
+		if (settings->Contains(override))
+			settings->UpdateProperty(override, "readOnly", false);
+	}
+
+	settings->RegisterSetting("loader.kc.autoLoadPattern",
+		R"({
+		"title" : "Image Auto-Load Regex Pattern",
+		"type" : "string",
+		"default" : "",
+		"description" : "A regex pattern to auto load matching images at the end of view init, defaults to the system_c image only."
+		})");
+
+	settings->RegisterSetting("loader.kc.processFunctionStarts",
+		R"({
+			"title" : "Process Mach-O Function Starts Tables",
+			"type" : "boolean",
+			"default" : true,
+			"description" : "Add function starts sourced from the Function Starts tables to the core for analysis."
+			})");
+
+	// Merge existing load settings if they exist. This allows for the selection of a specific object file from a Mach-O
+	// Universal file. The 'Universal' BinaryViewType generates a schema with 'loader.universal.architectures'. This
+	// schema contains an appropriate 'Mach-O' load schema for selecting a specific object file. The embedded schema
+	// contains 'loader.macho.universalImageOffset'.
+	Ref<Settings> loadSettings = viewRef->GetLoadSettings(GetName());
+	if (loadSettings && !loadSettings->IsEmpty())
+		settings->DeserializeSchema(loadSettings->SerializeSchema());
+
+	return settings;
+}
+
+Ref<BinaryView> KernelCacheViewType::Parse(BinaryView* data)
+{
+	uint32_t magic;
+	data->Read(&magic, data->GetStart(), 4);
+	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	{
+		uint32_t im4pMagic;
+		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
+		if (im4pMagic == 0x50344d49) // P4MI
+		{
+			auto img4 = Transform::GetByName("IMG4-Unencrypted");
+			auto lzfse = Transform::GetByName("LZFSE");
+
+			DataBuffer img4Payload;
+			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
+			DataBuffer machOPayload;
+			lzfse->Decode(img4Payload, machOPayload);
+
+			uint32_t magic = ((uint32_t*)machOPayload.GetData())[0];
+			auto id = data->BeginUndoActions();
+			if (magic == FAT_MAGIC_64)
+			{
+				DataBuffer output = machOPayload.GetSlice(0x1c, machOPayload.GetLength()-0x1c);
+				data->WriteBuffer(0, output);
+			}
+			else
+			{
+				data->WriteBuffer(0, machOPayload);
+			}
+			data->ForgetUndoActions(id);
+			return new KernelCacheView(KC_VIEW_NAME, data, true);
+		}
+
+		return nullptr;
+	}
+
+	return new KernelCacheView(KC_VIEW_NAME, data, true);
+}
+
+bool KernelCacheViewType::IsTypeValidForData(BinaryView* data)
+{
+	if (!data)
+		return false;
+
+	uint32_t magic;
+	data->Read(&magic, data->GetStart(), 4);
+
+	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	{
+		uint32_t im4pMagic;
+		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
+		if (im4pMagic == 0x50344d49) // P4MI
+		{
+			auto img4 = Transform::GetByName("IMG4-Unencrypted");
+			auto lzfse = Transform::GetByName("LZFSE");
+
+			DataBuffer img4Payload;
+			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
+			DataBuffer machOPayload;
+			lzfse->Decode(img4Payload, machOPayload);
+
+			uint32_t magic = ((uint32_t*)machOPayload.GetData())[0];
+			if (magic == FAT_MAGIC_64 || magic == MH_CIGAM_64 || magic == MH_MAGIC_64)
+				return true;
+
+			return false;
+		}
+
+		return false;
+	}
+
+	uint32_t fileType;
+	data->Read(&fileType, data->GetStart() + 0xc, 4);
+	if (fileType != MH_FILESET)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+KernelCacheView::KernelCacheView(const std::string& typeName, BinaryView* data, bool parseOnly) :
 	BinaryView(typeName, data->GetFile(), data), m_parseOnly(parseOnly)
 {
-	CreateLogger("KernelCache");
 }
 
-KCView::~KCView()
+bool KernelCacheView::Init()
 {
-}
+	m_logger = new Logger("KernelCache.View", GetFile()->GetSessionId());
 
-enum KCPlatform {
-	KCPlatformMacOS = 1,
-	KCPlatformiOS = 2,
-	KCPlatformTVOS = 3,
-	KCPlatformWatchOS = 4,
-	KCPlatformBridgeOS = 5,			// T1/T2 APL1023/T8012, this is your touchbar/touchid in intel macs. Similar to watchOS.
-	// KCPlatformMacCatalyst = 6,
-	KCPlatformiOSSimulator = 7,
-	KCPlatformTVOSSimulator = 8,
-	KCPlatformWatchOSSimulator = 9,
-	KCPlatformVisionOS = 11,			// Apple Vision Pro
-	KCPlatformVisionOSSimulator = 12	// Apple Vision Pro Simulator
-};
-
-bool KCView::Init()
-{
 	BinaryReader reader(GetParentView());
 	reader.Seek(0x4);
 	uint32_t cpuType = reader.Read32();
@@ -116,9 +319,16 @@ bool KCView::Init()
 		}
 		if (!foundBuildVersion)
 		{
-			LogError("Failed to find LC_BUILD_VERSION in subheader");
-			SetDefaultArchitecture(Architecture::GetByName("aarch64"));
-			SetDefaultPlatform(Platform::GetByName("macos-kernel-aarch64"));
+			// FIXME: Is it in-spec to have LC_BUILD_VERSION only in the super header?
+			// This is sufficient as a fallback but source should be referenced here.
+			LogWarn("Failed to find LC_BUILD_VERSION in subheader. Assuming macOS platform.");
+			std::map<std::string, Ref<Metadata>> metadataMap = {
+				{"machoplatform", new Metadata((uint64_t) MACHO_PLATFORM_MACOS)},
+			};
+			Ref<Metadata> metadata = new Metadata(metadataMap);
+			Ref<Platform> plat = g_kcViewType->RecognizePlatform(cpuType, GetDefaultEndianness(), this, metadata);
+			SetDefaultArchitecture(plat->GetArchitecture());
+			SetDefaultPlatform(plat);
 		}
 	}
 	else
@@ -126,13 +336,6 @@ bool KCView::Init()
 		LogError("MH_FILESET had no subheaders");
 		return false;
 	}
-
-	if (textSegOffset == 0)
-	{
-		LogError("Failed to find __TEXT segment");
-		return false;
-	}
-
 
 	// Add Mach-O file header type info
 	EnumerationBuilder cpuTypeBuilder;
@@ -557,37 +760,17 @@ bool KCView::Init()
 	Ref<Type> unixThreadCommandType = Type::StructureType(unixThreadCommandStruct);
 	DefineType(unixThreadCommandTypeId, unixThreadCommandName, unixThreadCommandType);
 
-	std::vector<KernelCacheCore::MemoryRegion> regionsMappedIntoMemory;
-	if (auto metadata = KernelCacheCore::KernelCacheMetadata::LoadFromView(GetParentView()))
-	{
-		for (const auto& image : metadata->LoadedImages())
-		{
-			auto header = KernelCacheCore::KernelCache::LoadHeaderForAddress(this, image.headerFileLocation, image.installName);
-			if (!header)
-			{
-				LogError("Failed to load header for image %s", image.installName.c_str());
-				return false;
-			}
-			if (!KernelCacheCore::KernelCache::InitializeSegmentsForHeader(this, *header, image))
-			{
-				LogError("Failed to initialize segments for image %s", image.installName.c_str());
-				return false;
-			}
-			KernelCacheCore::KernelCache::InitializeHeader(this, *header);
-		}
-	}
-
 	// Technically the header is executable, but there shouldn't reasonably be code in the header.
 	AddAutoSegment(textSegOffset, sizeofcmds + 0x20, 0, sizeofcmds + 0x20, SegmentReadable);
 	AddAutoSection("kernelcache_header", textSegOffset, sizeofcmds + 0x20, ReadOnlyDataSectionSemantics);
 
 	if (m_parseOnly)
 		return true;
-	
+
 	DefineDataVariable(textSegOffset, Type::NamedType(this, QualifiedName("mach_header_64")));
 	DefineAutoSymbol(
 		new Symbol(DataSymbol, "kernelcache_header", textSegOffset, LocalBinding));
-	
+
 	try
 	{
 		reader.Seek(sizeof(mach_header_64));
@@ -702,220 +885,109 @@ bool KCView::Init()
 		LogError("Error when applying Mach-O header types at %" PRIx64, textSegOffset);
 	}
 
-	return true;
+	return InitController();
 }
 
-
-KCViewType::KCViewType() : BinaryViewType(KC_VIEW_NAME, KC_VIEW_NAME)
+bool KernelCacheView::InitController()
 {
-}
+	// OK, we have the primary shared cache file, now let's add the entries.
+	auto kernelCacheBuilder = KernelCacheBuilder(this);
+	auto kernelCache = kernelCacheBuilder.Finalize();
 
-BinaryNinja::Ref<BinaryNinja::BinaryView> KCViewType::Create(BinaryNinja::BinaryView* data)
-{
-	uint32_t magic;
-	data->Read(&magic, data->GetStart(), 4);
-	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	// TODO: Here we should have all the regions and what not for the virtual memory populated, I think it might be a good idea
+	// TODO: To verify the regions are here and pointing at valid file accessor mappings, to make diagnosing issues quicker.
+
 	{
-		uint32_t im4pMagic;
-		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
-		if (im4pMagic == 0x50344d49) // P4MI
+		BinaryReader reader(GetParentView());
+		reader.Seek(0x4);
+		uint32_t cpuType = reader.Read32();
+		reader.Seek(0x10);
+		uint64_t ncmds = reader.Read32();
+		uint64_t sizeofcmds = reader.Read32();
+		uint64_t offset = 0x20;
+		for (uint64_t i = 0; i < ncmds; i++)
 		{
-			auto img4 = Transform::GetByName("IMG4-Unencrypted");
+			reader.Seek(offset);
+			uint64_t cmd = reader.Read32();
+			uint64_t cmdsize = reader.Read32();
 
-			DataBuffer img4Payload;
-			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
-
-			DataBuffer machOPayload;
-			uint32_t magic = ((uint32_t*)img4Payload.GetData())[0];
-			if (magic == FAT_MAGIC_64 || magic == MH_MAGIC_64 || magic == MH_MAGIC
-				|| magic == MH_CIGAM_64 || magic == MH_CIGAM )
+			if (cmd == LC_FILESET_ENTRY)
 			{
-				machOPayload = img4Payload;
-			}
-			else if (strncmp((char*)img4Payload.GetData(), "bvx2", 4) == 0)
-			{
-				auto lzfse = Transform::GetByName("LZFSE");
-				if (lzfse)
-					lzfse->Decode(img4Payload, machOPayload);
-			}
-			else
-			{
-#ifdef COMPRESSION_DEBUG
-				LogError("Unknown compression type in IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
-				LogError("KernelCache parsing will now fail to proceed.");
-				data->WriteBuffer(0, img4Payload);
-				return new KCView(KC_VIEW_NAME, data, false);
-#else
-				LogError("Unknown compression type in IMG4 Payload, unable to proceed.");
-				LogError("You can manually extract the kernelcache using `kerneldec`,`ipsw`, or other tools.")
-				return nullptr;
-#endif
+				fileset_entry_command fileset_entry;
+				reader.Seek(offset);
+				reader.Read(&fileset_entry, sizeof(fileset_entry_command));
+				reader.Seek(offset + fileset_entry.nameEntryOffsetFromBaseOfCommand);
+				auto name = reader.ReadCString(1000);
+				kernelCache.ProcessEntryImage(this, name, fileset_entry);
 			}
 
-			if (machOPayload.GetLength() == 0)
+			if (cmd == LC_DYLD_CHAINED_FIXUPS)
 			{
-#ifdef COMPRESSION_DEBUG
-				LogError("Failed to perform extraction on IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
-				LogError("KernelCache parsing will now fail to proceed.");
-				data->WriteBuffer(0, img4Payload);
-				return new KCView(KC_VIEW_NAME, data, false);
-#else
-				return nullptr;
-#endif
+				linkedit_data_command chained_fixups;
+				reader.Seek(offset);
+				reader.Read(&chained_fixups, sizeof(linkedit_data_command));
+
+				kernelCache.ProcessRelocations(this, chained_fixups);
 			}
 
-			uint32_t machoMagic = ((uint32_t*)machOPayload.GetData())[0];
-			if (machoMagic == FAT_MAGIC_64)
-			{
-				DataBuffer output = machOPayload.GetSlice(0x1c, machOPayload.GetLength()-0x1c);
-				data->WriteBuffer(0, output);
-			}
-			else if (machoMagic == MH_MAGIC_64 || machoMagic == MH_MAGIC || machoMagic == MH_CIGAM_64 || machoMagic == MH_CIGAM)
-			{
-				data->WriteBuffer(0, machOPayload);
-			}
-			else
-			{
-#ifdef COMPRESSION_DEBUG
-				LogError("Unknown Mach-O magic in IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
-				LogError("KernelCache parsing will now fail to proceed.");
-				data->WriteBuffer(0, machOPayload);
-				return new KCView(KC_VIEW_NAME, data, false);
-#else
-				return nullptr;
-#endif
-			}
-
-			return new KCView(KC_VIEW_NAME, data, false);
+			offset += cmdsize;
 		}
-
-		return nullptr;
 	}
 
-	return new KCView(KC_VIEW_NAME, data, false);
-}
+	auto cacheController = KernelCacheController::Initialize(*this, std::move(kernelCache));
 
-
-Ref<Settings> KCViewType::GetLoadSettingsForData(BinaryView* data)
-{
-	Ref<BinaryView> viewRef = Parse(data);
-	if (!viewRef || !viewRef->Init())
 	{
-		LogWarn("Failed to initialize view of type '%s'. Generating default load settings.", GetName().c_str());
-		viewRef = data;
+		auto logger = m_logger;
+		// Load up all the symbols into the named symbols lookup map.
+		// NOTE: We do this on a separate thread as image & region loading does not consult this.
+		WorkerPriorityEnqueue([logger, cacheController]() {
+			auto& kernelCache = cacheController->GetCache();
+			auto startTime = std::chrono::high_resolution_clock::now();
+			kernelCache.ProcessSymbols();
+			auto endTime = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> elapsed = endTime - startTime;
+			logger->LogInfo("Processing %zu symbols took %.3f seconds (separate thread)", kernelCache.GetSymbols().size(), elapsed.count());
+		});
 	}
 
-	Ref<Settings> settings = GetDefaultLoadSettingsForData(viewRef);
+	Ref<Settings> settings = GetLoadSettings(GetTypeName());
+	// Users can adjust which images are loaded by default using the `loader.dsc.autoLoadPattern` setting.
+	std::string autoLoadPattern = ".*libsystem_c.dylib";
+	if (settings && settings->Contains("loader.kc.autoLoadPattern"))
+		autoLoadPattern = settings->Get<std::string>("loader.kc.autoLoadPattern", this);
+	m_logger->LogDebug("Loading images using pattern: %s", autoLoadPattern.c_str());
 
-	// specify default load settings that can be overridden
-	std::vector<std::string> overrides = {"loader.imageBase", "loader.platform"};
-	settings->UpdateProperty("loader.imageBase", "message", "Note: File indicates image is not relocatable.");
-
-	for (const auto& override : overrides)
 	{
-		if (settings->Contains(override))
-			settings->UpdateProperty(override, "readOnly", false);
+		// TODO: Refusing to add undo action "Added section libsystem_c.dylib::__macho_header", there is literally
+		// TODO: no way around this warning as undo actions are implicit with user sections, for more detail see:
+		// TODO:	- https://github.com/Vector35/binaryninja-api/issues/6742
+		// TODO:	- https://github.com/Vector35/binaryninja-api/issues/6289
+		// Load all images that match the `autoLoadPattern`.
+		auto startTime = std::chrono::high_resolution_clock::now();
+		size_t loadedImages = 0;
+		std::regex autoLoadRegex(autoLoadPattern);
+		for (const auto& [_, image] : cacheController->GetCache().GetImages())
+			if (std::regex_match(image.GetName(), autoLoadRegex))
+				if (cacheController->ApplyImage(*this, image))
+					++loadedImages;
+		auto endTime = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = endTime - startTime;
+		m_logger->LogInfo("Automatically loading %zu images took %.3f seconds", loadedImages, elapsed.count());
 	}
 
-	// Merge existing load settings if they exist. This allows for the selection of a specific object file from a Mach-O
-	// Universal file. The 'Universal' BinaryViewType generates a schema with 'loader.universal.architectures'. This
-	// schema contains an appropriate 'Mach-O' load schema for selecting a specific object file. The embedded schema
-	// contains 'loader.macho.universalImageOffset'.
-	Ref<Settings> loadSettings = viewRef->GetLoadSettings(GetName());
-	if (loadSettings && !loadSettings->IsEmpty())
-		settings->DeserializeSchema(loadSettings->SerializeSchema());
-
-	return settings;
-}
-
-
-BinaryNinja::Ref<BinaryNinja::BinaryView> KCViewType::Parse(BinaryNinja::BinaryView* data)
-{
-	uint32_t magic;
-	data->Read(&magic, data->GetStart(), 4);
-	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	if (auto loadedImageMetadata = GetParentView()->QueryMetadata("KernelCacheLoadedImages"))
 	{
-		uint32_t im4pMagic;
-		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
-		if (im4pMagic == 0x50344d49) // P4MI
+		auto loadedImageList = loadedImageMetadata->GetArray();
+		for (const auto & imageAddrMeta : loadedImageList)
 		{
-			auto img4 = Transform::GetByName("IMG4-Unencrypted");
-			auto lzfse = Transform::GetByName("LZFSE");
-
-			DataBuffer img4Payload;
-			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
-			DataBuffer machOPayload;
-			lzfse->Decode(img4Payload, machOPayload);
-
-			uint32_t magic = ((uint32_t*)machOPayload.GetData())[0];
-			auto id = data->BeginUndoActions();
-			if (magic == FAT_MAGIC_64)
+			auto imageAddr = imageAddrMeta->GetUnsignedInteger();
+			const auto& image = cacheController->GetCache().GetImageAt(imageAddr);
+			if (image)
 			{
-				DataBuffer output = machOPayload.GetSlice(0x1c, machOPayload.GetLength()-0x1c);
-				data->WriteBuffer(0, output);
+				cacheController->ApplyImage(*this, *image);
 			}
-			else
-			{
-				data->WriteBuffer(0, machOPayload);
-			}
-			data->ForgetUndoActions(id);
-			return new KCView(KC_VIEW_NAME, data, true);
 		}
-
-		return nullptr;
-	}
-
-	return new KCView(KC_VIEW_NAME, data, true);
-}
-
-bool KCViewType::IsTypeValidForData(BinaryNinja::BinaryView* data)
-{
-	if (!data)
-		return false;
-
-	uint32_t magic;
-	data->Read(&magic, data->GetStart(), 4);
-
-	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
-	{
-		uint32_t im4pMagic;
-		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
-		if (im4pMagic == 0x50344d49) // P4MI
-		{
-			auto img4 = Transform::GetByName("IMG4-Unencrypted");
-			auto lzfse = Transform::GetByName("LZFSE");
-
-			DataBuffer img4Payload;
-			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
-			DataBuffer machOPayload;
-			lzfse->Decode(img4Payload, machOPayload);
-
-			uint32_t magic = ((uint32_t*)machOPayload.GetData())[0];
-			if (magic == FAT_MAGIC_64 || magic == MH_CIGAM_64 || magic == MH_MAGIC_64)
-				return true;
-
-			return false;
-		}
-
-		return false;
-	}
-
-	uint32_t fileType;
-	data->Read(&fileType, data->GetStart() + 0xc, 4);
-	if (fileType != MH_FILESET)
-	{
-		return false;
 	}
 
 	return true;
 }
-
-extern "C" {
-	void InitKCViewType()
-	{
-		static KCViewType type;
-		BinaryViewType::Register(&type);
-		g_kcViewType = &type;
-	}
-}
-

@@ -1,361 +1,160 @@
-//
-// Created by kat on 5/19/23.
-//
+#pragma once
 
-#include <binaryninjaapi.h>
-#include "KCView.h"
-#include "view/macho/machoview.h"
-#include "MetadataSerializable.hpp"
-#include "../api/kernelcachecore.h"
+#include <vector>
 
-#ifndef KERNELCACHE_KERNELCACHE_H
-#define KERNELCACHE_KERNELCACHE_H
+#include "binaryninjaapi.h"
+#include "MachO.h"
 
-DECLARE_KERNELCACHE_API_OBJECT(BNKernelCache, KernelCache);
+#include <mutex>
+#include <shared_mutex>
+#include "Utility.h"
 
-namespace KernelCacheCore {
+struct CacheSymbol
+{
+	BNSymbolType type;
+	uint64_t address;
+	std::string name;
 
-	enum KCViewState
+	CacheSymbol() = default;
+	CacheSymbol(BNSymbolType type, uint64_t address, std::string name) :
+		type(type), address(address), name(std::move(name))
+	{}
+	~CacheSymbol() = default;
+
+	CacheSymbol(const CacheSymbol& other) = default;
+	CacheSymbol& operator=(const CacheSymbol& other) = default;
+
+	CacheSymbol(CacheSymbol&& other) noexcept = default;
+	CacheSymbol& operator=(CacheSymbol&& other) noexcept = default;
+
+	std::pair<std::string, BinaryNinja::Ref<BinaryNinja::Type>> DemangledName(BinaryNinja::BinaryView& view) const;
+
+	// NOTE: you should really only call this when adding the symbol to the view.
+	std::pair<BinaryNinja::Ref<BinaryNinja::Symbol>, BinaryNinja::Ref<BinaryNinja::Type>> GetBNSymbolAndType(BinaryNinja::BinaryView& view) const;
+};
+
+struct CacheRegion
+{
+	// type is always image
+	std::string name;
+	uint64_t start;
+	uint64_t size;
+	// Associate this region with this image, this makes it easier to identify what image owns this region.
+	std::optional<uint64_t> imageStart;
+	BNSegmentFlag flags;
+
+	CacheRegion() = default;
+	~CacheRegion() = default;
+
+	CacheRegion(const CacheRegion& other) = default;
+	CacheRegion& operator=(const CacheRegion& other) = default;
+
+	CacheRegion(CacheRegion&& other) noexcept = default;
+	CacheRegion& operator=(CacheRegion&& other) noexcept = default;
+
+	AddressRange AsAddressRange() const { return {start, start + size}; }
+
+	BNSectionSemantics SectionSemanticsForRegion() const
 	{
-		KCViewStateUnloaded,
-		KCViewStateLoaded,
-		KCViewStateLoadedWithImages,
-	};
+		if ((flags & SegmentExecutable) && (flags & SegmentDenyWrite))
+			return ReadOnlyCodeSectionSemantics;
 
-	const std::string KernelCacheMetadataTag = "KERNELCACHE-KernelCacheData";
+		if (flags & SegmentExecutable)
+			return DefaultSectionSemantics;
 
-		struct MemoryRegion : public MetadataSerializable<MemoryRegion>
-		{
-			enum class Type
-			{
-				Image,
-				NonImage,
-			};
+		if (flags & SegmentDenyWrite)
+			return ReadOnlyDataSectionSemantics;
 
-			std::string prettyName;
-			uint64_t start;
-			uint64_t size;
-			uint64_t fileOffset;
-			BNSegmentFlag flags;
-			Type type;
+		return ReadWriteDataSectionSemantics;
+	}
+};
 
-			void Store(SerializationContext& context) const
-			{
-				MSS(prettyName);
-				MSS(start);
-				MSS(size);
-				MSS(fileOffset);
-				MSS_CAST(flags, uint64_t);
-				MSS_CAST(type, uint8_t);
-			}
+// Represents a single image and its associated memory regions.
+struct CacheImage
+{
+	uint64_t headerFileAddress;
+	uint64_t headerVirtualAddress;
+	std::string path;
+	// A list to the start of memory regions associated with the image.
+	// This lets us load all regions for a given image easily.
+	std::vector<CacheRegion> regions;
+	std::shared_ptr<KernelCacheMachOHeader> header;
 
-			static MemoryRegion Load(DeserializationContext& context)
-			{
-				MemoryRegion region;
-				region.MSL(prettyName);
-				region.MSL(start);
-				region.MSL(size);
-				region.MSL(fileOffset);
-				region.MSL_CAST(flags, uint64_t, BNSegmentFlag);
-				region.MSL_CAST(type, uint8_t, Type);
-				return region;
-			}
-		};
+	CacheImage() = default;
+	~CacheImage() = default;
 
-		struct KernelCacheImage : public MetadataSerializable<KernelCacheImage> {
-			std::string installName;
-			uint64_t headerFileLocation;
-			std::vector<MemoryRegion> regions;
+	CacheImage(const CacheImage& other) = default;
+	CacheImage& operator=(const CacheImage& other) = default;
 
-			void Store(SerializationContext& context) const;
-			static KernelCacheImage Load(DeserializationContext& context);
-		};
+	CacheImage(CacheImage&& other) noexcept = default;
+	CacheImage& operator=(CacheImage&& other) noexcept = default;
 
-	#if defined(__GNUC__) || defined(__clang__)
-		#define PACKED_STRUCT __attribute__((packed))
-	#else
-		#define PACKED_STRUCT
-	#endif
+	// Get the file name from the path.
+	std::string GetName() const { return BaseFileName(path); }
 
-	#if defined(_MSC_VER)
-		#pragma pack(push, 1)
-	#else
+	// Get the names of the dependencies.
+	std::vector<std::string> GetDependencies() const;
+};
 
-	#endif
+// The C in KC.
+// This represents the entire cache, all regions and images are visible from here.
+// This is the dump for all the information, and what the workflow activities and the UI want.
+// Creating this is expensive, both in actual processing and just copying, so we only generate this
+// once every time the database is open.
+class KernelCache
+{
+	// Calculated within `AddEntry`, this indicates where the shared cache image is based at.
+	uint64_t m_baseAddress = 0;
 
-	#if defined(_MSC_VER)
-		#pragma pack(pop)
-	#else
+	std::vector<std::pair<uint64_t, uint64_t>> m_relocations {};
 
-	#endif
+	std::unordered_map<uint64_t, CacheImage> m_images {};
+	// All the external symbols for this cache. Both mapped and unmapped (not in the view).
+	std::unordered_map<uint64_t, CacheSymbol> m_symbols {};
+	// Quickly lookup a symbol by name, populated by `FinalizeSymbols`.
+	// `m_namedSymbols` is modified in a worker thread spawned by view init so we must not get a symbol until its populated.
+	std::unordered_map<std::string, uint64_t> m_namedSymbols {};
+	// Used to guard `m_namedSymbols` as it's accessed on multiple threads.
+	// NOTE: Wrapped in unique_ptr to keep KernelCache movable.
+	std::unique_ptr<std::shared_mutex> m_namedSymMutex;
 
-	using namespace BinaryNinja;
-	struct KernelCacheMachOHeader : public MetadataSerializable<KernelCacheMachOHeader>
-	{
-		uint64_t textBase = 0;
-		uint64_t textBaseFileOffset = 0;
-		uint64_t loadCommandOffset = 0;
-		mach_header_64 ident;
-		std::string identifierPrefix;
-		std::string installName;
+public:
 
-		std::vector<std::pair<uint64_t, bool>> entryPoints;
-		std::vector<uint64_t> m_entryPoints;  // list of entrypoints
+	bool ProcessEntryImage(BinaryNinja::Ref<BinaryNinja::BinaryView> bv, const std::string& path, const BinaryNinja::fileset_entry_command& info);
+	KernelCache() = default;
+	explicit KernelCache(uint64_t addressSize);
 
-		symtab_command symtab;
-		dysymtab_command dysymtab;
-		dyld_info_command dyldInfo;
-		routines_command_64 routines64;
-		function_starts_command functionStarts;
-		std::vector<section_64> moduleInitSections;
-		std::vector<section_64> moduleTermSections;
-		linkedit_data_command exportTrie;
-		linkedit_data_command chainedFixups {};
+	KernelCache(const KernelCache &) = delete;
+	KernelCache &operator=(const KernelCache &) = delete;
 
-		uint64_t relocationBase;
-		// Section and program headers, internally use 64-bit form as it is a superset of 32-bit
-		std::vector<segment_command_64> segments;  // only three types of sections __TEXT, __DATA, __IMPORT
-		segment_command_64 linkeditSegment;
-		std::vector<section_64> sections;
-		std::vector<std::string> sectionNames;
+	KernelCache(KernelCache &&) noexcept = default;
+	KernelCache &operator=(KernelCache &&) noexcept = default;
 
-		std::vector<section_64> symbolStubSections;
-		std::vector<section_64> symbolPointerSections;
+	uint64_t GetBaseAddress() const { return m_baseAddress; }
+	const std::unordered_map<uint64_t, CacheImage>& GetImages() const { return m_images; }
+	const std::unordered_map<uint64_t, CacheSymbol>& GetSymbols() const { return m_symbols; }
 
-		std::vector<std::string> dylibs;
+	void AddImage(CacheImage&& image);
 
-		build_version_command buildVersion;
-		std::vector<build_tool_version> buildToolVersions;
+	void AddSymbol(CacheSymbol symbol);
 
-		bool linkeditPresent = false;
-		bool dysymPresent = false;
-		bool dyldInfoPresent = false;
-		bool exportTriePresent = false;
-		bool chainedFixupsPresent = false;
-		bool routinesPresent = false;
-		bool functionStartsPresent = false;
-		bool relocatable = false;
+	void AddSymbols(std::vector<CacheSymbol>&& symbols);
 
-		void Store(SerializationContext& context) const {
-			MSS(textBase);
-			MSS(textBaseFileOffset);
-			MSS(loadCommandOffset);
-			MSS_SUBCLASS(ident);
-			MSS(identifierPrefix);
-			MSS(installName);
-			MSS(entryPoints);
-			MSS(m_entryPoints);
-			MSS_SUBCLASS(symtab);
-			MSS_SUBCLASS(dysymtab);
-			MSS_SUBCLASS(dyldInfo);
-			MSS_SUBCLASS(routines64);
-			MSS_SUBCLASS(functionStarts);
-			MSS_SUBCLASS(moduleInitSections);
-			MSS_SUBCLASS(moduleTermSections);
-			MSS_SUBCLASS(exportTrie);
-			MSS_SUBCLASS(chainedFixups);
-			MSS(relocationBase);
-			MSS_SUBCLASS(segments);
-			MSS_SUBCLASS(linkeditSegment);
-			MSS_SUBCLASS(sections);
-			MSS(sectionNames);
-			MSS_SUBCLASS(symbolStubSections);
-			MSS_SUBCLASS(symbolPointerSections);
-			MSS(dylibs);
-			MSS_SUBCLASS(buildVersion);
-			MSS_SUBCLASS(buildToolVersions);
-			MSS(linkeditPresent);
-			MSS(dysymPresent);
-			MSS(dyldInfoPresent);
-			MSS(exportTriePresent);
-			MSS(chainedFixupsPresent);
-			MSS(routinesPresent);
-			MSS(functionStartsPresent);
-			MSS(relocatable);
-		}
+	// Construct the named symbols lookup map for use with `GetSymbolWithName`.
+	void ProcessSymbols();
 
-		static KernelCacheMachOHeader Load(DeserializationContext& context) {
-			KernelCacheMachOHeader header;
-			header.MSL(textBase);
-			header.MSL(textBaseFileOffset);
-			header.MSL(loadCommandOffset);
-			header.MSL(ident);
-			header.MSL(identifierPrefix);
-			header.MSL(installName);
-			header.MSL(entryPoints);
-			header.MSL(m_entryPoints);
-			header.MSL(symtab);
-			header.MSL(dysymtab);
-			header.MSL(dyldInfo);
-			header.MSL(routines64);
-			header.MSL(functionStarts);
-			header.MSL(moduleInitSections);
-			header.MSL(moduleTermSections);
-			header.MSL(exportTrie);
-			header.MSL(chainedFixups);
-			header.MSL(relocationBase);
-			header.MSL(segments);
-			header.MSL(linkeditSegment);
-			header.MSL(sections);
-			header.MSL(sectionNames);
-			header.MSL(symbolStubSections);
-			header.MSL(symbolPointerSections);
-			header.MSL(dylibs);
-			header.MSL(buildVersion);
-			header.MSL(buildToolVersions);
-			header.MSL(linkeditPresent);
-			header.MSL(dysymPresent);
-			header.MSL(dyldInfoPresent);
-			header.MSL(exportTriePresent);
-			header.MSL(chainedFixupsPresent);
-			header.MSL(routinesPresent);
-			header.MSL(functionStartsPresent);
-			header.MSL(relocatable);
-			return header;
-		}
-	};
+	void ProcessRelocations(BinaryNinja::Ref<BinaryNinja::BinaryView> view, BinaryNinja::linkedit_data_command chained_fixup_command);
 
-	class KernelCache : public MetadataSerializable<KernelCache>
-	{
-		IMPLEMENT_KERNELCACHE_API_OBJECT(BNKernelCache);
+	const std::vector<std::pair<uint64_t, uint64_t>>& GetRelocations() const { return m_relocations; }
 
-		std::atomic<int> m_refs = 0;
+	std::optional<CacheImage> GetImageAt(uint64_t address) const;
 
-	public:
-		virtual void AddRef() { m_refs.fetch_add(1); }
+	std::optional<CacheImage> GetImageContaining(uint64_t address) const;
 
-		virtual void Release()
-		{
-			// undo actions will lock a file lock we hold and then wait for main thread
-			// so we need to release the ref later.
-			WorkerPriorityEnqueue([this]() {
-				if (m_refs.fetch_sub(1) == 1)
-					delete this;
-			});
-		}
+	// TODO: Rename to GetImageWithPath and then make another one for the image name.
+	std::optional<CacheImage> GetImageWithName(const std::string& name) const;
 
-		virtual void AddAPIRef() { AddRef(); }
+	std::optional<CacheSymbol> GetSymbolAt(uint64_t address) const;
 
-		virtual void ReleaseAPIRef() { Release(); }
-
-	public:
-		enum KernelCacheFormat
-		{
-			FilesetCacheFormat,
-			PrelinkedCacheFormat,
-		};
-
-		struct CacheInfo;
-		struct ModifiedState;
-
-		struct ViewSpecificState;
-
-		void Store(SerializationContext& context) const;
-		void Load(DeserializationContext& context);
-
-	private:
-		Ref<Logger> m_logger;
-		/* VIEW STATE BEGIN -- SERIALIZE ALL OF THIS AND STORE IT IN RAW VIEW */
-
-		// State that is initialized during `PerformInitialLoad` and does
-		// not change thereafter.
-		std::shared_ptr<const CacheInfo> m_cacheInfo;
-
-		// Protects member variables below.
-		mutable std::mutex m_mutex;
-
-		// State that has been modified since this instance was created
-		// or last saved to the view-specific state.
-		// To get an accurate view of the current state, both these modifications
-		// and the view-specific state must be consulted.
-		std::unique_ptr<ModifiedState> m_modifiedState;
-
-		// Serialized once by PerformInitialLoad and available after m_viewState == Loaded
-		bool m_metadataValid = false;
-
-		/* API VIEW START */
-		BinaryNinja::Ref<BinaryNinja::BinaryView> m_kcView;
-		/* API VIEW END */
-
-		std::shared_ptr<ViewSpecificState> m_viewSpecificState;
-
-	private:
-		void PerformInitialLoad(std::lock_guard<std::mutex>&);
-		void DeserializeFromRawView(std::lock_guard<std::mutex>&);
-
-	public:
-		static KernelCache* GetFromKCView(BinaryNinja::Ref<BinaryNinja::BinaryView> kcView);
-		static uint64_t FastGetImageCount(BinaryNinja::Ref<BinaryNinja::BinaryView> kcView);
-		bool SaveCacheInfoToKCView(std::lock_guard<std::mutex>&);
-		bool SaveModifiedStateToKCView(std::lock_guard<std::mutex>&);
-		std::optional<uint64_t> GetImageStart(std::string installName);
-		std::optional<KernelCacheMachOHeader> HeaderForVMAddress(uint64_t address);
-		std::optional<KernelCacheMachOHeader> HeaderForFileAddress(uint64_t address);
-		bool LoadImageWithInstallName(std::lock_guard<std::mutex>& lock, std::string installName);
-		bool LoadImageWithInstallName(std::string installName);
-		bool LoadImageContainingAddress(std::lock_guard<std::mutex>& lock, uint64_t address);
-		bool LoadImageContainingAddress(uint64_t address);
-		std::string NameForAddress(uint64_t address);
-		std::string ImageNameForAddress(uint64_t address);
-		std::vector<std::string> GetAvailableImages();
-		std::vector<KernelCacheImage> GetLoadedImages();
-		bool IsImageLoaded(uint64_t address);
-
-		std::vector<std::pair<uint64_t, std::pair<std::string, std::string>>> LoadAllSymbolsAndWait();
-
-		const std::unordered_map<std::string, uint64_t>& AllImageStarts() const;
-		const std::unordered_map<uint64_t, KernelCacheMachOHeader> AllImageHeaders() const;
-
-		std::string SerializedImageHeaderForVMAddress(uint64_t address);
-		std::string SerializedImageHeaderForName(std::string name);
-
-		KCViewState ViewState() const;
-
-		explicit KernelCache(BinaryNinja::Ref<BinaryNinja::BinaryView> rawView);
-		virtual ~KernelCache();
-
-		static bool InitializeSegmentsForHeader(Ref<BinaryView> view, const KernelCacheMachOHeader& header, const KernelCacheImage& targetImage);
-		static std::optional<KernelCacheMachOHeader> LoadHeaderForAddress(Ref<BinaryView> view, uint64_t address, std::string installName);
-		static void InitializeHeader(Ref<BinaryView> view, KernelCacheMachOHeader header);
-		static void ReadExportNode(Ref<BinaryView> view, std::vector<Ref<Symbol>>& symbolList, KernelCacheMachOHeader& header, DataBuffer& buffer,
-			uint64_t textBase, const std::string& currentText, size_t cursor, uint32_t endGuard);
-		static std::vector<Ref<Symbol>> ParseExportTrie(Ref<BinaryView> view, KernelCacheMachOHeader header);
-		static std::vector<std::pair<uint64_t, std::pair<BNSymbolType, std::string>>> ParseSymbolTable(Ref<BinaryView> view, KernelCacheMachOHeader header, bool defineSymbolsInView = true);
-	};
-
-
-	class KernelCacheMetadata
-	{
-	public:
-		static std::optional<KernelCacheMetadata> LoadFromView(BinaryView*);
-		static bool ViewHasMetadata(BinaryView*);
-
-		std::string InstallNameForImageBaseAddress(uint64_t baseAddress) const;
-
-		std::vector<KernelCacheImage> LoadedImages();
-
-		~KernelCacheMetadata();
-		KernelCacheMetadata(KernelCacheMetadata&&);
-		KernelCacheMetadata& operator=(KernelCacheMetadata&&);
-
-	private:
-		KernelCacheMetadata(KernelCache::CacheInfo, KernelCache::ModifiedState);
-
-		std::unique_ptr<KernelCache::CacheInfo> cacheInfo;
-		std::unique_ptr<KernelCache::ModifiedState> state;
-
-		friend struct KernelCache::ModifiedState;
-		friend class KernelCache;
-
-		static const std::string Tag;
-		static const std::string CacheInfoTag;
-		static const std::string ModifiedStateTagPrefix;
-		static const std::string ModifiedStateCountTag;
-	};
-
-}
-
-void InitKernelcache();
-
-#endif //KERNELCACHE_KERNELCACHE_H
-
+	std::optional<CacheSymbol> GetSymbolWithName(const std::string& name);
+};

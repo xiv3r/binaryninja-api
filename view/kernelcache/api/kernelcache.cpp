@@ -4,191 +4,192 @@
 
 #include "kernelcacheapi.h"
 
-namespace KernelCacheAPI {
+using namespace BinaryNinja;
+using namespace KernelCacheAPI;
 
-	KernelCache::KernelCache(Ref<BinaryView> view) {
-		m_object = BNGetKernelCache(view->GetObject());
-	}
+BNKernelCacheImage ImageToApi(CacheImage image)
+{
+	BNKernelCacheImage apiImage {};
+	apiImage.name = BNAllocString(image.name.c_str());
+	apiImage.headerFileAddress = image.headerFileAddress;
+	apiImage.headerVirtualAddress = image.headerVirtualAddress;
+	return apiImage;
+}
 
-	BNKCViewLoadProgress KernelCache::GetLoadProgress(Ref<BinaryView> view)
+CacheImage ImageFromApi(BNKernelCacheImage image)
+{
+	CacheImage apiImage {};
+	apiImage.name = image.name;
+	apiImage.headerVirtualAddress = image.headerVirtualAddress;
+	apiImage.headerFileAddress = image.headerFileAddress;
+	return apiImage;
+}
+
+CacheSymbol SymbolFromApi(BNKernelCacheSymbol apiSymbol)
+{
+	CacheSymbol symbol;
+	symbol.name = apiSymbol.name;
+	symbol.address = apiSymbol.address;
+	symbol.type = apiSymbol.symbolType;
+	return symbol;
+}
+
+std::pair<std::string, Ref<Type>> CacheSymbol::DemangledName(BinaryView &view) const
+{
+	QualifiedName qname;
+	Ref<Type> outType = nullptr;
+	std::string shortName = name;
+	if (DemangleGeneric(view.GetDefaultArchitecture(), name, outType, qname, &view, true))
+		shortName = qname.GetString();
+	return {shortName, outType};
+}
+
+Ref<Symbol> CacheSymbol::GetBNSymbol(BinaryView &view) const
+{
+	auto [shortName, _] = DemangledName(view);
+	return new Symbol(type, shortName, shortName, name, address, nullptr);
+}
+
+std::string KernelCacheAPI::GetSymbolTypeAsString(const BNSymbolType &type)
+{
+	// NOTE: We currently only use the function and data symbol for cache symbols.
+	// update this if that changes.
+	switch (type)
 	{
-		return BNKCViewGetLoadProgress(view->GetFile()->GetSessionId());
+	case FunctionSymbol:
+		return "Function";
+	case DataSymbol:
+		return "Data";
+	default:
+		return "Unknown";
 	}
+}
 
-	uint64_t KernelCache::FastGetImageCount(Ref<BinaryView> view)
-	{
-		return BNKCViewFastGetImageCount(view->GetObject());
-	}
+KernelCacheController::KernelCacheController(BNKernelCacheController *controller)
+{
+	m_object = controller;
+}
 
-	bool KernelCache::LoadImageWithInstallName(const std::string& installName)
-	{
-		return BNKCViewLoadImageWithInstallName(m_object, installName.c_str());
-	}
+KCRef<KernelCacheController> KernelCacheController::GetController(BinaryView &view)
+{
+	BNKernelCacheController *controller = BNGetKernelCacheController(view.GetObject());
+	if (controller == nullptr)
+		return nullptr;
+	return new KernelCacheController(controller);
+}
 
-	bool KernelCache::LoadImageContainingAddress(uint64_t addr)
-	{
-		return BNKCViewLoadImageContainingAddress(m_object, addr);
-	}
+bool KernelCacheController::ApplyImage(BinaryView &view, const CacheImage &image)
+{
+	auto apiImage = ImageToApi(image);
+	bool result = BNKernelCacheControllerApplyImage(m_object, view.GetObject(), &apiImage);
+	BNKernelCacheFreeImage(apiImage);
+	return result;
+}
 
-	std::vector<std::string> KernelCache::GetAvailableImages()
-	{
-		size_t count;
-		char** value = BNKCViewGetInstallNames(m_object, &count);
-		if (value == nullptr)
-		{
-			return {};
-		}
+bool KernelCacheController::IsImageLoaded(const CacheImage &image) const
+{
+	auto apiImage = ImageToApi(image);
+	bool result = BNKernelCacheControllerIsImageLoaded(m_object, &apiImage);
+	BNKernelCacheFreeImage(apiImage);
+	return result;
+}
 
-		std::vector<std::string> result;
-		for (size_t i = 0; i < count; i++)
-		{
-			result.push_back(value[i]);
-		}
+std::optional<CacheImage> KernelCacheController::GetImageAt(uint64_t address) const
+{
+	BNKernelCacheImage apiImage;
+	if (!BNKernelCacheControllerGetImageAt(m_object, address, &apiImage))
+		return std::nullopt;
+	CacheImage image = ImageFromApi(apiImage);
+	BNKernelCacheFreeImage(apiImage);
+	return image;
+}
 
-		BNFreeStringList(value, count);
-		return result;
-	}
+std::optional<CacheImage> KernelCacheController::GetImageContaining(uint64_t address) const
+{
+	BNKernelCacheImage apiImage;
+	if (!BNKernelCacheControllerGetImageContaining(m_object, address, &apiImage))
+		return std::nullopt;
+	CacheImage image = ImageFromApi(apiImage);
+	BNKernelCacheFreeImage(apiImage);
+	return image;
+}
 
-	bool KernelCache::IsImageLoaded(const uint64_t address) const
-	{
-	    return BNKCViewIsImageLoaded(m_object, address);
-	}
+std::optional<CacheImage> KernelCacheController::GetImageWithName(const std::string &name) const
+{
+	BNKernelCacheImage apiImage;
+	if (!BNKernelCacheControllerGetImageWithName(m_object, name.c_str(), &apiImage))
+		return std::nullopt;
+	CacheImage image = ImageFromApi(apiImage);
+	BNKernelCacheFreeImage(apiImage);
+	return image;
+}
 
-	std::vector<KCImage> KernelCache::GetImages()
-	{
-		size_t count;
-		BNKCImage* value = BNKCViewGetAllImages(m_object, &count);
-		if (value == nullptr)
-		{
-			return {};
-		}
+std::vector<std::string> KernelCacheController::GetImageDependencies(const CacheImage &image) const
+{
+	size_t count;
+	BNKernelCacheImage apiImage = ImageToApi(image);
+	char **dependencies = BNKernelCacheControllerGetImageDependencies(m_object, &apiImage, &count);
+	BNKernelCacheFreeImage(apiImage);
+	std::vector<std::string> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.emplace_back(dependencies[i]);
+	BNFreeStringList(dependencies, count);
+	return result;
+}
 
-		std::vector<KCImage> result;
-		for (size_t i = 0; i < count; i++)
-		{
-			KCImage img;
-			img.name = value[i].name;
-			img.headerFileAddress = value[i].headerFileAddress;
-			for (size_t j = 0; j < value[i].mappingCount; j++)
-			{
-				KCImageMemoryMapping mapping;
-				mapping.name = value[i].mappings[j].name;
-				mapping.vmAddress = value[i].mappings[j].vmAddress;
-				mapping.rawViewOffset = value[i].mappings[j].rawViewOffset;
-				mapping.size = value[i].mappings[j].size;
-				mapping.loaded = value[i].mappings[j].loaded;
-				img.mappings.push_back(mapping);
-			}
-			result.push_back(img);
-		}
+std::optional<CacheSymbol> KernelCacheController::GetSymbolAt(uint64_t address) const
+{
+	BNKernelCacheSymbol apiSymbol;
+	if (!BNKernelCacheControllerGetSymbolAt(m_object, address, &apiSymbol))
+		return std::nullopt;
+	CacheSymbol symbol = SymbolFromApi(apiSymbol);
+	BNKernelCacheFreeSymbol(apiSymbol);
+	return symbol;
+}
 
-		BNKCViewFreeAllImages(value, count);
-		return result;
-	}
+std::optional<CacheSymbol> KernelCacheController::GetSymbolWithName(const std::string &name) const
+{
+	BNKernelCacheSymbol apiSymbol;
+	if (!BNKernelCacheControllerGetSymbolWithName(m_object, name.c_str(), &apiSymbol))
+		return std::nullopt;
+	CacheSymbol symbol = SymbolFromApi(apiSymbol);
+	BNKernelCacheFreeSymbol(apiSymbol);
+	return symbol;
+}
 
-	std::vector<KCImage> KernelCache::GetLoadedImages()
-	{
-		size_t count;
-		auto images = BNKCViewGetLoadedImages(m_object, &count);
-		if (images == nullptr)
-		{
-			return {};
-		}
-		std::vector<KCImage> result;
-		for (size_t i = 0; i < count; i++)
-		{
-			KCImage img;
-			img.name = images[i].name;
-			img.headerFileAddress = images[i].headerFileAddress;
-			for (size_t j = 0; j < images[i].mappingCount; j++)
-			{
-				KCImageMemoryMapping mapping;
-				mapping.name = images[i].mappings[j].name;
-				mapping.vmAddress = images[i].mappings[j].vmAddress;
-				mapping.rawViewOffset = images[i].mappings[j].rawViewOffset;
-				mapping.size = images[i].mappings[j].size;
-				mapping.loaded = images[i].mappings[j].loaded;
-				img.mappings.push_back(mapping);
-			}
-			result.push_back(img);
-		}
-		BNKCViewFreeAllImages(images, count);
+std::vector<CacheImage> KernelCacheController::GetImages() const
+{
+	size_t count;
+	BNKernelCacheImage *images = BNKernelCacheControllerGetImages(m_object, &count);
+	std::vector<CacheImage> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.emplace_back(ImageFromApi(images[i]));
+	BNKernelCacheFreeImageList(images, count);
+	return result;
+}
 
-		return result;
-	}
+std::vector<CacheImage> KernelCacheController::GetLoadedImages() const
+{
+	size_t count;
+	BNKernelCacheImage *images = BNKernelCacheControllerGetLoadedImages(m_object, &count);
+	std::vector<CacheImage> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.emplace_back(ImageFromApi(images[i]));
+	BNKernelCacheFreeImageList(images, count);
+	return result;
+}
 
-	std::vector<KCSymbol> KernelCache::LoadAllSymbolsAndWait()
-	{
-		size_t count;
-		BNKCSymbolRep* value = BNKCViewLoadAllSymbolsAndWait(m_object, &count);
-		if (value == nullptr)
-		{
-			return {};
-		}
-
-		std::vector<KCSymbol> result;
-		for (size_t i = 0; i < count; i++)
-		{
-			KCSymbol sym;
-			sym.address = value[i].address;
-			sym.name = value[i].name;
-			sym.image = value[i].image;
-			result.push_back(sym);
-		}
-
-		BNKCViewFreeSymbols(value, count);
-		return result;
-	}
-
-	std::string KernelCache::GetNameForAddress(uint64_t address)
-	{
-		char* name = BNKCViewGetNameForAddress(m_object, address);
-		if (name == nullptr)
-			return {};
-		std::string result = name;
-		BNFreeString(name);
-		return result;
-	}
-
-	std::string KernelCache::GetImageNameForAddress(uint64_t address)
-	{
-		char* name = BNKCViewGetImageNameForAddress(m_object, address);
-		if (name == nullptr)
-			return {};
-		std::string result = name;
-		BNFreeString(name);
-		return result;
-	}
-
-	std::optional<KernelCacheMachOHeader> KernelCache::GetMachOHeaderForImage(const std::string& name)
-	{
-		char* outputStr = BNKCViewGetImageHeaderForName(m_object, name.c_str());
-		if (outputStr == nullptr)
-			return {};
-		std::string output = outputStr;
-		BNFreeString(outputStr);
-		if (output.empty())
-			return {};
-		KernelCacheMachOHeader header = KernelCacheMachOHeader::LoadFromString(output);
-		return header;
-	}
-
-	std::optional<KernelCacheMachOHeader> KernelCache::GetMachOHeaderForAddress(uint64_t address)
-	{
-		char* outputStr = BNKCViewGetImageHeaderForAddress(m_object, address);
-		if (outputStr == nullptr)
-			return {};
-		std::string output = outputStr;
-		BNFreeString(outputStr);
-		if (output.empty())
-			return {};
-		KernelCacheMachOHeader header = KernelCacheMachOHeader::LoadFromString(output);
-		return header;
-	}
-
-	BNKCViewState KernelCache::GetState()
-	{
-		return BNKCViewGetState(m_object);
-	}
-
-}	// namespace KernelCacheAPI
+std::vector<CacheSymbol> KernelCacheController::GetSymbols() const
+{
+	size_t count;
+	BNKernelCacheSymbol *symbols = BNKernelCacheControllerGetSymbols(m_object, &count);
+	std::vector<CacheSymbol> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.emplace_back(SymbolFromApi(symbols[i]));
+	BNKernelCacheFreeSymbolList(symbols, count);
+	return result;
+}

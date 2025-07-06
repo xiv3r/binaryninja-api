@@ -28,6 +28,34 @@ extern "C"
 	#endif  // _MSC_VER
 #endif      // __GNUC__C
 
+
+//	binaryninjacore.h is not included so we must duplicate enum types here.
+#ifdef BN_TYPE_PARSER
+typedef enum BNSegmentFlag
+{
+	SegmentExecutable = 1,
+	SegmentWritable = 2,
+	SegmentReadable = 4,
+	SegmentContainsData = 8,
+	SegmentContainsCode = 0x10,
+	SegmentDenyWrite = 0x20,
+	SegmentDenyExecute = 0x40
+} BNSegmentFlag;
+
+typedef enum BNSymbolType
+{
+	FunctionSymbol = 0,
+	ImportAddressSymbol = 1,
+	ImportedFunctionSymbol = 2,
+	DataSymbol = 3,
+	ImportedDataSymbol = 4,
+	ExternalSymbol = 5,
+	LibraryFunctionSymbol = 6,
+	SymbolicFunctionSymbol = 7,
+	LocalLabelSymbol = 8,
+} BNSymbolType;
+#endif
+
 #define CORE_ALLOCATED_STRUCT(T)
 
 #define CORE_ALLOCATED_CLASS(T) \
@@ -35,101 +63,80 @@ extern "C"
 		CORE_ALLOCATED_STRUCT(T) \
 	private:
 
-#define DECLARE_KERNELCACHE_API_OBJECT_INTERNAL(handle, cls, ns) \
-	namespace ns { class cls; } struct handle { ns::cls* object; }
-
-#define DECLARE_KERNELCACHE_API_OBJECT(handle, cls) DECLARE_KERNELCACHE_API_OBJECT_INTERNAL(handle, cls, KernelCacheCore)
-
-#define IMPLEMENT_KERNELCACHE_API_OBJECT(handle) \
-		CORE_ALLOCATED_CLASS(handle) \
-	private: \
-		handle m_apiObject; \
-	public: \
-		typedef handle* APIHandle; \
-		handle* GetAPIObject() { return &m_apiObject; } \
-	private:
-#define INIT_KERNELCACHE_API_OBJECT() \
-	m_apiObject.object = this;
-
-	typedef enum BNKCViewState {
-		Unloaded,
-		Loaded,
-		LoadedWithImages,
-	} BNKCViewState;
-
-	typedef enum BNKCViewLoadProgress {
-		LoadProgressNotStarted,
-		LoadProgressLoadingCaches,
-		LoadProgressLoadingImages,
-		LoadProgressFinished,
-	} BNKCViewLoadProgress;
-
 	typedef struct BNBinaryView BNBinaryView;
-	typedef struct BNKernelCache BNKernelCache;
+	typedef struct BNKernelCacheController BNKernelCacheController;
 
-	typedef struct BNKCImageMemoryMapping {
-		char* name;
-		uint64_t vmAddress;
-		uint64_t size;
-		bool loaded;
-		uint64_t rawViewOffset;
-	} BNKCImageMemoryMapping;
+	typedef enum BNKernelCacheEntryType {
+		KernelCacheEntryTypePrimary,
+		KernelCacheEntryTypeSecondary,
+		KernelCacheEntryTypeSymbols,
+		KernelCacheEntryTypeDyldData,
+		KernelCacheEntryTypeStub,
+	} BNKernelCacheEntryType;
 
-	typedef struct BNKCImage {
+	typedef enum BNKernelCacheRegionType {
+		KernelCacheRegionTypeImage,
+		KernelCacheRegionTypeStubIsland,
+		KernelCacheRegionTypeDyldData,
+		KernelCacheRegionTypeNonImage,
+	} BNKernelCacheRegionType;
+
+	typedef struct BNKernelCacheImage {
 		char* name;
+		uint64_t headerVirtualAddress;
 		uint64_t headerFileAddress;
-		BNKCImageMemoryMapping* mappings;
-		size_t mappingCount;
-	} BNKCImage;
+	} BNKernelCacheImage;
 
-	typedef struct BNKCMappedMemoryRegion {
+	typedef struct BNKernelCacheRegion {
+		BNKernelCacheRegionType regionType;
+		char* name;
 		uint64_t vmAddress;
 		uint64_t size;
-		char* name;
-	} BNKCMappedMemoryRegion;
+		// NOTE: If not associated with an image this will be zero.
+		uint64_t imageStart;
+		BNSegmentFlag flags;
+	} BNKernelCacheRegion;
 
-	typedef struct BNKCMemoryUsageInfo {
-		uint64_t sharedCacheRefs;
-		uint64_t mmapRefs;
-	} BNKCMemoryUsageInfo;
+	typedef struct BNKernelCacheMappingInfo {
+		uint64_t vmAddress;
+		uint64_t size;
+		uint64_t fileOffset;
+	} BNKernelCacheMappingInfo;
 
-	typedef struct BNKCSymbolRep {
+	typedef struct BNKernelCacheSymbol {
+		BNSymbolType symbolType;
 		uint64_t address;
 		char* name;
-		char* image;
-	} BNKCSymbolRep;
+	} BNKernelCacheSymbol;
 
-	KERNELCACHE_FFI_API BNKernelCache* BNGetKernelCache(BNBinaryView* data);
+	KERNELCACHE_FFI_API BNKernelCacheController* BNGetKernelCacheController(BNBinaryView* data);
 
-	KERNELCACHE_FFI_API BNKernelCache* BNNewKernelCacheReference(BNKernelCache* cache);
-	KERNELCACHE_FFI_API void BNFreeKernelCacheReference(BNKernelCache* cache);
+	KERNELCACHE_FFI_API BNKernelCacheController* BNNewKernelCacheControllerReference(BNKernelCacheController* controller);
+	KERNELCACHE_FFI_API void BNFreeKernelCacheControllerReference(BNKernelCacheController* controller);
 
-	KERNELCACHE_FFI_API char** BNKCViewGetInstallNames(BNKernelCache* cache, size_t* count);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerApplyImage(BNKernelCacheController* controller, BNBinaryView* view, BNKernelCacheImage* image);
 
-	KERNELCACHE_FFI_API bool BNKCViewLoadImageWithInstallName(BNKernelCache* cache, const char* name);
-	KERNELCACHE_FFI_API bool BNKCViewLoadImageContainingAddress(BNKernelCache* cache, uint64_t address);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerIsImageLoaded(BNKernelCacheController* controller, BNKernelCacheImage* image);
 
-	KERNELCACHE_FFI_API bool BNKCViewIsImageLoaded(BNKernelCache* cache, uint64_t address);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerGetImageAt(BNKernelCacheController* controller, uint64_t address, BNKernelCacheImage* image);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerGetImageContaining(BNKernelCacheController* controller, uint64_t address, BNKernelCacheImage* image);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerGetImageWithName(BNKernelCacheController* controller, const char* name, BNKernelCacheImage* image);
 
-	KERNELCACHE_FFI_API char* BNKCViewGetNameForAddress(BNKernelCache* cache, uint64_t address);
-	KERNELCACHE_FFI_API char* BNKCViewGetImageNameForAddress(BNKernelCache* cache, uint64_t address);
+	KERNELCACHE_FFI_API char** BNKernelCacheControllerGetImageDependencies(BNKernelCacheController* controller, BNKernelCacheImage* image, size_t* count);
 
-	KERNELCACHE_FFI_API BNKCViewState BNKCViewGetState(BNKernelCache* cache);
-	KERNELCACHE_FFI_API BNKCViewLoadProgress BNKCViewGetLoadProgress(uint64_t sessionID);
-	KERNELCACHE_FFI_API uint64_t BNKCViewFastGetImageCount(BNBinaryView* view);
+	KERNELCACHE_FFI_API BNKernelCacheImage* BNKernelCacheControllerGetImages(BNKernelCacheController* controller, size_t* count);
+	KERNELCACHE_FFI_API BNKernelCacheImage* BNKernelCacheControllerGetLoadedImages(BNKernelCacheController* controller, size_t* count);
 
-	KERNELCACHE_FFI_API BNKCSymbolRep* BNKCViewLoadAllSymbolsAndWait(BNKernelCache* cache, size_t* count);
-	KERNELCACHE_FFI_API void BNKCViewFreeSymbols(BNKCSymbolRep* symbols, size_t count);
+	KERNELCACHE_FFI_API void BNKernelCacheFreeImage(BNKernelCacheImage image);
+	KERNELCACHE_FFI_API void BNKernelCacheFreeImageList(BNKernelCacheImage* images, size_t count);
 
-	KERNELCACHE_FFI_API BNKCImage* BNKCViewGetAllImages(BNKernelCache* cache, size_t* count);
-	KERNELCACHE_FFI_API void BNKCViewFreeAllImages(BNKCImage* images, size_t count);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerGetSymbolAt(BNKernelCacheController* controller, uint64_t address, BNKernelCacheSymbol* symbol);
+	KERNELCACHE_FFI_API bool BNKernelCacheControllerGetSymbolWithName(BNKernelCacheController* controller, const char* name, BNKernelCacheSymbol* symbol);
 
-	KERNELCACHE_FFI_API BNKCImage* BNKCViewGetLoadedImages(BNKernelCache* cache, size_t* count);
-	KERNELCACHE_FFI_API void BNKCViewFreeLoadedImages(BNKCImage* images, size_t count);
+	KERNELCACHE_FFI_API BNKernelCacheSymbol* BNKernelCacheControllerGetSymbols(BNKernelCacheController* controller, size_t* count);
 
-	KERNELCACHE_FFI_API char* BNKCViewGetImageHeaderForAddress(BNKernelCache* cache, uint64_t address);
-	KERNELCACHE_FFI_API char* BNKCViewGetImageHeaderForName(BNKernelCache* cache, const char* name);
-
+	KERNELCACHE_FFI_API void BNKernelCacheFreeSymbol(BNKernelCacheSymbol symbol);
+	KERNELCACHE_FFI_API void BNKernelCacheFreeSymbolList(BNKernelCacheSymbol* symbols, size_t count);
 #ifdef __cplusplus
 }
 #endif

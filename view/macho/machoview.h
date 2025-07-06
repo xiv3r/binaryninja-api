@@ -1366,6 +1366,15 @@ namespace BinaryNinja
 	};
 #endif
 
+	struct fileset_entry_command {
+		uint32_t cmd;
+		uint32_t cmdsize;
+		uint64_t vmaddr;
+		uint64_t fileoff;
+		uint32_t nameEntryOffsetFromBaseOfCommand;
+		uint32_t reserved;
+	};
+
 	struct MachOHeader {
 		bool isMainHeader = false;
 

@@ -901,6 +901,8 @@ from binaryninja import *
 		settings = Settings()
 		if settings.contains('corePlugins.view.sharedCache') and settings.get_bool('corePlugins.view.sharedCache'):
 			from .sharedcache import SharedCacheController
+		if settings.contains('corePlugins.view.kernelCache') and settings.get_bool('corePlugins.view.kernelCache'):
+			from .kernelcache import KernelCacheController
 		if os.environ.get('BN_STANDALONE_DEBUGGER'):
 			# By the time this scriptingprovider.py file is imported, the user plugins are not loaded yet.
 			# So `from debugger import DebuggerController` would not work.

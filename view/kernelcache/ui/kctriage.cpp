@@ -1,8 +1,9 @@
+#include <QHeaderView>
 #include <QMessageBox>
-#include <QPainter>
-#include <cmath>
-#include "globalarea.h"
+#include <utility>
 #include "kctriage.h"
+#include "globalarea.h"
+#include "symboltable.h"
 #include "ui/fontsettings.h"
 
 using namespace BinaryNinja;
@@ -36,7 +37,7 @@ void KCTriageViewType::Register()
 }
 
 
-KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent), View(), m_data(data), m_cache(new KernelCache(data))
+KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent), m_data(std::move(data))
 {
 	setBinaryDataNavigable(false);
 	setupView(this);
@@ -56,6 +57,11 @@ KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent
 	m_layout->addWidget(m_triageTabs);
 	setLayout(m_layout);
 
+	// In case we have already initialized the controller (user has opened this view type again)
+	// we will call refresh data. If this is the first triage view constructed (i.e. before view init) then this
+	// will do nothing.
+	RefreshData();
+
 	m_triageTabs->selectWidget(defaultWidget);
 }
 
@@ -66,43 +72,88 @@ KCTriageView::~KCTriageView()
 }
 
 
-void KCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses) {
-	if (!m_cache)
+void KCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses, bool includeDependencies) {
+	auto controller = KernelCacheController::GetController(*m_data);
+	if (!controller)
 		return;
 
-	std::map<uint64_t, std::string> images;
+	// TODO: NOTE ABOUT `IsImageLoaded` BEING COMMENTED OUT. PLEASE READ.
+	// TODO: Because commiting undo actions will use main thread to synchronize we must not be holding any locks
+	// TODO: This can really only ever be removed if:
+	// TODO:	1. we can set a user function type without creating an undo action, basically like the rest of shared cache
+	// TODo:		use an auto function or some hack to get the user function but without the undo action.
+	// TODO:	2. we can use the undo buffer from any thread and not just the main thread
+	// TODO: I have exhausted all other options, this is a serious issue we should address soon.
+	typedef std::vector<CacheImage> ImageList;
+	ImageList images = {};
 	for (const uint64_t& addr : addresses)
 	{
-		auto imageName = m_cache->GetImageNameForAddress(addr);
-		if (!imageName.empty() && !m_cache->IsImageLoaded(addr))
+		std::optional<CacheImage> image = controller->GetImageContaining(addr);
+		if (image.has_value())
 		{
-			images.insert({addr, imageName});
+			// Only try to load if we have not already.
+			// if (!controller->IsImageLoaded(*image))
+			images.emplace_back(*image);
+
+			// TODO: We currently only add direct dependencies, may want to make the depth configurable?
+			if (includeDependencies)
+			{
+				auto dependencies = controller->GetImageDependencies(*image);
+				for (const auto& depName : dependencies)
+				{
+					auto depImage = controller->GetImageWithName(depName);
+					if (depImage.has_value()/* && !controller->IsImageLoaded(*depImage) */)
+					{
+						images.emplace_back(*depImage);
+					}
+				}
+			}
 		}
 	}
 
 	// Don't create a worker action if we don't have any images.
 	if (images.empty())
 		return;
+	Ref<BackgroundTask> imageLoadTask = new BackgroundTask("Loading images...", true);
 
-	WorkerPriorityEnqueue([this, images]() {
-		size_t loadedImages = 0;
-		const std::string initialLoad = fmt::format("Loading images... (0/{})", images.size());
-		auto imageLoadTask = BackgroundTask(initialLoad, true);
-
-		for (const auto& [addr, imageName] : images)
+	// Apply the images in a future then update the triage view and run analysis.
+	QPointer<QFutureWatcher<ImageList>> watcher = new QFutureWatcher<ImageList>(this);
+	connect(watcher, &QFutureWatcher<ImageList>::finished, this, [watcher, this]() {
+		if (watcher)
 		{
-			if (imageLoadTask.IsCancelled())
-				break;
-			const std::string newLoad = fmt::format("Loading images... ({}/{})", loadedImages++, images.size());
-			imageLoadTask.SetProgressText(newLoad);
-			if (m_cache->LoadImageWithInstallName(imageName))
-				setImageLoaded(addr);
-		}
-		imageLoadTask.Finish();
+			auto loadedImages = watcher->result();
+			if (loadedImages.empty())
+				return;
 
-		// We have loaded images, lets make sure to update analysis!
-		this->m_data->AddAnalysisOption("linearsweep");
-		this->m_data->UpdateAnalysis();
+			// Update the triage to display the images as loaded.
+			for (const auto& image : loadedImages)
+				setImageLoaded(image.headerVirtualAddress);
+
+			// Run analysis.
+			this->m_data->AddAnalysisOption("linearsweep");
+			this->m_data->UpdateAnalysis();
+		}
+	});
+	QFuture<ImageList> future = QtConcurrent::run([this, controller, images, imageLoadTask]() {
+		ImageList loadedImages = {};
+		for (const auto& image : images)
+		{
+			if (imageLoadTask->IsCancelled() || QThread::currentThread()->isInterruptionRequested())
+				break;
+			std::string newLoad = fmt::format("Loading images... ({}/{})", loadedImages.size(), images.size());
+			imageLoadTask->SetProgressText(newLoad);
+			if (controller->ApplyImage(*this->m_data, image))
+				loadedImages.emplace_back(image);
+		}
+		imageLoadTask->Finish();
+		return loadedImages;
+	});
+	watcher->setFuture(future);
+	connect(this, &QObject::destroyed, this, [watcher, imageLoadTask]() {
+		if (watcher && watcher->isRunning()) {
+			watcher->cancel();
+			imageLoadTask->Cancel();
+		}
 	});
 }
 
@@ -131,7 +182,7 @@ QWidget* KCTriageView::initImageTable()
 	m_imageTable = new FilterableTableView(this);
 
 	m_imageModel = new QStandardItemModel(0, 3, m_imageTable);
-	m_imageModel->setHorizontalHeaderLabels({"VM Address", "Loaded", "Name"});
+	m_imageModel->setHorizontalHeaderLabels({"Address", "Loaded", "Name"});
 
 	// Apply custom column styling
 	m_imageTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_imageTable));
@@ -157,6 +208,7 @@ QWidget* KCTriageView::initImageTable()
 
 		QAction noSelectionAction("No Images Selected", m_imageTable);
 		QAction loadImagesAction("", m_imageTable);
+		QAction loadImagesWithDepsAction("", m_imageTable);
 		if (selectedCount == 0)
 		{
 			noSelectionAction.setEnabled(false);
@@ -168,56 +220,21 @@ QWidget* KCTriageView::initImageTable()
 			QString loadActionText = (selectedCount == 1) ? "Load Selected Image" : QString("Load %1 Selected Images").arg(selectedCount);
 			loadImagesAction.setText(loadActionText);
 			connect(&loadImagesAction, &QAction::triggered, [this, addresses]() {
-				loadImagesWithAddr(addresses);
+				loadImagesWithAddr(addresses, false);
 			});
 			contextMenu.addAction(&loadImagesAction);
+
+			// Format action text for loading selected images with dependencies
+			QString loadWithDepsActionText = (selectedCount == 1) ? "Load Selected Image and Dependencies" : QString("Load %1 Selected Images and Dependencies").arg(selectedCount);
+			loadImagesWithDepsAction.setText(loadWithDepsActionText);
+			connect(&loadImagesWithDepsAction, &QAction::triggered, [this, addresses]() {
+				this->loadImagesWithAddr(addresses, true);
+			});
+			contextMenu.addAction(&loadImagesWithDepsAction);
 		}
 
 		contextMenu.exec(m_imageTable->viewport()->mapToGlobal(pos));
 	});
-
-	BackgroundThread::create(m_imageTable)->thenBackground([this](const QVariant var) {
-		QVariantList rows;
-
-		auto images = m_cache->GetImages();
-
-		auto newHeaders = std::make_shared<std::vector<KernelCacheMachOHeader>>();
-		newHeaders->reserve(images.size());
-
-		for (const auto& img : images)
-		{
-			if (auto header = m_cache->GetMachOHeaderForImage(img.name); header)
-			{
-				newHeaders->push_back(*header);
-				rows.push_back(QList<QVariant>{
-					QString("0x%1").arg(header->textBase, 0, 16),
-					QString(""),
-					QString::fromStdString(img.name)
-				});
-			}
-		}
-
-		std::unique_lock<std::mutex> lock(m_headersMutex);
-		m_headers.swap(newHeaders);
-
-		return QVariant(rows);
-	})->thenMainThread([this](const QVariant var) {
-		QVariantList rows = var.toList();
-
-		if (m_imageModel->rowCount() > 0)
-			m_imageModel->removeRows(0, m_imageModel->rowCount());
-
-		for (const QVariant &rowVariant : rows) {
-			QVariantList row = rowVariant.toList();
-
-			QList<QStandardItem*> items;
-			for (const QVariant &cellValue : row)
-				items.append(new QStandardItem(cellValue.toString()));
-
-			m_imageModel->appendRow(items);
-			m_imageTable->resizeColumnsToContents();
-		}
-	})->start();
 
 	auto loadImageButton = new QPushButton();
 	connect(loadImageButton, &QPushButton::clicked, [this](bool) {
@@ -239,6 +256,13 @@ QWidget* KCTriageView::initImageTable()
 	});
 	loadImageButton->setText(" Load Selected ");
 
+	auto refreshDataButton = new QPushButton();
+	{
+		// TODO: Might want to introduce a cooldown for this button (if we even keep it)
+		connect(refreshDataButton, &QPushButton::clicked, [this](bool) { RefreshData(); });
+		refreshDataButton->setText("Refresh");
+	} // refreshDataButton
+
 	auto loadImageFilterEdit = new FilterEdit(m_imageTable);
 	connect(loadImageFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
 		m_imageTable->setFilter(filter.toStdString());
@@ -255,6 +279,7 @@ QWidget* KCTriageView::initImageTable()
 
 	auto loadImageFooterLayout = new QHBoxLayout;
 	loadImageFooterLayout->addWidget(loadImageButton);
+	loadImageFooterLayout->addWidget(refreshDataButton);
 	loadImageFooterLayout->setAlignment(Qt::AlignLeft);
 	loadImageLayout->addLayout(loadImageFooterLayout);
 
@@ -285,7 +310,10 @@ QWidget* KCTriageView::initImageTable()
 
 void KCTriageView::initSymbolTable()
 {
-	m_symbolTable = new SymbolTableView(this, m_cache);
+	m_symbolTable = new SymbolTableView(this);
+
+	// Apply custom column styling
+	m_symbolTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_symbolTable));
 
 	auto symbolFilterEdit = new FilterEdit(m_symbolTable);
 	connect(symbolFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
@@ -308,8 +336,14 @@ void KCTriageView::initSymbolTable()
 	currentImageLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	connect(m_symbolTable->selectionModel(), &QItemSelectionModel::currentRowChanged, this, [this, currentImageLabel](const QModelIndex &current, const QModelIndex &) {
 		auto symbol = m_symbolTable->getSymbolAtRow(current.row());
-		auto imageName = m_cache->GetImageNameForAddress(symbol.address);
-		currentImageLabel->setText("Image: " + QString::fromStdString(imageName));
+		auto controller = KernelCacheController::GetController(*this->m_data);
+		if (!controller)
+			return;
+		auto image = controller->GetImageContaining(symbol.address);
+		if (image)
+			currentImageLabel->setText("Image: " + QString::fromStdString(image->name));
+		else
+			currentImageLabel->setText("");
 	});
 
 	auto symbolFooterLayout = new QHBoxLayout;
@@ -325,27 +359,29 @@ void KCTriageView::initSymbolTable()
 	auto symbolWidget = new QWidget;
 	symbolWidget->setLayout(symbolLayout);
 
-	std::function<void(uint64_t)> navigateToAddress = [=, this](uint64_t addr) {
-		ExecuteOnMainThread([addr, this](){
-			if (Settings::Instance()->Get<bool>("ui.view.graph.preferred"))
-				m_data->Navigate("Graph:KCView", addr);
-			else
-				m_data->Navigate("Linear:KCView", addr);
-		});
-	};
-
 	connect(m_symbolTable, &SymbolTableView::activated, this, [=, this](const QModelIndex& index)
 	{
 		auto symbol = m_symbolTable->getSymbolAtRow(index.row());
-		WorkerPriorityEnqueue([this, symbol, navigateToAddress]() {
-			if (m_data->IsValidOffset(symbol.address))
-				navigateToAddress(symbol.address);
-			else
+		auto dialog = new QMessageBox(this);
+
+		auto controller = KernelCacheController::GetController(*this->m_data);
+		if (!controller)
+			return;
+
+		auto image = controller->GetImageContaining(symbol.address);
+		if (!image.has_value())
+			return;
+
+		dialog->setText("Load " + QString::fromStdString(image->name) + "?");
+		dialog->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+
+		connect(dialog, &QMessageBox::buttonClicked, this, [=](QAbstractButton* button)
 			{
-				m_cache->LoadImageWithInstallName(symbol.image);
-				navigateToAddress(symbol.address);
-			}
-		});
+				if (button == dialog->button(QMessageBox::Yes))
+					loadImagesWithAddr({image->headerFileAddress});
+			});
+
+		dialog->exec();
 	});
 
 	m_triageTabs->addTab(symbolWidget, "Symbols");
@@ -374,4 +410,46 @@ bool KCTriageView::navigate(uint64_t offset)
 uint64_t KCTriageView::getCurrentOffset()
 {
 	return 0;
+}
+
+
+SelectionInfoForXref KCTriageView::getSelectionForXref()
+{
+	// TODO: If we are in the symbols view we _can_ actually show a useful xref to the selected symbols.
+	SelectionInfoForXref selection = {};
+	selection.addrValid = false;
+	return selection;
+}
+
+
+void KCTriageView::OnAfterOpenFile(UIContext *context, FileContext *file, ViewFrame *frame)
+{
+	RefreshData();
+	UIContextNotification::OnAfterOpenFile(context, file, frame);
+}
+
+
+// Called when shared cache information has changed.
+void KCTriageView::RefreshData()
+{
+	// Controller should be available after view init.
+	auto controller = KernelCacheController::GetController(*m_data);
+	if (!controller)
+		return;
+
+	m_imageModel->setRowCount(0);
+	for (const auto& img : controller->GetImages())
+	{
+		m_imageModel->appendRow({
+			new QStandardItem(QString("0x%1").arg(img.headerVirtualAddress, 0, 16)),
+			new QStandardItem(""),
+			new QStandardItem(QString::fromStdString(img.name))
+		});
+	}
+
+	// Set images as loaded (updating the relevant image row)
+	for (const auto& loadedImg : controller->GetLoadedImages())
+		setImageLoaded(loadedImg.headerVirtualAddress);
+
+	m_symbolTable->populateSymbols(*m_data);
 }
