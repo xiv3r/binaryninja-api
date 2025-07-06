@@ -71,7 +71,9 @@ impl Command for RunMatcher {
 
 pub fn run_matcher(view: &BinaryView) {
     // TODO: Create the tag type so we dont have UB in the apply function workflow.
+    let undo_id = view.file().begin_undo_actions(false);
     let _ = get_warp_tag_type(view);
+    view.file().forget_undo_actions(&undo_id);
 
     // Alert the user if we have no actual regions (one comes from the synthetic section).
     let regions = relocatable_regions(view);
