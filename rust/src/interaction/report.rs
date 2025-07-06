@@ -77,27 +77,33 @@ impl ReportCollection {
         }
     }
 
-    pub fn add_text(&self, view: &BinaryView, title: &str, contents: &str) {
+    pub fn add_text(&self, view: Option<&BinaryView>, title: &str, contents: &str) {
         let title = title.to_cstr();
         let contents = contents.to_cstr();
         unsafe {
             BNAddPlainTextReportToCollection(
                 self.handle.as_ptr(),
-                view.handle,
+                view.map(|v| v.handle).unwrap_or(std::ptr::null_mut()),
                 title.as_ptr(),
                 contents.as_ptr(),
             )
         }
     }
 
-    pub fn add_markdown(&self, view: &BinaryView, title: &str, contents: &str, plaintext: &str) {
+    pub fn add_markdown(
+        &self,
+        view: Option<&BinaryView>,
+        title: &str,
+        contents: &str,
+        plaintext: &str,
+    ) {
         let title = title.to_cstr();
         let contents = contents.to_cstr();
         let plaintext = plaintext.to_cstr();
         unsafe {
             BNAddMarkdownReportToCollection(
                 self.handle.as_ptr(),
-                view.handle,
+                view.map(|v| v.handle).unwrap_or(std::ptr::null_mut()),
                 title.as_ptr(),
                 contents.as_ptr(),
                 plaintext.as_ptr(),
@@ -105,14 +111,20 @@ impl ReportCollection {
         }
     }
 
-    pub fn add_html(&self, view: &BinaryView, title: &str, contents: &str, plaintext: &str) {
+    pub fn add_html(
+        &self,
+        view: Option<&BinaryView>,
+        title: &str,
+        contents: &str,
+        plaintext: &str,
+    ) {
         let title = title.to_cstr();
         let contents = contents.to_cstr();
         let plaintext = plaintext.to_cstr();
         unsafe {
             BNAddHTMLReportToCollection(
                 self.handle.as_ptr(),
-                view.handle,
+                view.map(|v| v.handle).unwrap_or(std::ptr::null_mut()),
                 title.as_ptr(),
                 contents.as_ptr(),
                 plaintext.as_ptr(),
@@ -120,12 +132,12 @@ impl ReportCollection {
         }
     }
 
-    pub fn add_graph(&self, view: &BinaryView, title: &str, graph: &FlowGraph) {
+    pub fn add_graph(&self, view: Option<&BinaryView>, title: &str, graph: &FlowGraph) {
         let title = title.to_cstr();
         unsafe {
             BNAddGraphReportToCollection(
                 self.handle.as_ptr(),
-                view.handle,
+                view.map(|v| v.handle).unwrap_or(std::ptr::null_mut()),
                 title.as_ptr(),
                 graph.handle,
             )

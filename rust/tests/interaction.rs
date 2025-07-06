@@ -161,14 +161,14 @@ fn test_show_report_collection() {
 
     register_interaction_handler(MyInteractionHandler {});
     let collection = ReportCollection::new();
-    collection.add_text(&view, "title_report_0", "contents");
-    collection.add_markdown(&view, "title_report_1", "# contents", "markdown_plain_text");
+    collection.add_text(Some(&view), "title_report_0", "contents");
+    collection.add_markdown(None, "title_report_1", "# contents", "markdown_plain_text");
     collection.add_html(
-        &view,
+        None,
         "title_report_2",
         "<html>contents</html>",
         "html_plain_text",
     );
-    collection.add_graph(&view, "title_report_3", &FlowGraph::new());
+    collection.add_graph(None, "title_report_3", &FlowGraph::new());
     collection.show("show_report_collection_title");
 }
