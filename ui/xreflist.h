@@ -329,6 +329,7 @@ struct CrossReferenceFunctionList
 	void updateFunction(BinaryNinja::Function* func);
 	std::optional<uint64_t> getFunctionVersion(BinaryNinja::Function* func) const;
 	bool checkForUpdates();
+	void invalidateCache();
 };
 
 /*!
@@ -371,6 +372,7 @@ class BINARYNINJAUIAPI CrossReferenceTreeModel : public QAbstractItemModel
 	size_t getMaxUIItems() const { return m_maxUIItems; }
 	void setGraphType(const BinaryNinja::FunctionViewType& type);
 	void notifyRefresh();
+	void invalidateCache();
 
 Q_SIGNALS:
 	void needRepaint();
@@ -436,6 +438,7 @@ class BINARYNINJAUIAPI CrossReferenceTableModel : public QAbstractTableModel
 	size_t getMaxUIItems() const { return m_maxUIItems; }
 	void setGraphType(const BinaryNinja::FunctionViewType& type);
 	void notifyRefresh();
+	void invalidateCache();
 
 Q_SIGNALS:
 	void needRepaint();
@@ -575,6 +578,7 @@ public:
 	void setGraphType(const BinaryNinja::FunctionViewType& type) { m_tree->setGraphType(type); }
 	virtual void OnAnalysisFunctionUpdated(BinaryNinja::BinaryView* view, BinaryNinja::Function* func) override;
 	void notifyRefresh();
+	void invalidateCache();
 
 Q_SIGNALS:
 	void newSelection();
@@ -620,6 +624,7 @@ class BINARYNINJAUIAPI CrossReferenceTable : public QTableView, public CrossRefe
 	void setGraphType(const BinaryNinja::FunctionViewType& type) { m_table->setGraphType(type); }
 	virtual void OnAnalysisFunctionUpdated(BinaryNinja::BinaryView* view, BinaryNinja::Function* func) override;
 	void notifyRefresh();
+	void invalidateCache();
 
 public Q_SLOTS:
 	void doRepaint();
@@ -710,6 +715,8 @@ class BINARYNINJAUIAPI CrossReferenceWidget : public SidebarWidget, public UICon
 
 	virtual void OnNewSelectionForXref(
 	    UIContext* context, ViewFrame* frame, View* view, const SelectionInfoForXref& selection) override;
+	void OnILViewTypeChange(
+		UIContext* context, ViewFrame* frame, View* view, const BinaryNinja::FunctionViewType& viewType) override;
 
 	virtual QWidget* headerWidget() override { return m_header; }
 	virtual void setPrimaryOrientation(Qt::Orientation orientation) override;

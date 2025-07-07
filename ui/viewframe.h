@@ -242,6 +242,7 @@ class BINARYNINJAUIAPI View
 	QString viewType();
 
 	void updateCrossReferenceSelection(ViewFrame* frame = nullptr);
+	void notifyILViewTypeChanged(ViewFrame* frame = nullptr);
 	void forceSyncFromView(ViewFrame* frame = nullptr);
 	virtual void refreshContents() {}
 

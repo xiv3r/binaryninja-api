@@ -253,6 +253,22 @@ class BINARYNINJAUIAPI UIContextNotification
 	}
 
 	/*!
+	    Callback when the ui changes IL view type
+	    \param context Context changing address
+	    \param frame ViewFrame which changed address
+	    \param view Currently open View
+	    \param viewType New view type
+	 */
+	virtual void OnILViewTypeChange(
+		UIContext* context, ViewFrame* frame, View* view, const BinaryNinja::FunctionViewType& viewType)
+	{
+		(void)context;
+		(void)frame;
+		(void)view;
+		(void)viewType;
+	}
+
+	/*!
 	    Callback to modify the displayed file name for a FileContext (eg in the window title or tab title)
 	    Note: Due to the out param &name, this is not usable from Python with PySide
 	    \param context Context which will display this name
@@ -551,6 +567,7 @@ public:
 
 	void NotifyOnViewChange(ViewFrame* frame, const QString& type);
 	void NotifyOnAddressChange(ViewFrame* frame, View* view, const ViewLocation& location);
+	void NotifyOnILViewTypeChange(ViewFrame* frame, View* view, const BinaryNinja::FunctionViewType& viewType);
 	void updateCrossReferences(ViewFrame* frame, View* view, const SelectionInfoForXref& selection);
 	void NotifyOnActionExecuted(UIActionHandler* handler, const QString& name, const UIActionContext& ctx, std::function<void(const UIActionContext&)>& action);
 	void NotifyOnContextMenuCreated(View* view, Menu& menu);
