@@ -1713,7 +1713,7 @@ void ObjCProcessor::ProcessCFStrings()
 
 void ObjCProcessor::ProcessNSConstantArrays()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
 	uint64_t ptrSize = m_data->GetAddressSize();
 
 	auto idType = Type::NamedType(m_data, m_typeNames.id);
@@ -1742,16 +1742,16 @@ void ObjCProcessor::ProcessNSConstantArrays()
 				fmt::format("nsarray_{:x}", i), i, true);
 		}
 		auto id = m_data->BeginUndoActions();
-		m_symbolQueue->Process();
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
 		m_data->ForgetUndoActions(id);
 	}
-	delete m_symbolQueue;
+	
 }
 
 void ObjCProcessor::ProcessNSConstantDictionaries()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
 	uint64_t ptrSize = m_data->GetAddressSize();
 
 	auto idType = Type::NamedType(m_data, m_typeNames.id);
@@ -1786,16 +1786,15 @@ void ObjCProcessor::ProcessNSConstantDictionaries()
 				fmt::format("nsdict_{:x}", i), i, true);
 		}
 		auto id = m_data->BeginUndoActions();
-		m_symbolQueue->Process();
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
 		m_data->ForgetUndoActions(id);
 	}
-	delete m_symbolQueue;
 }
 
 void ObjCProcessor::ProcessNSConstantIntegerNumbers()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
 	uint64_t ptrSize = m_data->GetAddressSize();
 
 	StructureBuilder nsConstantIntegerNumberBuilder;
@@ -1844,11 +1843,10 @@ void ObjCProcessor::ProcessNSConstantIntegerNumbers()
 			}
 		}
 		auto id = m_data->BeginUndoActions();
-		m_symbolQueue->Process();
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
 		m_data->ForgetUndoActions(id);
 	}
-	delete m_symbolQueue;
 }
 
 void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
@@ -1893,7 +1891,7 @@ void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
 		if (!numbers)
 			continue;
 
-		m_symbolQueue = new SymbolQueue();
+		auto guard = ScopedSymbolQueue::Make();
 		auto start = numbers->GetStart();
 		auto end = numbers->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDoubleNumber)->GetWidth();
@@ -1935,16 +1933,15 @@ void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, *typeName), name, i, true);
 		}
 		auto id = m_data->BeginUndoActions();
-		m_symbolQueue->Process();
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
 		m_data->ForgetUndoActions(id);
-		delete m_symbolQueue;
 	}
 }
 
 void ObjCProcessor::ProcessNSConstantDatas()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
 	uint64_t ptrSize = m_data->GetAddressSize();
 
 	StructureBuilder nsConstantDataBuilder;
@@ -1972,11 +1969,10 @@ void ObjCProcessor::ProcessNSConstantDatas()
 				DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantData), fmt::format("nsdata_{:x}", i), i, true);
 		}
 		auto id = m_data->BeginUndoActions();
-		m_symbolQueue->Process();
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
 		m_data->ForgetUndoActions(id);
 	}
-	delete m_symbolQueue;
 }
 
 void ObjCProcessor::AddRelocatedPointer(uint64_t location, uint64_t rewrite)

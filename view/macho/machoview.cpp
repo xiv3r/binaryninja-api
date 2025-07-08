@@ -1856,9 +1856,11 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		parseObjCStructs = false;
 	if (!GetSectionByName("__cfstring"))
 		parseCFStrings = false;
+
+	std::unique_ptr<MachoObjCProcessor> objcProcessor;
 	if (parseObjCStructs || parseCFStrings)
 	{
-		m_objcProcessor = new MachoObjCProcessor(this);
+		objcProcessor = std::make_unique<MachoObjCProcessor>(this);
 	}
 	if (parseObjCStructs)
 	{
@@ -2067,7 +2069,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 	{
 		// Add functions for all function symbols
 		m_logger->LogDebug("Parsing symbol table\n");
-		ParseSymbolTable(reader, header, header.symtab, indirectSymbols);
+		ParseSymbolTable(reader, header, header.symtab, indirectSymbols, objcProcessor.get());
 	}
 	catch (std::exception&)
 	{
@@ -2088,8 +2090,8 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		uint64_t slidTarget = target + m_imageBaseAdjustment;
 		relocation.address = slidTarget;
 		DefineRelocation(m_arch, relocation, slidTarget, relocationLocation);
-		if (m_objcProcessor)
-			m_objcProcessor->AddRelocatedPointer(relocationLocation, slidTarget);
+		if (objcProcessor)
+			objcProcessor->AddRelocatedPointer(relocationLocation, slidTarget);
 	}
 	for (auto& [relocation, name] : header.externalRelocations)
 	{
@@ -2369,7 +2371,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 	if (parseCFStrings)
 	{
 		try {
-			m_objcProcessor->ProcessObjCLiterals();
+			objcProcessor->ProcessObjCLiterals();
 		}
 		catch (std::exception& ex)
 		{
@@ -2381,14 +2383,13 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 	if (parseObjCStructs)
 	{
 		try {
-			m_objcProcessor->ProcessObjCData();
+			objcProcessor->ProcessObjCData();
 		}
 		catch (std::exception& ex)
 		{
 			m_logger->LogError("Failed to process Objective-C Metadata. Binary may be malformed");
 			m_logger->LogError("Error: %s", ex.what());
 		}
-		delete m_objcProcessor;
 	}
 
 
@@ -2976,7 +2977,8 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 }
 
 
-void MachoView::ParseSymbolTable(BinaryReader& reader, MachOHeader& header, const symtab_command& symtab, const vector<uint32_t>& indirectSymbols)
+void MachoView::ParseSymbolTable(BinaryReader& reader, MachOHeader& header, const symtab_command& symtab,
+	const vector<uint32_t>& indirectSymbols, MachoObjCProcessor* objcProcessor)
 {
 	if (header.ident.filetype == MH_DSYM)
 	{
@@ -3004,12 +3006,12 @@ void MachoView::ParseSymbolTable(BinaryReader& reader, MachOHeader& header, cons
 		if (header.chainedFixupsPresent)
 		{
 			m_logger->LogDebug("Chained Fixups");
-			ParseChainedFixups(header, header.chainedFixups);
+			ParseChainedFixups(header, header.chainedFixups, objcProcessor);
 		}
 		else if (header.chainStartsPresent)
 		{
 			m_logger->LogDebug("Chained Starts");
-			ParseChainedStarts(header, header.chainStarts);
+			ParseChainedStarts(header, header.chainStarts, objcProcessor);
 		}
 		if (header.exportTriePresent && header.isMainHeader)
 			ParseExportTrie(reader, header.exportTrie);
@@ -3197,7 +3199,8 @@ void MachoView::ParseSymbolTable(BinaryReader& reader, MachOHeader& header, cons
 }
 
 
-void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command chainedFixups)
+void MachoView::ParseChainedFixups(
+	MachOHeader& header, linkedit_data_command chainedFixups, MachoObjCProcessor* objcProcessor)
 {
 	if (!chainedFixups.dataoff)
 		return;
@@ -3596,9 +3599,9 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 							reloc.address = GetStart() + (chainEntryAddress - m_universalImageOffset);
 							DefineRelocation(m_arch, reloc, entryOffset, reloc.address);
 
-							if (m_objcProcessor)
+							if (objcProcessor)
 							{
-								m_objcProcessor->AddRelocatedPointer(reloc.address, entryOffset);
+								objcProcessor->AddRelocatedPointer(reloc.address, entryOffset);
 							}
 						}
 
@@ -3627,7 +3630,7 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 }
 
 
-void MachoView::ParseChainedStarts(MachOHeader& header, section_64 chainedStarts)
+void MachoView::ParseChainedStarts(MachOHeader& header, section_64 chainedStarts, MachoObjCProcessor* objcProcessor)
 {
 	if (!chainedStarts.offset)
 		return;
@@ -3799,9 +3802,9 @@ void MachoView::ParseChainedStarts(MachOHeader& header, section_64 chainedStarts
 					DefineRelocation(m_arch, reloc, entryOffset, reloc.address);
 					m_logger->LogDebug("Chained Starts: Adding relocated pointer %llx -> %llx", reloc.address, entryOffset);
 
-					if (m_objcProcessor)
+					if (objcProcessor)
 					{
-						m_objcProcessor->AddRelocatedPointer(reloc.address, entryOffset);
+						objcProcessor->AddRelocatedPointer(reloc.address, entryOffset);
 					}
 				}
 
