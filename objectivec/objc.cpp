@@ -2,9 +2,59 @@
 #include "inttypes.h"
 #include <optional>
 
+#define RELEASE_ASSERT(condition) ((condition) ? (void)0 : (std::abort(), (void)0))
+
 using namespace BinaryNinja;
 
 namespace {
+
+	// ScopedSingleton is a thread-local singleton that allows for scoped
+	// instantiation and destruction of an object. It is useful for managing
+	// resources that should only exist during a specific scope, but where it
+	// would be inconvenient to pass the object around explicitly.
+	//
+	// Calling `Make` initializes the thread-local singleton and returns a `Guard`
+	// object. When the `Guard` object goes out of scope, the singleton is destroyed.
+	template <typename T>
+	class ScopedSingleton
+	{
+		static thread_local T* current;
+
+	public:
+		class Guard
+		{
+			friend class ScopedSingleton;
+			Guard() = default;
+
+		public:
+			~Guard()
+			{
+				delete current;
+				current = nullptr;
+			}
+			Guard(Guard&&) = default;
+			Guard(const Guard&) = delete;
+			Guard& operator=(const Guard&) = delete;
+		};
+
+		static T& Get()
+		{
+			RELEASE_ASSERT(current);
+			return *current;
+		}
+
+		static Guard Make()
+		{
+			RELEASE_ASSERT(!current);
+			current = new T();
+			return Guard {};
+		}
+	};
+
+	template <typename T>
+	thread_local T* ScopedSingleton<T>::current = nullptr;
+
+	using ScopedSymbolQueue = ScopedSingleton<SymbolQueue>;
 
 	// Attempt to recover an Objective-C class name from the symbol's name.
 	// Note: classes defined in the current image should be looked up in m_classes
@@ -56,7 +106,7 @@ namespace {
 		return component;
 	}
 
-}
+}  // namespace
 
 Ref<Metadata> ObjCProcessor::SerializeMethod(uint64_t loc, const Method& method)
 {
@@ -369,7 +419,7 @@ void ObjCProcessor::DefineObjCSymbol(
 
 	if (!deferred)
 	{
-		m_symbolQueue->Append(process, defineSymbol);
+		ScopedSymbolQueue::Get().Append(process, defineSymbol);
 	}
 	else
 	{
@@ -1331,7 +1381,8 @@ Ref<Symbol> ObjCProcessor::GetSymbol(uint64_t address)
 
 void ObjCProcessor::ProcessObjCData()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
+
 	auto addrSize = m_data->GetAddressSize();
 
 	m_typeNames.id = defineTypedef(m_data, {"id"}, Type::PointerType(addrSize, Type::VoidType()));
@@ -1525,9 +1576,8 @@ void ObjCProcessor::ProcessObjCData()
 
 	PostProcessObjCSections(reader.get());
 
-	m_symbolQueue->Process();
+	ScopedSymbolQueue::Get().Process();
 	m_data->EndBulkModifySymbols();
-	delete m_symbolQueue;
 
 	auto meta = SerializeMetadata();
 	m_data->StoreMetadata("Objective-C", meta, true);
@@ -1547,7 +1597,8 @@ void ObjCProcessor::ProcessObjCLiterals()
 
 void ObjCProcessor::ProcessCFStrings()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
+
 	uint64_t ptrSize = m_data->GetAddressSize();
 	// https://github.com/apple/llvm-project/blob/next/clang/lib/CodeGen/CodeGenModule.cpp#L6129
 	// See also ASTContext.cpp ctrl+f __NSConstantString_tag
@@ -1654,9 +1705,9 @@ void ObjCProcessor::ProcessCFStrings()
 				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.cfString), "cfstr_" + str, i, true);
 			}
 		}
-		m_symbolQueue->Process();
+
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		delete m_symbolQueue;
 	}
 }
 
