@@ -1241,6 +1241,12 @@ namespace BinaryNinja {
 	void SetBundledPluginDirectory(const std::string& path);
 	std::string GetUserDirectory();
 
+	/*! Get the Binary Ninja system cache directory
+	 *
+	 * @return std::string - Binary Ninja's cache directory on a given system
+	 */
+	std::string GetSystemCacheDirectory();
+
 	std::string GetSettingsFileName();
 	std::string GetRepositoriesDirectory();
 	std::string GetInstallDirectory();
