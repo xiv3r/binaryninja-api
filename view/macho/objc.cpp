@@ -83,8 +83,8 @@ std::shared_ptr<ObjCReader> MachoObjCProcessor::GetReader()
 
 bool MachoObjCProcessor::ViewHasObjCMetadata(BinaryView* data)
 {
-	return (data->GetSectionByName("__objc_classlist") || data->GetSectionByName("__objc_catlist")
-		|| data->GetSectionByName("__objc_protolist"));
+	return data->GetSectionByName("__objc_classlist") || data->GetSectionByName("__objc_catlist")
+		|| data->GetSectionByName("__objc_protolist") || data->GetSectionByName("__objc_stubs");
 }
 
 MachoObjCProcessor::MachoObjCProcessor(BinaryView* data) :
