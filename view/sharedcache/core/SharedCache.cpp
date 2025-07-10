@@ -488,17 +488,17 @@ std::optional<CacheEntry> SharedCache::GetEntryWithImage(const CacheImage& image
 std::optional<CacheRegion> SharedCache::GetRegionAt(const uint64_t address) const
 {
 	const auto it = m_regions.find(address);
-	if (it == m_regions.end())
+	if (it == m_regions.end() || it->second.start != address)
 		return std::nullopt;
 	return it->second;
 }
 
 std::optional<CacheRegion> SharedCache::GetRegionContaining(const uint64_t address) const
 {
-	for (const auto& [range, region] : m_regions)
-		if (address >= range.start && address < range.end)
-			return region;
-	return std::nullopt;
+	const auto it = m_regions.find(address);
+	if (it == m_regions.end())
+		return std::nullopt;
+	return it->second;
 }
 
 std::optional<CacheImage> SharedCache::GetImageAt(const uint64_t address) const
