@@ -1863,6 +1863,38 @@ class Function:
 
 		return llil[idx]
 
+	def get_low_level_ils_at(self, addr: int,
+	                 arch: Optional['architecture.Architecture'] = None) -> List['lowlevelil.LowLevelILInstruction']:
+		"""
+		``get_low_level_ils_at`` gets the LowLevelILInstruction(s) corresponding to the given virtual address
+		See the `developer docs <https://dev-docs.binary.ninja/dev/concepts.html#mapping-between-ils>`_ for more information.
+
+		:param int addr: virtual address of the instruction to be queried
+		:param Architecture arch: (optional) Architecture for the given function
+		:rtype: list(LowLevelILInstruction)
+		:Example:
+
+			>>> func = next(bv.functions)
+			>>> func.get_low_level_ils_at(func.start)
+			[<il: push(rbp)>]
+		"""
+		llil = self.llil
+		if llil is None:
+			return []
+
+		if arch is None:
+			arch = self.arch
+		count = ctypes.c_ulonglong()
+		instrs = core.BNGetLowLevelILInstructionsForAddress(self.handle, arch.handle, addr, count)
+		assert instrs is not None, "core.BNGetLowLevelILInstructionsForAddress returned None"
+		try:
+			result = []
+			for i in range(0, count.value):
+				result.append(llil[instrs[i]])
+			return result
+		finally:
+			core.BNFreeILInstructionList(instrs)
+
 	def get_llil_at(self, addr: int,
 	                arch: Optional['architecture.Architecture'] = None) -> Optional['lowlevelil.LowLevelILInstruction']:
 		"""
@@ -3265,8 +3297,9 @@ class Function:
 		:rtype: list(ReferenceSource)
 		"""
 		for site in self.view.get_code_refs(self.start):
-			if isinstance(site.llil, Localcall):
-				yield site
+			for llil in site.llils:
+				if isinstance(llil, Localcall) and llil.dest.value == self.start:
+					yield site
 
 	@property
 	def workflow(self):

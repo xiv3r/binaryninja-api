@@ -126,10 +126,26 @@ class ReferenceSource:
 		return self.function.get_low_level_il_at(self.address, self.arch)
 
 	@property
+	def llils(self) -> Iterator[lowlevelil.LowLevelILInstruction]:
+		"""Returns the low level il instructions at the current location if any exists"""
+		if self.function is None or self.arch is None:
+			return
+		return self.function.get_low_level_ils_at(self.address, self.arch)
+
+	@property
 	def mlil(self) -> Optional[mediumlevelil.MediumLevelILInstruction]:
 		"""Returns the medium level il instruction at the current location if one exists"""
 		llil = self.llil
 		return llil.mlil if llil is not None else None
+
+	@property
+	def mlils(self) -> Iterator[mediumlevelil.MediumLevelILInstruction]:
+		"""Returns the medium level il instructions at the current location if any exists"""
+		if self.function is None or self.arch is None:
+			return
+		for llil in self.llils:
+			for mlil in llil.mlils:
+				yield mlil
 
 	@property
 	def hlil(self) -> Optional[highlevelil.HighLevelILInstruction]:
@@ -137,6 +153,14 @@ class ReferenceSource:
 		mlil = self.mlil
 		return mlil.hlil if mlil is not None else None
 
+	@property
+	def hlils(self) -> Iterator[highlevelil.HighLevelILInstruction]:
+		"""Returns the high level il instructions at the current location if any exists"""
+		if self.function is None or self.arch is None:
+			return
+		for llil in self.llils:
+			for hlil in llil.hlils:
+				yield hlil
 
 class NotificationType(IntFlag):
 	NotificationBarrier = 1 << 0
