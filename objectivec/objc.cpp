@@ -106,6 +106,13 @@ namespace {
 		return component;
 	}
 
+	Ref<Type> NamedType(const std::string& name)
+	{
+		NamedTypeReferenceBuilder builder;
+		builder.SetName(QualifiedName(name));
+		return Type::NamedType(builder.Finalize());
+	}
+
 }  // namespace
 
 Ref<Metadata> ObjCProcessor::SerializeMethod(uint64_t loc, const Method& method)
@@ -320,12 +327,12 @@ std::vector<QualifiedNameOrType> ObjCProcessor::ParseEncodedType(const std::stri
 			nameOrType.type = Type::PointerType(m_data->GetAddressSize(), Type::IntegerType(1, true));
 			break;
 		case '@':
-			qualifiedName = "id";
+			nameOrType.type = m_types.id;
 			// There can be a type after this, like @"NSString", that overrides this
 			// The handler for " will catch it and drop this "id" entry.
 			break;
 		case ':':
-			qualifiedName = "SEL";
+			nameOrType.type = m_types.sel;
 			break;
 		case '#':
 			qualifiedName = "objc_class_t";
@@ -1214,11 +1221,11 @@ bool ObjCProcessor::ApplyMethodType(Class& cls, Method& method, bool isInstanceM
 
 	params.push_back({"self",
 		cls.associatedName.IsEmpty() ?
-			Type::NamedType(m_data, {"id"}) :
+			m_types.id :
 			Type::PointerType(m_data->GetAddressSize(), Type::NamedType(m_data, cls.associatedName)),
 		true, BinaryNinja::Variable()});
 
-	params.push_back({"sel", Type::NamedType(m_data, {"SEL"}), true, BinaryNinja::Variable()});
+	params.push_back({"sel", m_types.sel, true, BinaryNinja::Variable()});
 
 	for (size_t i = 3; i < typeTokens.size(); i++)
 	{
@@ -1370,6 +1377,10 @@ ObjCProcessor::ObjCProcessor(BinaryView* data, const char* loggerName, bool skip
 	 m_skipClassBaseProtocols(skipClassBaseProtocols), m_data(data)
 {
 	m_logger = m_data->CreateLogger(loggerName);
+
+	m_types.id = NamedType("id");
+	m_types.sel = NamedType("SEL");
+	m_types.BOOL = NamedType("BOOL");
 }
 
 uint64_t ObjCProcessor::GetObjCRelativeMethodBaseAddress(ObjCReader* reader)
@@ -1387,11 +1398,6 @@ void ObjCProcessor::ProcessObjCData()
 	auto guard = ScopedSymbolQueue::Make();
 
 	auto addrSize = m_data->GetAddressSize();
-
-	m_typeNames.id = defineTypedef(m_data, {"id"}, Type::PointerType(addrSize, Type::VoidType()));
-	m_typeNames.sel = defineTypedef(m_data, {"SEL"}, Type::PointerType(addrSize, Type::IntegerType(1, false)));
-
-	m_typeNames.BOOL = defineTypedef(m_data, {"BOOL"}, Type::IntegerType(1, false));
 	m_typeNames.nsInteger = defineTypedef(m_data, {"NSInteger"}, Type::IntegerType(addrSize, true));
 	m_typeNames.nsuInteger = defineTypedef(m_data, {"NSUInteger"}, Type::IntegerType(addrSize, false));
 	m_typeNames.cgFloat = defineTypedef(m_data, {"CGFloat"}, Type::FloatType(addrSize));
@@ -1719,11 +1725,10 @@ void ObjCProcessor::ProcessNSConstantArrays()
 	auto guard = ScopedSymbolQueue::Make();
 	uint64_t ptrSize = m_data->GetAddressSize();
 
-	auto idType = Type::NamedType(m_data, m_typeNames.id);
 	StructureBuilder nsConstantArrayBuilder;
 	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
 	nsConstantArrayBuilder.AddMember(Type::IntegerType(ptrSize, false), "count");
-	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, idType), "objects");
+	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, m_types.id), "objects");
 	auto type = finalizeStructureBuilder(m_data, nsConstantArrayBuilder, "__NSConstantArray");
 	m_typeNames.nsConstantArray = type.first;
 
@@ -1740,7 +1745,7 @@ void ObjCProcessor::ProcessNSConstantArrays()
 			uint64_t count = reader->ReadPointer();
 			auto dataLoc = ReadPointerAccountingForRelocations(reader.get());
 			DefineObjCSymbol(
-				DataSymbol, Type::ArrayType(idType, count), fmt::format("nsarray_{:x}_data", i), dataLoc, true);
+				DataSymbol, Type::ArrayType(m_types.id, count), fmt::format("nsarray_{:x}_data", i), dataLoc, true);
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantArray),
 				fmt::format("nsarray_{:x}", i), i, true);
 		}
@@ -1757,13 +1762,12 @@ void ObjCProcessor::ProcessNSConstantDictionaries()
 	auto guard = ScopedSymbolQueue::Make();
 	uint64_t ptrSize = m_data->GetAddressSize();
 
-	auto idType = Type::NamedType(m_data, m_typeNames.id);
 	StructureBuilder nsConstantDictionaryBuilder;
 	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
 	nsConstantDictionaryBuilder.AddMember(Type::IntegerType(ptrSize, false), "options");
 	nsConstantDictionaryBuilder.AddMember(Type::IntegerType(ptrSize, false), "count");
-	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, idType), "keys");
-	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, idType), "objects");
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, m_types.id), "keys");
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, m_types.id), "objects");
 	auto type = finalizeStructureBuilder(m_data, nsConstantDictionaryBuilder, "__NSConstantDictionary");
 	m_typeNames.nsConstantDictionary = type.first;
 
@@ -1782,9 +1786,9 @@ void ObjCProcessor::ProcessNSConstantDictionaries()
 			auto keysLoc = ReadPointerAccountingForRelocations(reader.get());
 			auto objectsLoc = ReadPointerAccountingForRelocations(reader.get());
 			DefineObjCSymbol(
-				DataSymbol, Type::ArrayType(idType, count), fmt::format("nsdict_{:x}_keys", i), keysLoc, true);
-			DefineObjCSymbol(
-				DataSymbol, Type::ArrayType(idType, count), fmt::format("nsdict_{:x}_objects", i), objectsLoc, true);
+				DataSymbol, Type::ArrayType(m_types.id, count), fmt::format("nsdict_{:x}_keys", i), keysLoc, true);
+			DefineObjCSymbol(DataSymbol, Type::ArrayType(m_types.id, count), fmt::format("nsdict_{:x}_objects", i),
+				objectsLoc, true);
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantDictionary),
 				fmt::format("nsdict_{:x}", i), i, true);
 		}
