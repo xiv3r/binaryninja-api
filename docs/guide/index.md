@@ -919,10 +919,7 @@ mouse-wheeling. Shift-mouse-wheel will scroll horizontally.
 
 The integrated script console is useful for small scripts that aren't worth writing as full plugins.
 
-To trigger the console, either use `<BACKTICK>`, or use the `View`/`Python Console` menu.
-
-???+ Tip "Tip"
-    Note that `<BACKTICK>` will work in most contexts to open the console and focus its command line, unless the UI focus is in an editor widget.
+To toggle the console, either use `<BACKTICK>` or in some instances where another widget has focus, `<CTRL>-<BACKTICK>`. Additionally, you can use the `View`/`Python Console` menu. 
 
 ![console](../img/console-split.png "Console Split"){ width="800" }
 
