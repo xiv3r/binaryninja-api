@@ -178,6 +178,7 @@ list(Workflow)
 [<Workflow: core.function.baseAnalysis>,
 <Workflow: core.function.sharedCache>,
 <Workflow: core.function.metaAnalysis>,
+<Workflow: core.function.objectiveC>,
 <Workflow: core.module.baseAnalysis>,
 <Workflow: core.module.metaAnalysis>]
 
@@ -187,7 +188,7 @@ Settings().query_property_string_list("analysis.workflows.moduleWorkflow", "enum
 
 # List all function workflows from the Settings API
 >>> Settings().query_property_string_list("analysis.workflows.functionWorkflow", "enum")
-['core.function.baseAnalysis', 'core.function.sharedCache', 'core.function.metaAnalysis']
+['core.function.baseAnalysis', 'core.function.sharedCache', 'core.function.metaAnalysis', 'core.function.objectiveC']
 ```
 
 Once you've queried the available workflows, you can create your own by cloning and modifying an existing workflow. Below are some simple examples that demonstrate how to modify module-level analysis.

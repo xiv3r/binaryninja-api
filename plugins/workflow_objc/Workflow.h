@@ -10,6 +10,15 @@
 #include "BinaryNinja.h"
 
 /**
+ * Namespace to hold activity ID constants.
+ */
+namespace ActivityID {
+
+constexpr auto ResolveMethodCalls = "core.function.objectiveC.resolveMethodCalls";
+
+}
+
+/**
  * Workflow-related procedures.
  */
 class Workflow {

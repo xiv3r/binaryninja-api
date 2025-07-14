@@ -1867,8 +1867,13 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		if (!settings) // Add our defaults
 		{
 			Ref<Settings> programSettings = Settings::Instance();
-			if (programSettings->Contains("analysis.objectiveC.resolveMethodCalls"))
-				programSettings->Set("analysis.objectiveC.resolveMethodCalls", true, this);
+			if (programSettings->Contains("corePlugins.workflows.objc"))
+			{
+				if (programSettings->Get<bool>("corePlugins.workflows.objc"))
+				{
+					programSettings->Set("analysis.workflows.functionWorkflow", "core.function.objectiveC", this);
+				}
+			}
 		}
 	}
 
@@ -4134,8 +4139,13 @@ Ref<Settings> MachoViewType::GetLoadSettingsForData(BinaryView* data)
 			"description" : "Processes Objective-C structures, applying method names and types from encoded metadata"
 			})");
 		Ref<Settings> programSettings = Settings::Instance();
-		if (programSettings->Contains("analysis.objectiveC.resolveMethodCalls"))
-			programSettings->Set("analysis.objectiveC.resolveMethodCalls", true, viewRef);
+		if (programSettings->Contains("corePlugins.workflows.objc"))
+		{
+			if (programSettings->Get<bool>("corePlugins.workflows.objc"))
+			{
+				programSettings->Set("analysis.workflows.functionWorkflow", "core.function.objectiveC", viewRef);
+			}
+		}
 	}
 	if (viewRef->GetSectionByName("__cfstring"))
 	{

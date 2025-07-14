@@ -189,6 +189,7 @@ The setting will appear under the `Function Settings` submenu in applicable cont
 |analysis.workflows|Function Workflow|Specifies the workflow to be used for function-level analysis, including tasks such as disassembly and IL transformations.|`string`|`core.function.metaAnalysis`|[`SettingsProjectScope`, `SettingsResourceScope`, `SettingsUserScope`]|<a id='analysis.workflows.functionWorkflow'>analysis.workflows.functionWorkflow</a>|
 | | |  enum: This workflow defines the base function analysis provided by Binary Ninja.|`enum`|`core.function.baseAnalysis`| | |
 | | |  enum: This workflow defines the adaptive function analysis for Binary Ninja, enabling adaptive composability of the default function analysis.|`enum`|`core.function.metaAnalysis`| | |
+| | |  enum: Enhanced analysis for Objective-C code.|`enum`|`core.function.objectiveC`| | |
 | | |  enum: Shared Cache Workflow|`enum`|`core.function.sharedCache`| | |
 |analysis.workflows|Module Workflow|Specifies the workflow to be used for module-level analysis, focusing on processing module-level data and coordinating function analyses.|`string`|`core.module.metaAnalysis`|[`SettingsProjectScope`, `SettingsResourceScope`, `SettingsUserScope`]|<a id='analysis.workflows.moduleWorkflow'>analysis.workflows.moduleWorkflow</a>|
 | | |  enum: This workflow defines the base module analysis for Binary Ninja.|`enum`|`core.module.baseAnalysis`| | |
