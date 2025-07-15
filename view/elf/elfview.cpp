@@ -2705,7 +2705,7 @@ void ElfView::ParseMiniDebugInfo()
 	}
 
 	// Load debug bv at same address as this bv
-	string debugBvOptions = fmt::format("{{\"loader.imageBase\": {}}}", GetStart());
+	string debugBvOptions = fmt::format("{{\"loader.imageBase\": {}, \"analysis.outlining.builtins\": false}}", GetStart());
 	Ref<BinaryView> debugBv = Load(debugElf, false, debugBvOptions);
 	if (!debugBv)
 	{
