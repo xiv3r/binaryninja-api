@@ -434,6 +434,7 @@ uint64_t MediumLevelILIntegerList::operator[](size_t i) const
 MediumLevelILIntegerList::operator vector<uint64_t>() const
 {
 	vector<uint64_t> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -488,6 +489,7 @@ size_t MediumLevelILIndexList::operator[](size_t i) const
 MediumLevelILIndexList::operator vector<size_t>() const
 {
 	vector<size_t> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -600,6 +602,7 @@ const Variable MediumLevelILVariableList::operator[](size_t i) const
 MediumLevelILVariableList::operator vector<Variable>() const
 {
 	vector<Variable> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -658,6 +661,7 @@ const SSAVariable MediumLevelILSSAVariableList::operator[](size_t i) const
 MediumLevelILSSAVariableList::operator vector<SSAVariable>() const
 {
 	vector<SSAVariable> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -716,6 +720,7 @@ const MediumLevelILInstruction MediumLevelILInstructionList::operator[](size_t i
 MediumLevelILInstructionList::operator vector<MediumLevelILInstruction>() const
 {
 	vector<MediumLevelILInstruction> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -898,6 +903,7 @@ const MediumLevelILOperand MediumLevelILOperandList::operator[](size_t i) const
 MediumLevelILOperandList::operator vector<MediumLevelILOperand>() const
 {
 	vector<MediumLevelILOperand> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;

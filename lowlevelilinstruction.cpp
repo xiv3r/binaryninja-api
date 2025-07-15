@@ -644,6 +644,7 @@ uint64_t LowLevelILIntegerList::operator[](size_t i) const
 LowLevelILIntegerList::operator vector<uint64_t>() const
 {
 	vector<uint64_t> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -697,6 +698,7 @@ size_t LowLevelILIndexList::operator[](size_t i) const
 LowLevelILIndexList::operator vector<size_t>() const
 {
 	vector<size_t> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -812,6 +814,7 @@ const LowLevelILInstruction LowLevelILInstructionList::operator[](size_t i) cons
 LowLevelILInstructionList::operator vector<LowLevelILInstruction>() const
 {
 	vector<LowLevelILInstruction> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -866,6 +869,7 @@ const RegisterOrFlag LowLevelILRegisterOrFlagList::operator[](size_t i) const
 LowLevelILRegisterOrFlagList::operator vector<RegisterOrFlag>() const
 {
 	vector<RegisterOrFlag> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -924,6 +928,7 @@ const SSARegister LowLevelILSSARegisterList::operator[](size_t i) const
 LowLevelILSSARegisterList::operator vector<SSARegister>() const
 {
 	vector<SSARegister> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -982,6 +987,7 @@ const SSARegisterStack LowLevelILSSARegisterStackList::operator[](size_t i) cons
 LowLevelILSSARegisterStackList::operator vector<SSARegisterStack>() const
 {
 	vector<SSARegisterStack> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -1040,6 +1046,7 @@ const SSAFlag LowLevelILSSAFlagList::operator[](size_t i) const
 LowLevelILSSAFlagList::operator vector<SSAFlag>() const
 {
 	vector<SSAFlag> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -1098,6 +1105,7 @@ const SSARegisterOrFlag LowLevelILSSARegisterOrFlagList::operator[](size_t i) co
 LowLevelILSSARegisterOrFlagList::operator vector<SSARegisterOrFlag>() const
 {
 	vector<SSARegisterOrFlag> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -1360,6 +1368,7 @@ const LowLevelILOperand LowLevelILOperandList::operator[](size_t i) const
 LowLevelILOperandList::operator vector<LowLevelILOperand>() const
 {
 	vector<LowLevelILOperand> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -3357,6 +3366,7 @@ ExprId LowLevelILFunction::CallStackAdjust(
     ExprId dest, int64_t adjust, const map<uint32_t, int32_t>& regStackAdjust, const ILSourceLocation& loc)
 {
 	vector<size_t> list;
+	list.reserve(regStackAdjust.size() * 2);
 	for (auto& i : regStackAdjust)
 	{
 		list.push_back(i.first);

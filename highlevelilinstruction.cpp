@@ -321,6 +321,7 @@ uint64_t HighLevelILIntegerList::operator[](size_t i) const
 HighLevelILIntegerList::operator vector<uint64_t>() const
 {
 	vector<uint64_t> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -375,6 +376,7 @@ size_t HighLevelILIndexList::operator[](size_t i) const
 HighLevelILIndexList::operator vector<size_t>() const
 {
 	vector<size_t> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -440,6 +442,7 @@ const HighLevelILInstruction HighLevelILInstructionList::operator[](size_t i) co
 HighLevelILInstructionList::operator vector<HighLevelILInstruction>() const
 {
 	vector<HighLevelILInstruction> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -498,6 +501,7 @@ const SSAVariable HighLevelILSSAVariableList::operator[](size_t i) const
 HighLevelILSSAVariableList::operator vector<SSAVariable>() const
 {
 	vector<SSAVariable> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
@@ -651,6 +655,7 @@ const HighLevelILOperand HighLevelILOperandList::operator[](size_t i) const
 HighLevelILOperandList::operator vector<HighLevelILOperand>() const
 {
 	vector<HighLevelILOperand> result;
+	result.reserve(size());
 	for (auto i : *this)
 		result.push_back(i);
 	return result;
