@@ -9,6 +9,8 @@ use binaryninja::interaction::{Form, FormInputField};
 use binaryninja::project::folder::ProjectFolder;
 use binaryninja::project::Project;
 use binaryninja::rc::Ref;
+use binaryninja::worker_thread::{set_worker_thread_count, worker_thread_count};
+use rayon::ThreadPoolBuilder;
 use regex::Regex;
 use std::path::Path;
 use std::thread;
@@ -28,7 +30,7 @@ impl CreateSignaturesForm {
         form.add_field(Self::compression_type_field());
         form.add_field(Self::save_individual_files_field());
         form.add_field(Self::skip_existing_warp_files_field());
-        // TODO: Threads (we run the analysis in the background)
+        form.add_field(Self::processing_thread_count_field());
         Self { form }
     }
 
@@ -98,6 +100,24 @@ impl CreateSignaturesForm {
         }
     }
 
+    pub fn processing_thread_count_field() -> FormInputField {
+        let default = rayon::current_num_threads();
+        FormInputField::Integer {
+            prompt: "Processing threads".to_string(),
+            default: Some(default as i64),
+            value: 0,
+        }
+    }
+
+    pub fn processing_thread_count(&self) -> usize {
+        let field = self.form.get_field_with_name("Processing threads");
+        let worker_thread_count = worker_thread_count();
+        field
+            .and_then(|f| f.try_value_int())
+            .unwrap_or(worker_thread_count as i64)
+            .abs() as usize
+    }
+
     pub fn prompt(&mut self) -> bool {
         self.form.prompt()
     }
@@ -116,6 +136,7 @@ impl CreateSignatures {
         let compression_type = form.compression_type();
         let save_individual_files = form.save_individual_files();
         let skip_existing_warp_files = form.skip_existing_warp_files();
+        let processing_thread_count = form.processing_thread_count();
 
         // Save the warp file to the project.
         let save_warp_file = move |project: &Project,
@@ -184,17 +205,38 @@ impl CreateSignatures {
         let background_task = BackgroundTask::new("Processing started...", true);
         new_processing_state_background_thread(background_task.clone(), processor.state());
 
+        let Ok(thread) = ThreadPoolBuilder::new()
+            .num_threads(processing_thread_count)
+            .build()
+        else {
+            log::error!("Failed to create processing thread pool!");
+            return;
+        };
+
+        // We have to bump the number of worker threads up so that view destruction's and analysis
+        // does not halt, using a multiple of three seems good. This is only temporary.
+        let previous_worker_thread_count = worker_thread_count();
+        let upgraded_thread_count = previous_worker_thread_count * 3;
+        if upgraded_thread_count > previous_worker_thread_count {
+            log::info!(
+                "Setting worker thread count to {} for the duration of processing...",
+                upgraded_thread_count
+            );
+            set_worker_thread_count(upgraded_thread_count);
+        }
+
         let start = Instant::now();
-        match processor.process_project(&project) {
+        thread.scope(|_| match processor.process_project(&project) {
             Ok(warp_file) => {
                 save_warp_file(&project, None, "generated.warp", &warp_file);
             }
             Err(e) => {
                 log::error!("Failed to process project: {}", e);
             }
-        }
+        });
         log::info!("Processing project files took: {:?}", start.elapsed());
-
+        // Reset the worker thread count to the user specified; either way it will not persist.
+        set_worker_thread_count(previous_worker_thread_count);
         // Tells the processing state thread to finish.
         background_task.finish();
     }
