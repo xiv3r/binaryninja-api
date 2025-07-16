@@ -1720,8 +1720,13 @@ pub trait BinaryViewExt: BinaryViewBase {
         let mut raw_name = QualifiedName::into_raw(name.into());
         unsafe {
             let mut count = 0;
-            let handle =
-                BNGetCodeReferencesForType(self.as_ref().handle, &mut raw_name, &mut count, false, 0);
+            let handle = BNGetCodeReferencesForType(
+                self.as_ref().handle,
+                &mut raw_name,
+                &mut count,
+                false,
+                0,
+            );
             QualifiedName::free_raw(raw_name);
             Array::new(handle, count, ())
         }
@@ -1732,8 +1737,13 @@ pub trait BinaryViewExt: BinaryViewBase {
         let mut raw_name = QualifiedName::into_raw(name.into());
         unsafe {
             let mut count = 0;
-            let handle =
-                BNGetDataReferencesForType(self.as_ref().handle, &mut raw_name, &mut count, false, 0);
+            let handle = BNGetDataReferencesForType(
+                self.as_ref().handle,
+                &mut raw_name,
+                &mut count,
+                false,
+                0,
+            );
             QualifiedName::free_raw(raw_name);
             Array::new(handle, count, ())
         }
