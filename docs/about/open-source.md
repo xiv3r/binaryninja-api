@@ -285,6 +285,7 @@ The previous tools are used in the generation of our documentation, but are not 
     - [DWARF Import] - ([dwarf import license] - MIT)
     - [DWARF Export] - ([dwarf export license] - MIT)
     - [IDB Import] - ([idb import license] - MIT)
+    - [SCC] - ([scc license] - MIT)
 
 ## Building Qt
 
@@ -396,6 +397,8 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [dwarf export license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
 [IDB Import]: https://github.com/Vector35/binaryninja-api/tree/dev/plugins/idb_import
 [idb import license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
+[SCC]: https://github.com/Vector35/scc/
+[scc license]: https://github.com/Vector35/scc/blob/master/LICENSE.txt
 
 [Rust]: https://www.rust-lang.org/
 [Rust license]: https://github.com/rust-lang/rust/blob/master/LICENSE-MIT
