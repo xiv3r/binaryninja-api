@@ -67,6 +67,9 @@ pub enum ProcessingError {
 
     #[error("Processing has been cancelled")]
     Cancelled,
+
+    #[error("Skipping file: {0}")]
+    SkippedFile(PathBuf),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -341,6 +344,9 @@ pub struct WarpFileProcessor {
     processed_file_callback: Option<ProcessedFileCallback>,
     /// Regex pattern used to filter out files.
     file_filter: Option<Regex>,
+    // TODO: Merge with file filter.
+    /// Whether to skip processing warp files.
+    skip_warp_files: bool,
     /// Processor state, this is shareable between threads, so the processor and the consumer can
     /// read / write to the state, use this if you want to show a progress indicator.
     state: Arc<ProcessingState>,
@@ -365,6 +371,7 @@ impl WarpFileProcessor {
             compression_type: Default::default(),
             processed_file_callback: None,
             file_filter: None,
+            skip_warp_files: false,
             state: Arc::new(ProcessingState::default()),
         }
     }
@@ -422,6 +429,11 @@ impl WarpFileProcessor {
             (Some(filter), Some(path)) => filter.is_match(path),
             _ => true,
         }
+    }
+
+    pub fn with_skip_warp_files(mut self, skip: bool) -> Self {
+        self.skip_warp_files = skip;
+        self
     }
 
     /// Place a call to this in places to interrupt when canceled.
@@ -493,6 +505,10 @@ impl WarpFileProcessor {
             .filter_map(|res| match res {
                 Ok(result) => Some(Ok(result)),
                 Err(ProcessingError::Cancelled) => Some(Err(ProcessingError::Cancelled)),
+                Err(ProcessingError::SkippedFile(path)) => {
+                    log::debug!("Skipping project file: {:?}", path);
+                    None
+                }
                 Err(e) => {
                     log::error!("Project file processing error: {:?}", e);
                     None
@@ -531,6 +547,11 @@ impl WarpFileProcessor {
     }
 
     pub fn process_warp_file(&self, path: PathBuf) -> Result<WarpFile<'static>, ProcessingError> {
+        // TODO: In the future this really should just be a file filter.
+        if self.skip_warp_files {
+            return Err(ProcessingError::SkippedFile(path));
+        }
+
         let contents = std::fs::read(&path).map_err(ProcessingError::FileRead)?;
         let file = WarpFile::from_owned_bytes(contents)
             .ok_or(ProcessingError::ExistingDataLoad(path.clone()));

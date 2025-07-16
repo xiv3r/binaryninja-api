@@ -115,6 +115,7 @@ impl CreateSignatures {
         let report_kind = form.generated_report_kind();
         let compression_type = form.compression_type();
         let save_individual_files = form.save_individual_files();
+        let skip_existing_warp_files = form.skip_existing_warp_files();
 
         // Save the warp file to the project.
         let save_warp_file = move |project: &Project,
@@ -166,27 +167,16 @@ impl CreateSignatures {
 
         let mut processor = WarpFileProcessor::new()
             .with_file_data(file_data_kind)
-            .with_compression_type(compression_type);
+            .with_compression_type(compression_type)
+            .with_skip_warp_files(skip_existing_warp_files);
 
         if save_individual_files {
             processor = processor.with_processed_file_callback(save_individual_files_cb);
         }
 
-        // Construct the user-supplied file filter, we also have an appended filter for warp files.
-        let mut filter = form.file_filter();
-        // This checkbox is here as this is very common to filter for.
-        // And we want to do it by default.
-        if form.skip_existing_warp_files() {
-            let warp_filter = Regex::new(".*\\.warp").unwrap();
-            filter = match filter {
-                Some(existing) => {
-                    let combined = format!("{}|.*\\.warp", existing.as_str());
-                    Some(Regex::new(&combined).unwrap())
-                }
-                None => Some(warp_filter),
-            };
-        }
-        if let Some(filter) = filter {
+        // Construct the user-supplied file filter. This will filter files in the project only, files
+        // in an archive will be considered a part of the archive file.
+        if let Some(filter) = form.file_filter() {
             processor = processor.with_file_filter(filter);
         }
 
