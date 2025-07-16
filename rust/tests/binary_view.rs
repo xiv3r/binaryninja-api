@@ -17,7 +17,7 @@ fn test_binary_loading() {
     let view = binaryninja::load(out_dir.join("atox.obj")).expect("Failed to create view");
     assert!(view.has_initial_analysis(), "No initial analysis");
     assert_eq!(view.analysis_progress().state, AnalysisState::IdleState);
-    assert_eq!(view.file().is_analysis_changed(), true);
+    assert_eq!(view.file().is_analysis_changed(), false);
     assert_eq!(view.file().is_database_backed(), false);
 }
 

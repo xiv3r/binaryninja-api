@@ -35,6 +35,7 @@ add_dependencies(rust_api binaryninjaapi)
 
 add_custom_target(rust_docs ALL DEPENDS ${PROJECT_BINARY_DIR}/target/doc)
 add_dependencies(rust_docs binaryninjaapi rust_api)
+set_property(TARGET rust_docs APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${PROJECT_BINARY_DIR}/target/doc)
 
 # Get API source directory so we can find BinaryNinjaCore
 get_target_property(BN_API_SOURCE_DIR binaryninjaapi SOURCE_DIR)

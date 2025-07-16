@@ -18,7 +18,7 @@ fn temp_project_scope<T: Fn(&RemoteProject)>(remote: &Remote, project_name: &str
         // TODO: Because connecting is not thread safe we wont check the error here, this is because we might already
         // TODO: be connecting in some other thread and will error out on this thread. But we _probably_ will
         // TODO: have connected by the time this errors out. Maybe?
-        let _ = remote.connect();
+        remote.connect().expect("Failed to connect to remote");
     }
     let project = remote
         .create_project(project_name, "Test project for test purposes")
@@ -50,13 +50,18 @@ fn temp_project_scope<T: Fn(&RemoteProject)>(remote: &Remote, project_name: &str
 
 /// Get the selected remote to test with.
 fn selected_remote() -> Option<Ref<Remote>> {
-    // If the user has initialized with a enterprise server we might already have an active remote.
+    // TODO: Ability to override this with some environment variable?
+    // Assuming we already have called this we will have an active remote.
     match binaryninja::collaboration::active_remote() {
         Some(remote) => Some(remote),
-        None => {
-            let remotes = binaryninja::collaboration::known_remotes();
-            remotes.iter().next().map(|r| r.clone())
-        }
+        // Assuming the user is initialized with an enterprise client we should contact that one first.
+        None => match binaryninja::collaboration::enterprise_remote() {
+            Some(remote) => Some(remote),
+            None => {
+                let remotes = binaryninja::collaboration::known_remotes();
+                remotes.iter().next().map(|r| r.clone())
+            }
+        },
     }
 }
 
@@ -68,6 +73,13 @@ fn test_connection() {
         eprintln!("No known remotes, skipping test...");
         return;
     };
+    // Another test might have already connected.
+    if remote.is_connected() {
+        remote
+            .disconnect()
+            .expect("Failed to disconnect from remote");
+        assert!(!remote.is_connected(), "Connection was not disconnected");
+    }
     assert!(remote.connect().is_ok(), "Failed to connect to remote");
     remote
         .disconnect()

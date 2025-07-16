@@ -52,6 +52,18 @@ pub fn active_remote() -> Option<Ref<Remote>> {
     NonNull::new(value).map(|h| unsafe { Remote::ref_from_raw(h) })
 }
 
+/// Get the enterprise remote.
+///
+/// NOTE: There can only be one because that it is associated with the enterprise client user.
+pub fn enterprise_remote() -> Option<Ref<Remote>> {
+    for remote in &known_remotes() {
+        if remote.is_enterprise().unwrap_or(false) {
+            return Some(remote.clone());
+        }
+    }
+    None
+}
+
 /// Set the single actively connected Remote
 pub fn set_active_remote(remote: Option<&Remote>) {
     let remote_ptr = remote.map_or(std::ptr::null_mut(), |r| r.handle.as_ptr());
