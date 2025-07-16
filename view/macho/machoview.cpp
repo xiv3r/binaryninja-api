@@ -264,7 +264,6 @@ MachOHeader MachoView::HeaderForAddress(BinaryView* data, uint64_t address, bool
 	header.isMainHeader = isMainHeader;
 
 	header.identifierPrefix = identifierPrefix;
-	header.stringList = new DataBuffer();
 
 	std::string errorMsg;
 	if (isMainHeader) {
@@ -608,7 +607,7 @@ MachOHeader MachoView::HeaderForAddress(BinaryView* data, uint64_t address, bool
 				header.symtab.stroff  = reader.Read32();
 				header.symtab.strsize = reader.Read32();
 				reader.Seek(header.symtab.stroff);
-				header.stringList->Append(reader.Read(header.symtab.strsize));
+				header.stringList.Append(reader.Read(header.symtab.strsize));
 				header.stringListSize = header.symtab.strsize;
 				m_logger->LogDebug("\tstrsize: %08x\n" \
 					"\tstroff: %08x\n" \
@@ -3131,7 +3130,7 @@ void MachoView::ParseSymbolTable(BinaryReader& reader, MachOHeader& header, cons
 			if (sym.n_strx >= symtab.strsize || ((sym.n_type & N_TYPE) == N_INDR))
 				continue;
 
-			string symbol((char*)header.stringList->GetDataAt(sym.n_strx));
+			string symbol((char*)header.stringList.GetDataAt(sym.n_strx));
 			m_symbols.push_back(symbol);
 			//otool ignores symbols that end with ".o", startwith "ltmp" or are "gcc_compiled." so do we
 			if (symbol == "gcc_compiled." ||

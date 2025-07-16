@@ -1413,7 +1413,7 @@ namespace BinaryNinja
 		linkedit_data_command chainedFixups {};
 		section_64 chainStarts {};
 
-		DataBuffer* stringList;
+		DataBuffer stringList;
 		size_t stringListSize = 0;
 
 		uint64_t relocationBase = 0;
