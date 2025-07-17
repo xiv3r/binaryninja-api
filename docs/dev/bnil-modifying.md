@@ -2,9 +2,12 @@
 
 Modifying ILs during lifting is a complex process with many factors to consider.
 
+## Support
+
 APIs for modifying ILs are under active development, with support depending on which level of IL and which language you use.
 
 Key:
+
 - ✅ Full support
 - ⚠️ Partial support
 - ❌ No support
@@ -16,7 +19,7 @@ Key:
 | Medium Level IL | ⚠️* |   ✅    |  ❌   |
 | High Level IL   | ⚠️* |   ❌    |  ❌   |
 
-\* Modifying Medium and High Level IL in C++, while some APIs exist, is incomplete and certain more complicated operations are not possible yet. 
+\* Modifying Medium and High Level IL in C++, while some APIs exist, is incomplete and [certain more complicated operations are not possible yet](#il-mappings-for-mlil-and-higher-in-c). 
 
 ## Choosing A Level of IL To Modify
 
@@ -44,19 +47,14 @@ There are certain ILs which you cannot modify, for a variety of reasons:
 Based on your IL of choice, there are a bunch of places you can insert your modification action, which affects the information available to use or modify.
 
 - **Lifted IL** modification needs to happen before the `core.function.analyzeAndExpandFlags` stage, which translates Lifted IL into Low Level IL. After that stage, Lifted IL is never again consulted.
-  - **You probably do not want to modify Lifted IL with a Workflow**. Instead, consider modifying the Architecture directly ([most of which are Open Source on our GitHub](https://github.com/Vector35/binaryninja-api/tree/dev/arch)) or making your Activity modify Low Level IL.
-  - Modifying flag definitions and usages is likely impossible, as the Semantic Flags system will consult the Architecture to determine what IL to generate when a flag is used, not your Workflow Action. There is currently no way to change this behavior.
+    - **You probably do not want to modify Lifted IL with a Workflow**. Instead, consider modifying the Architecture directly ([most of which are Open Source on our GitHub](https://github.com/Vector35/binaryninja-api/tree/dev/arch)) or making your Activity modify Low Level IL.
+    - Modifying flag definitions and usages is likely impossible, as the Semantic Flags system will consult the Architecture to determine what IL to generate when a flag is used, not your Workflow Action. There is currently no way to change this behavior.
 - **Low Level IL** modification is generally done right before the `core.function.generateMediumLevelIL` stage, after the final Low Level IL function is emitted. After Medium Level IL is generated, changes to the Low Level IL will have limited effects on the other ILs (because most things refer to MLIL). 
-  - If you want to make changes to LLIL that can affect the stack pointer resolution, you will want to insert your action before `core.function.analyzeStackAdjustment` instead.
+    - If you want to make changes to LLIL that can affect the stack pointer resolution, you will want to insert your action before `core.function.analyzeStackAdjustment` instead.
 - **Medium Level IL** modification is generally done right after `core.function.generateMediumLevelIL` since (as of writing) the MLIL translation is all done in that one monolithic step and future steps are simply processing and annotations. This may change some time in the future.
 - **High Level IL** modification is generally done right after `core.function.generateHighLevelIL` since HLIL generation is also monolithic. This also may change eventually.
 
-## Writing The Plugin
-
-Once you figure out which level of IL you want to modify, and where in the Workflow pipeline you want to do modifications, it is time to write some code!
-Writing Workflow Activities 
-
-### Terminology
+## Terminology
 
 - An **IL Function** is a collection of **IL Instructions**, grouped into **IL Basic Blocks**
 - An **IL Basic Block** is a contiguous sequence of **IL Instructions** between a start and end **Instruction Index**, which only has incoming branches at the start and outgoing branches at the end.
@@ -64,6 +62,10 @@ Writing Workflow Activities
 - An **Expression Index** points to an **IL Expression** and may be used as an operand of another **IL Expression**.
 - An **IL Instruction** is a top-level **IL Expression**.
 - An **Instruction Index** points to an **IL Instruction** and may be contained within the start and end regions of an **IL Basic Block**.
+
+## Writing The Plugin
+
+Once you figure out which level of IL you want to modify, and where in the Workflow pipeline you want to do modifications, it is time to write some code!
 
 ### Registering Your Plugin
 
@@ -145,12 +147,14 @@ Let's call the new function `new_func` and the existing function `old_func`.
 ```py
 # ... workflow boilerplate
 def wf_activity(context: AnalysisContext):
-    old_func = context.mlil  
+    old_func = context.mlil
+
     # Create a new IL Function based on the old one.
     # Make sure you use the LLIL from the analysis context, and *do not* go through Function.llil (it has not been updated yet)
-    new_func = MediumLevelILFunction(old_mlil.arch, low_level_il=context.llil)
+    new_func = MediumLevelILFunction(old_func.arch, low_level_il=context.llil)
+
     # Tell the new function that we are copying from an existing function (this transfers various metadata like block labels)
-    new_func.prepare_to_copy_function(old_mlil)
+    new_func.prepare_to_copy_function(old_func)
 
     # continues ...
 ```
@@ -162,19 +166,19 @@ When you reach a part where you want to insert new instructions (or replace inst
     # previous code...
     
     # Copy each block in the old function to the new function
-    for old_block in old_mlil.basic_blocks: 
+    for old_block in old_func.basic_blocks: 
         # Copy block labels and tell new IL instructions they came from this block
-        new_mlil.prepare_to_copy_block(old_block)
+        new_func.prepare_to_copy_block(old_block)
         
         # Copy each instruction from the old block to the new function
         # Blocks "contain" instructions by knowing their start and end instruction indices
         # Any instructions in that range as in the block
         for old_instr_index in range(old_block.start, old_block.end):
             # Retrieve instruction from old function
-            old_instr: MediumLevelILInstruction = old_mlil[old_instr_index]
+            old_instr: MediumLevelILInstruction = old_func[old_instr_index]
 
             # Make sure the new instruction we insert has the correct location information
-            new_mlil.set_current_address(old_instr.address, old_block.arch)
+            new_func.set_current_address(old_instr.address, old_block.arch)
 
             # continues...
 ```
@@ -188,15 +192,16 @@ For each instruction, determine if you want to insert new instructions before it
                 # Create new instructions in the function for whatever changes you desire
 
                 # All ILs: Be sure to pass the location of the previous instruction when creating a new expression so mappings work
-                new_expr = new_mlil.nop(ILSourceLocation.from_instruction(old_instr))
+                new_expr = new_func.nop(ILSourceLocation.from_instruction(old_instr))
+
                 # MLIL and higher: pass the location of the previous instruction to append() so cross-IL mappings are preserved
-                new_mlil.append(new_expr, ILSourceLocation.from_instruction(old_instr))
+                new_func.append(new_expr, ILSourceLocation.from_instruction(old_instr))
             else:
                 # Copy the instruction as-is
                 
                 # Copy the instruction from the old function to the new function using `copy_to` (deep copy)
                 # MLIL and higher: also pass the location of the previous instruction to append() so cross-IL mappings are preserved
-                new_mlil.append(old_instr.copy_to(new_mlil), ILSourceLocation.from_instruction(old_instr))
+                new_func.append(old_instr.copy_to(new_func), ILSourceLocation.from_instruction(old_instr))
 
     # continues ...
 ```
@@ -207,12 +212,45 @@ And finally, regenerate dataflow:
     # previous code ...
 
     # Create IL basic blocks
-    new_mlil.finalize()
+    new_func.finalize()
+
     # Do dataflow, etc
-    new_mlil.generate_ssa_form()
+    new_func.generate_ssa_form()
+
     # Assign to the context to apply modifications
-    context.mlil = new_mlil
+    context.mlil = new_func
 ```
+
+### Transforming Multiple Times
+
+If your action requires sufficiently complex logic that you want to transform the function twice, there are a few extra things to consider.
+Due to limitations currently in the Python bindings, IL mappings will only update properly if you assign the intermediate MLIL function to the Analysis Context before transforming again:
+
+```py
+    # previous code ...
+
+    # Need to commit this for mappings to work (as of 5.1 at least)
+    context.mlil = new_func
+    
+    # Now we want to modify the function again...
+
+    # The newly created function is now our "old function"
+    old_func = new_func
+    
+    # All of the rest of this is the same as before
+    new_func = MediumLevelILFunction(old_func.arch, low_level_il=context.llil)
+    new_func.prepare_to_copy_function(old_func)
+```
+
+You may realize this is rather at odds with the section below on having a [dry run mode](#dry-run-mode).
+Sadly, there is currently no good solution for that, since the IL mappings are generated during assignment to the Analysis Context.
+This may change in future versions, but is required for now.
+
+### IL Mappings for MLIL and Higher in C++
+
+Using the `ILSourceLocation(const MediumLevelILInstruction&)` constructor when building IL Expressions is recommended, as it allows the expressions to have address and operand information tracked.
+However, cross-IL mappings are currently not implemented (see [Support](#support)), and modified functions will lose the ability to follow an expression to its LLIL equivalent (and likewise LLIL -> MLIL will be unavailable).
+Support for this is planned soon, but not implemented as of Binary Ninja 5.1.
 
 ## Useful Tools
 
@@ -225,8 +263,9 @@ In Linear and Graph views, you can enable Show IL Opcodes under the View Options
 This debug rendering mode includes the operation of every IL Expression in the output text, giving a very verbose but visual display of expressions.
 In addition, it applies to Find In Text results, so you can enable Show IL Opcodes and then search for e.g. `LLIL_ADC` to find all `LLIL_ADC` expressions.
 
+**Show IL Opcodes off:**
+
 ```
-Show IL Opcodes off:
   10 @ 1400553e7  bool rcx = temp0 s< 0x12817497a9ff848a
   11 @ 1400553f1  uint32_t rdx_1 = zx.d(rcx)
   12 @ 1400553f4  uint32_t rdx_2 = rdx_1 << 3
@@ -234,8 +273,9 @@ Show IL Opcodes off:
   14 @ 1400553f9  uint64_t rcx_2 = zx.q((rcx_1 + (rcx_1 << 1)).d)
 ```
 
+**Show IL Opcodes on:**
+
 ```
-Show IL Opcodes on:
   10 @ 1400553e7  (MLIL_SET_VAR.b bool rcx = (MLIL_CMP_SLT.q (MLIL_VAR.q temp0) s< (MLIL_CONST.q 0x12817497a9ff848a)))
   11 @ 1400553f1  (MLIL_SET_VAR.d uint32_t rdx_1 = (MLIL_ZX.d zx.d((MLIL_VAR.b rcx))))
   12 @ 1400553f4  (MLIL_SET_VAR.d uint32_t rdx_2 = (MLIL_LSL.d (MLIL_VAR.d rdx_1) << (MLIL_CONST.d 3)))
@@ -250,11 +290,15 @@ If you have the UI open, you can skip traversing the entire IL tree and simply c
 From there, you can use `current_il_expr` in the Python console to interact with that expression directly.
 
 ```
+# Clicking the `s<` token...
 >>> current_il_expr
 <MediumLevelILCmpSlt: temp0 s< 0x12817497a9ff848a>
+
+# Clicking the `=` token...
 >>> current_il_expr
 <MediumLevelILSetVar: rcx_1 = zx.q(rdx_2)>
 
+# Clicking the `rdx_1` token...
 >>> current_il_expr
 <MediumLevelILVar: rdx_1>
 >>> current_il_expr.possible_values
@@ -264,6 +308,7 @@ From there, you can use `current_il_expr` in the Python console to interact with
 Compare this to `current_il_instruction`, which only gives you the top-level instruction:
 
 ```
+# Clicking the `rdx_1` token...
 >>> current_il_instruction
 <MediumLevelILSetVar: rdx_2 = rdx_1 << 3>
 >>> current_il_expr
@@ -303,13 +348,19 @@ def rewrite_action(context: AnalysisContext):
         show_report_collection("My Debug Report", report)
 ```
 
-It can be exceedingly helpful to put your entire modification script inside a `try`/`except` block and present the report even on failure:
+It can be exceedingly helpful to put your entire modification script inside a `try`/`finally` block and present the report even on failure:
 
 ```py
-    # ...
+def rewrite_action(context: AnalysisContext):
+    report = None
+    if context.function.check_for_debug_report("my_report"):
+        report = ReportCollection()
 
     try:
         # ... do changes and build report
+        # and if this throws an exception, the report will be presented anyway,
+        # and filled up until the point of the exception
+        raise
     finally:
         if report is not None:
             show_report_collection("My Debug Report", report)
@@ -317,7 +368,7 @@ It can be exceedingly helpful to put your entire modification script inside a `t
 
 Then, you can build up the `ReportCollection` object by adding reports to it with the various Report APIs.
 
-**Note:** If you are making function graphs using the various `create_graph` APIs, make sure to use `create_graph_immediate` as it will construct the graph from the function as it exists when called, instead of lazily once the view is rendered (otherwise you will only see the end state of the function). 
+**Note:** If you are making function graphs using the various `create_graph` APIs, make sure to use `create_graph_immediate` as it will construct the graph from the function as it existed when called, instead of lazily once the view is rendered (otherwise you will only see the end state of the function). 
 
 ```py
 # For ReportCollection, create graph with the settings I want
@@ -409,7 +460,7 @@ wf.register_activity(Activity(
 ```
 
 Finally, insert both actions into the workflow at the same place.
-Insert the dry run first so that, even if the real action is enabled, the dry run still runs on the unchanged state.
+Insert the dry run first, so that, even if the real action is enabled, the dry run still runs on the unchanged state.
 
 ```py
 wf.insert_after("core.function.generateMediumLevelIL", [
