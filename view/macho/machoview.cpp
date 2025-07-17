@@ -203,10 +203,6 @@ MachoView::MachoView(const string& typeName, BinaryView* data, bool parseOnly): 
 	Ref<BinaryViewType> universalViewType = BinaryViewType::GetByName("Universal");
 	bool isUniversal = (universalViewType && universalViewType->IsTypeValidForData(data));
 
-	Ref<Settings> viewSettings = Settings::Instance();
-	m_extractMangledTypes = viewSettings->Get<bool>("analysis.extractTypesFromMangledNames", data);
-	m_simplifyTemplates = viewSettings->Get<bool>("analysis.types.templateSimplifier", data);
-
 	Ref<Settings> settings = data->GetLoadSettings(typeName);
 	if (settings && settings->Contains("loader.macho.universalImageOffset"))
 	{
@@ -1096,6 +1092,10 @@ bool MachoView::Init()
 
 	SetOriginalImageBase(initialImageBase);
 	uint64_t preferredImageBase = initialImageBase;
+	Ref<Settings> viewSettings = Settings::Instance();
+	m_extractMangledTypes = viewSettings->Get<bool>("analysis.extractTypesFromMangledNames", this);
+	m_simplifyTemplates = viewSettings->Get<bool>("analysis.types.templateSimplifier", this);
+
 	bool platformSetByUser = false;
 	if (settings)
 	{
