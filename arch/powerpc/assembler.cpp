@@ -43,7 +43,7 @@ struct info {
 	uint32_t mask; /* which bits to mutate */
 };
 
-map<string, info> lookup = {
+static const map<string_view, info> lookup = {
 {               "tdi NUM , GPR , NUM",{0x0800000A,0x03FFFFFF}}, // 000010xxxxxxxxxxxxxxxxxxxxxxxxxx  tdi 0, r0, 0xa
 {                  "tdlgti GPR , NUM",{0x08200000,0x001FFFFF}}, // 00001000001xxxxxxxxxxxxxxxxxxxxx  tdlgti r0, 0
 {                  "tdllti GPR , NUM",{0x08400000,0x001FFFFF}}, // 00001000010xxxxxxxxxxxxxxxxxxxxx  tdllti r0, 0
@@ -2932,12 +2932,13 @@ int assemble_single(string src, uint32_t addr, uint8_t *result, string& err,
 
 	MYLOG("src:%s has signature:%s\n", src.c_str(), sig_src.c_str());
 
-	if(lookup.find(sig_src) == lookup.end()) {
+	auto it = lookup.find(sig_src);
+	if(it == lookup.end()) {
 		err = "invalid syntax in " + sig_src;
 		return -1;
 	}
 
-	auto info = lookup[sig_src];
+	auto info = it->second;
 	uint32_t vary_mask = info.mask;
 
 	/* for relative branches, shift the target address to 0 */
