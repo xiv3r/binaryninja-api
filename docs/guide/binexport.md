@@ -40,7 +40,7 @@ Writing results: 0.0s
 
 The resulting `.BinDiff` file can either be opened in the BinDiff Java GUI, or directly in Binary Ninja directly using the [BD Viewer](https://github.com/PistonMiner/binaryninja-bindiff-viewer) plugin (available via the [Plugin Manager](./plugins.md)) and also supports porting symbols from one matched database to another.
 
-![BD Viewer](../img/binexport-bdviewer.png "BD Viewer")
+![BD Viewer](../img/binexport-bdviewer.png "BD Viewer"){ width="800" }
 _BD Viewer Plugin_
 
 ## Changes / Fork
