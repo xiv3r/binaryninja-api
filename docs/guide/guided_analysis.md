@@ -70,4 +70,4 @@ Guided Analysis is particularly valuable for:
 
 ## API Reference
 
-Guided analysis can be controlled programmatically through a dedicated Python API, supporting custom analysis scripts and plugins. Refer to the Python API documentation for detailed usage instructions.
+Guided analysis can be controlled programmatically through multiple [Python APIs](https://api.binary.ninja/search.html?q=guided), supporting custom analysis scripts and plugins.
