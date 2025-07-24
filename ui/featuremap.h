@@ -66,6 +66,9 @@ class BINARYNINJAUIAPI FeatureMap : public QWidget
 	Menu m_menu;
 	ContextMenuManager* m_contextMenuManager;
 
+	QString generateTooltipText(uint8_t colorIndex);
+	uint8_t getColorAtPosition(int x, int y);
+
 	void updateCoordinates();
 	void updateMappedRegions();
 
@@ -94,6 +97,7 @@ class BINARYNINJAUIAPI FeatureMap : public QWidget
 	static int defaultWidth() { return 64; }
 
 protected:
+	virtual bool event(QEvent* event) override;
 	virtual void contextMenuEvent(QContextMenuEvent* event) override;
 	virtual void mouseMoveEvent(QMouseEvent* event) override;
 	virtual void mousePressEvent(QMouseEvent* event) override;
