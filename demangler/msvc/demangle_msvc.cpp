@@ -1828,7 +1828,7 @@ bool Demangle::DemangleMS(Architecture* arch, const string& mangledName, Ref<Typ
 	}
 	catch (DemangleException &e)
 	{
-		LogDebug("Demangling Failed '%s' '%s;", mangledName.c_str(), e.what());
+		LogDebugForException(e, "Demangling Failed '%s' '%s;", mangledName.c_str(), e.what());
 		return false;
 	}
 	return true;
@@ -1851,7 +1851,7 @@ bool Demangle::DemangleMS(const string& mangledName, Ref<Type>& outType,
 	}
 	catch (DemangleException &e)
 	{
-		LogDebug("Demangling Failed '%s' '%s;", mangledName.c_str(), e.what());
+		LogDebugForException(e, "Demangling Failed '%s' '%s;", mangledName.c_str(), e.what());
 		return false;
 	}
 	return true;

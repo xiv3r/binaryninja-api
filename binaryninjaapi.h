@@ -588,6 +588,8 @@ namespace BinaryNinja {
 	class LogListener
 	{
 		static void LogMessageCallback(void* ctxt, size_t session, BNLogLevel level, const char* msg, const char* logger_name = "", size_t tid = 0);
+		static void LogMessageWithStackTraceCallback(void* ctxt, size_t session, BNLogLevel level,
+			const char* stackTrace, const char* msg, const char* logger_name = "", size_t tid = 0);
 		static void CloseLogCallback(void* ctxt);
 		static BNLogLevel GetLogLevelCallback(void* ctxt);
 
@@ -599,6 +601,8 @@ namespace BinaryNinja {
 		static void UpdateLogListeners();
 
 		virtual void LogMessage(size_t session, BNLogLevel level, const std::string& msg, const std::string& logger_name = "", size_t tid = 0) = 0;
+		virtual void LogMessageWithStackTrace(size_t session, BNLogLevel level, const std::string& stackTrace,
+			const std::string& msg, const std::string& logger_name = "", size_t tid = 0);
 		virtual void CloseLog() {}
 		virtual BNLogLevel GetLogLevel() { return WarningLog; }
 	};
@@ -711,6 +715,104 @@ namespace BinaryNinja {
 	BN_PRINTF_ATTRIBUTE(1, 2)
 	void LogAlert(const char* fmt, ...);
 
+	/*! Logs to the error console with the given BNLogLevel.
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param level BNLogLevel debug log level
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(3, 4)
+	void LogForException(BNLogLevel level, const std::exception& e, const char* fmt, ...);
+
+	/*! LogTraceForException only writes text to the error console if the console is set to log level: DebugLog
+	    Log level and the build is not a DEBUG build (i.e. the preprocessor directive _DEBUG is defined)
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	void LogTraceForException(const std::exception& e, const char* fmt, ...);
+
+	/*! LogDebugForException only writes text to the error console if the console is set to log level: DebugLog
+	    Log level DebugLog is the most verbose logging level in release builds.
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	void LogDebugForException(const std::exception& e, const char* fmt, ...);
+
+	/*! LogInfoForException always writes text to the error console, and corresponds to the log level: InfoLog.
+	    Log level InfoLog is the second most verbose logging level.
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	void LogInfoForException(const std::exception& e, const char* fmt, ...);
+
+	/*! LogWarnForException writes text to the error console including a warning icon,
+	    and also shows a warning icon in the bottom pane. LogWarn corresponds to the log level: WarningLog.
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	void LogWarnForException(const std::exception& e, const char* fmt, ...);
+
+	/*! LogErrorForException writes text to the error console and pops up the error console. Additionally,
+	    Errors in the console log include a error icon. LogError corresponds to the log level: ErrorLog.
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	void LogErrorForException(const std::exception& e, const char* fmt, ...);
+
+	/*! LogAlertForException pops up a message box displaying the alert message and logs to the error console.
+	    LogAlert corresponds to the log level: AlertLog.
+
+	    @threadsafe
+
+	    \ingroup logging
+
+	    \param e Exception being handled.
+	    \param fmt C-style format string.
+	    \param ... Variable arguments corresponding to the format string.
+	*/
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	void LogAlertForException(const std::exception& e, const char* fmt, ...);
+
 	// Implementation detail
 	void LogFV(BNLogLevel level, fmt::string_view format, fmt::format_args args);
 	void LogTraceFV(fmt::string_view format, fmt::format_args args);
@@ -719,6 +821,13 @@ namespace BinaryNinja {
 	void LogWarnFV(fmt::string_view format, fmt::format_args args);
 	void LogErrorFV(fmt::string_view format, fmt::format_args args);
 	void LogAlertFV(fmt::string_view format, fmt::format_args args);
+	void LogForExceptionFV(BNLogLevel level, const std::exception& e, fmt::string_view format, fmt::format_args args);
+	void LogTraceForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+	void LogDebugForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+	void LogInfoForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+	void LogWarnForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+	void LogErrorForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+	void LogAlertForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
 
 	/*! Logs to the error console with the given BNLogLevel.
 
@@ -832,6 +941,125 @@ namespace BinaryNinja {
 		LogAlertFV(format, fmt::make_format_args(args...));
 	}
 
+	/*! Logs to the error console with the given BNLogLevel.
+
+		@threadsafe
+
+		\ingroup logging
+
+		\param level BNLogLevel debug log level
+	    \param e Exception being handled.
+		\param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogForExceptionF(BNLogLevel level, const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogWithForExceptionFV(level, e, format, fmt::make_format_args(args...));
+	}
+
+	/*! LogTraceForExceptionF only writes text to the error console if the console is set to log level: DebugLog
+		Log level and the build is not a DEBUG build (i.e. the preprocessor directive _DEBUG is defined)
+
+		@threadsafe
+
+		\ingroup logging
+
+		\param e Exception being handled.
+		\param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogTraceForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogTraceForExceptionFV(e, format, fmt::make_format_args(args...));
+	}
+
+	/*! LogDebugForExceptionF only writes text to the error console if the console is set to log level: DebugLog
+	    Log level DebugLog is the most verbose logging level in release builds.
+
+		@threadsafe
+
+	    \ingroup logging
+
+		\param e Exception being handled.
+		\param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogDebugForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogDebugForExceptionFV(e, format, fmt::make_format_args(args...));
+	}
+
+	/*! LogInfoForExceptionF always writes text to the error console, and corresponds to the log level: InfoLog.
+		Log level InfoLog is the second most verbose logging level.
+
+		@threadsafe
+
+		\ingroup logging
+
+		\param e Exception being handled.
+		\param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogInfoForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogInfoForExceptionFV(e, format, fmt::make_format_args(args...));
+	}
+
+	/*! LogWarnForExceptionF writes text to the error console including a warning icon,
+		and also shows a warning icon in the bottom pane. LogWarn corresponds to the log level: WarningLog.
+
+		@threadsafe
+
+		\ingroup logging
+
+		\param e Exception being handled.
+		\param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogWarnForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogWarnForExceptionFV(e, format, fmt::make_format_args(args...));
+	}
+
+	/*! LogErrorForExceptionF writes text to the error console and pops up the error console. Additionally,
+		Errors in the console log include a error icon. LogError corresponds to the log level: ErrorLog.
+
+		@threadsafe
+
+		\ingroup logging
+
+		\param e Exception being handled.
+		\param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogErrorForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogErrorForExceptionFV(e, format, fmt::make_format_args(args...));
+	}
+
+	/*! LogAlertForExceptionF pops up a message box displaying the alert message and logs to the error console.
+		LogAlert corresponds to the log level: AlertLog.
+
+		@threadsafe
+
+		\ingroup logging
+
+		\param e Exception being handled.
+	    \param format fmt-style format string.
+		\param ... Variable arguments corresponding to the format string.
+	*/
+	template <typename... T>
+	void LogAlertForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+	{
+		LogAlertForExceptionFV(e, format, fmt::make_format_args(args...));
+	}
+
 	/*! Redirects the minimum level passed to standard out
 
 	    @threadsafe
@@ -889,6 +1117,15 @@ namespace BinaryNinja {
 			void LogWarnFV(fmt::string_view format, fmt::format_args args);
 			void LogErrorFV(fmt::string_view format, fmt::format_args args);
 			void LogAlertFV(fmt::string_view format, fmt::format_args args);
+
+			void LogForExceptionFV(
+				BNLogLevel level, const std::exception& e, fmt::string_view format, fmt::format_args args);
+			void LogTraceForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+			void LogDebugForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+			void LogInfoForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+			void LogWarnForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+			void LogErrorForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
+			void LogAlertForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args);
 
 		public:
 			Logger(BNLogger* logger);
@@ -988,6 +1225,83 @@ namespace BinaryNinja {
 					@threadsafe
 
 				\param level BNLogLevel debug log level
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogForException(BNLogLevel level, const std::exception& e, const char* fmt, ...);
+
+			/*! LogTraceForException only writes text to the error console if the console is set to log level:
+				DebugLog Log level and the build is not a DEBUG build (i.e. the preprocessor directive _DEBUG is defined)
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogTraceForException(const std::exception& e, const char* fmt, ...);
+
+			/*! LogDebugForException only writes text to the error console if the console is set to log level:
+				DebugLog Log level DebugLog is the most verbose logging level in release builds.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogDebugForException(const std::exception& e, const char* fmt, ...);
+
+			/*! LogInfoForException always writes text to the error console, and corresponds to the log level:
+				InfoLog. Log level InfoLog is the second most verbose logging level.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogInfoForException(const std::exception& e, const char* fmt, ...);
+
+			/*! LogWarnForException writes text to the error console including a warning icon,
+				and also shows a warning icon in the bottom pane. LogWarn corresponds to the log level: WarningLog.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogWarnForException(const std::exception& e, const char* fmt, ...);
+
+			/*! LogErrorForException writes text to the error console and pops up the error console. Additionally,
+				Errors in the console log include a error icon. LogError corresponds to the log level: ErrorLog.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogErrorForException(const std::exception& e, const char* fmt, ...);
+
+			/*! LogAlertForException pops up a message box displaying the alert message and logs to the error console.
+				LogAlert corresponds to the log level: AlertLog.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param fmt C-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			void LogAlertForException(const std::exception& e, const char* fmt, ...);
+
+			/*! Logs to the error console with the given BNLogLevel.
+
+					@threadsafe
+
+				\param level BNLogLevel debug log level
 				\param format fmt-style format string.
 				\param ... Variable arguments corresponding to the format string.
 			*/
@@ -1079,6 +1393,112 @@ namespace BinaryNinja {
 			void LogAlertF(fmt::format_string<T...> format, T&&... args)
 			{
 				LogAlertFV(format, fmt::make_format_args(args...));
+			}
+
+			/*! Logs to the error console with the given BNLogLevel and a stack trace.
+
+					@threadsafe
+
+				\param level BNLogLevel debug log level
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogForExceptionF(
+				BNLogLevel level, const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogWithForExceptionFV(level, e, format, fmt::make_format_args(args...));
+			}
+
+			/*! LogTraceForExceptionF only writes text to the error console if the console is set to log level:
+				DebugLog Log level and the build is not a DEBUG build (i.e. the preprocessor directive _DEBUG is defined)
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogTraceForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogTraceForExceptionFV(e, format, fmt::make_format_args(args...));
+			}
+
+			/*! LogDebugForExceptionF only writes text to the error console if the console is set to log level:
+				DebugLog Log level DebugLog is the most verbose logging level in release builds.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogDebugForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogDebugForExceptionFV(e, format, fmt::make_format_args(args...));
+			}
+
+			/*! LogInfoForExceptionF always writes text to the error console, and corresponds to the log level:
+				InfoLog. Log level InfoLog is the second most verbose logging level.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogInfoForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogInfoForExceptionFV(e, format, fmt::make_format_args(args...));
+			}
+
+			/*! LogWarnForExceptionF writes text to the error console including a warning icon,
+				and also shows a warning icon in the bottom pane. LogWarn corresponds to the log level: WarningLog.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogWarnForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogWarnForExceptionFV(e, format, fmt::make_format_args(args...));
+			}
+
+			/*! LogErrorForExceptionF writes text to the error console and pops up the error console. Additionally,
+				Errors in the console log include a error icon. LogError corresponds to the log level: ErrorLog.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogErrorForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogErrorForExceptionFV(e, format, fmt::make_format_args(args...));
+			}
+
+			/*! LogAlertForExceptionF pops up a message box displaying the alert message and logs to the error
+				console. LogAlert corresponds to the log level: AlertLog.
+
+					@threadsafe
+
+				\param e Exception being handled.
+				\param format fmt-style format string.
+				\param ... Variable arguments corresponding to the format string.
+		    */
+			template <typename... T>
+			void LogAlertForExceptionF(const std::exception& e, fmt::format_string<T...> format, T&&... args)
+			{
+				LogAlertForExceptionFV(e, format, fmt::make_format_args(args...));
 			}
 
 			/*! Get the name registered for this Logger

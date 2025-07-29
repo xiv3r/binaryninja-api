@@ -333,7 +333,8 @@ Ref<BinaryView> TEViewType::Create(BinaryView* bv)
 	}
 	catch (std::exception& e)
 	{
-		m_logger->LogError("%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
+		m_logger->LogErrorForException(
+			e, "%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
 		return nullptr;
 	}
 }
@@ -346,7 +347,8 @@ Ref<BinaryView> TEViewType::Parse(BinaryView* bv)
 	}
 	catch (std::exception& e)
 	{
-		m_logger->LogError("%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
+		m_logger->LogErrorForException(
+			e, "%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
 		return nullptr;
 	}
 }

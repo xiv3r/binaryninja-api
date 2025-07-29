@@ -1389,9 +1389,9 @@ public:
 			}
 		}
 		}
-		catch (exception&)
+		catch (exception& e)
 		{
-			LogWarn("Failed to disassemble instruction with encoding: %" PRIx32 "\n", *(uint32_t*)data);
+			LogWarnForException(e, "Failed to disassemble instruction with encoding: %" PRIx32 "\n", *(uint32_t*)data);
 		}
 		return true;
 	}

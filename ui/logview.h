@@ -130,6 +130,8 @@ class BINARYNINJAUIAPI LogListModel : public QAbstractItemModel, BinaryNinja::Lo
 		void clear();
 
 		virtual void LogMessage(size_t sessionId, BNLogLevel level, const std::string& msg, const std::string& loggerName = "", size_t tid = 0) override;
+		virtual void LogMessageWithStackTrace(size_t sessionId, BNLogLevel level, const std::string& stackTrace,
+			const std::string& msg, const std::string& loggerName = "", size_t tid = 0) override;
 		virtual BNLogLevel GetLogLevel() override;
 
 		QString getFormattedMessage(const LogListItem& item) const;

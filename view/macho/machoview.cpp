@@ -3920,7 +3920,7 @@ Ref<BinaryView> MachoViewType::Create(BinaryView* data)
 	}
 	catch (std::exception& e)
 	{
-		m_logger->LogErrorF("{}<BinaryViewType> failed to create view! {:?}", GetName(), e.what());
+		m_logger->LogErrorForExceptionF(e, "{}<BinaryViewType> failed to create view! {:?}", GetName(), e.what());
 		return nullptr;
 	}
 }
@@ -3934,7 +3934,7 @@ Ref<BinaryView> MachoViewType::Parse(BinaryView* data)
 	}
 	catch (std::exception& e)
 	{
-		m_logger->LogErrorF("{}<BinaryViewType> failed to create view! {:?}", GetName(), e.what());
+		m_logger->LogErrorForExceptionF(e, "{}<BinaryViewType> failed to create view! {:?}", GetName(), e.what());
 		return nullptr;
 	}
 }

@@ -352,7 +352,8 @@ class BINARYNINJAUIAPI BackgroundThread : public QObject
 				// Just print an error and keep going
 				catch (std::exception& e)
 				{
-					BinaryNinja::LogError("Exception thrown in BackgroundThread::finally(): %s", e.what());
+					BinaryNinja::LogErrorForException(
+						e, "Exception thrown in BackgroundThread::finally(): %s", e.what());
 				}
 				catch (...)
 				{
@@ -413,7 +414,8 @@ class BINARYNINJAUIAPI BackgroundThread : public QObject
 				// Just print an error and keep going
 				catch (std::exception& e)
 				{
-					BinaryNinja::LogError("Exception thrown in BackgroundThread::finally(): %s", e.what());
+					BinaryNinja::LogErrorForException(
+						e, "Exception thrown in BackgroundThread::finally(): %s", e.what());
 				}
 				catch (...)
 				{

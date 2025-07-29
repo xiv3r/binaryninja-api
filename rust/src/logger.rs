@@ -162,6 +162,10 @@ pub trait LogListener: 'static + Sync {
     fn log(&self, session: usize, level: Level, msg: &str, logger_name: &str, tid: usize);
     fn level(&self) -> Level;
     fn close(&self) {}
+
+    fn log_with_stack_trace(&self, session: usize, level: Level, _stack_trace: &str, msg: &str, logger_name: &str, tid: usize) {
+        self.log(session, level, msg, logger_name, tid);
+    }
 }
 
 pub struct LogGuard<L: LogListener> {
@@ -175,6 +179,7 @@ impl<L: LogListener> Drop for LogGuard<L> {
         let mut bn_obj = BNLogListener {
             context: self.ctxt as *mut _,
             log: Some(cb_log::<L>),
+            logWithStackTrace: Some(cb_log_with_stack_trace::<L>),
             close: Some(cb_close::<L>),
             getLogLevel: Some(cb_level::<L>),
         };
@@ -195,6 +200,7 @@ pub fn register_listener<L: LogListener>(listener: L) -> LogGuard<L> {
     let mut bn_obj = BNLogListener {
         context: raw as *mut _,
         log: Some(cb_log::<L>),
+        logWithStackTrace: Some(cb_log_with_stack_trace::<L>),
         close: Some(cb_close::<L>),
         getLogLevel: Some(cb_level::<L>),
     };
@@ -222,6 +228,26 @@ extern "C" fn cb_log<L>(
         let msg_str = raw_to_string(msg).unwrap();
         let logger_name_str = raw_to_string(logger_name).unwrap();
         listener.log(session, level, &msg_str, &logger_name_str, tid);
+    })
+}
+
+extern "C" fn cb_log_with_stack_trace<L>(
+    ctxt: *mut c_void,
+    session: usize,
+    level: Level,
+    stack_trace: *const c_char,
+    msg: *const c_char,
+    logger_name: *const c_char,
+    tid: usize,
+) where
+    L: LogListener,
+{
+    ffi_wrap!("LogListener::log_with_stack_trace", unsafe {
+        let listener = &*(ctxt as *const L);
+        let stack_trace_str = raw_to_string(stack_trace).unwrap();
+        let msg_str = raw_to_string(msg).unwrap();
+        let logger_name_str = raw_to_string(logger_name).unwrap();
+        listener.log_with_stack_trace(session, level, &stack_trace_str, &msg_str, &logger_name_str, tid);
     })
 }
 

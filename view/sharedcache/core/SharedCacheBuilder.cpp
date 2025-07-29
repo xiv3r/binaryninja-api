@@ -46,7 +46,7 @@ bool SharedCacheBuilder::AddFile(
 	catch (const std::exception& e)
 	{
 		// Just return false so the view init can continue.
-		m_logger->LogErrorF("Failed to add file '{}': {}", fileName, e.what());
+		m_logger->LogErrorForExceptionF(e, "Failed to add file '{}': {}", fileName, e.what());
 		return false;
 	}
 

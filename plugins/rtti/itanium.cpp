@@ -748,7 +748,7 @@ void ItaniumRTTIProcessor::ProcessRTTI()
             }
             catch (std::exception& e)
             {
-                m_logger->LogWarn("Failed to process object at %llx... skipping", currAddr);
+                m_logger->LogWarnForException(e, "Failed to process object at %llx... skipping", currAddr);
             }
         }
     };

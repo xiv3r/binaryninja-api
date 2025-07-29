@@ -2814,7 +2814,8 @@ Ref<BinaryView> ElfViewType::Create(BinaryView* data)
 	}
 	catch (std::exception& e)
 	{
-		m_logger->LogError("%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
+		m_logger->LogErrorForException(
+			e, "%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
 		return nullptr;
 	}
 }
@@ -2828,7 +2829,8 @@ Ref<BinaryView> ElfViewType::Parse(BinaryView* data)
 	}
 	catch (std::exception& e)
 	{
-		m_logger->LogError("%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
+		m_logger->LogErrorForException(
+			e, "%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
 		return nullptr;
 	}
 }
