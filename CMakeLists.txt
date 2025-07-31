@@ -29,10 +29,16 @@ if(NOT DEMO)
     endif()
 endif()
 
+if(NOT BN_INTERNAL_BUILD)
+    add_subdirectory(base)
+endif()
+
 add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
 
 target_include_directories(binaryninjaapi
     PUBLIC ${PROJECT_SOURCE_DIR})
+
+target_link_libraries(binaryninjaapi PUBLIC binaryninjabase)
 
 # Store path to user plugin dir
 if(WIN32)
