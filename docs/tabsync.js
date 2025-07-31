@@ -4,6 +4,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     for (const tab of tabs) {
       tab.addEventListener("click", () => {
+        if (tab.dataset.syncing === "true") return;
+        
         const currentLabel = document.querySelector(`label[for="${tab.id}"]`);
         if (!currentLabel) return;
 
@@ -19,7 +21,9 @@ document.addEventListener("DOMContentLoaded", function () {
             const inputId = label.getAttribute("for");
             const input = document.getElementById(inputId);
             if (input && input !== tab) {
+              input.dataset.syncing = "true";
               input.click();
+              input.dataset.syncing = "false";
             }
           }
         }
