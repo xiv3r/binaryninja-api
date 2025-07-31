@@ -472,8 +472,8 @@ public:
 	// makeSureItHasPlatform: if the type container is a BV with no platform (raw), ask for one and return nullopt if rejected
 	// preferView: if the type container is a BV and the user/auto-only container, switch to the whole-view container for that BV instead
 	std::optional<BinaryNinja::TypeContainer> selectedTypeContainer(bool makeSureItHasPlatform = true, bool preferView = false) const;
-	// Same as above, but if it returns nullopt, try again with m_data
-	std::optional<BinaryNinja::TypeContainer> selectedTypeContainerOrMData(bool makeSureItHasPlatform = true, bool preferView = false) const;
+	// Which (selection preferred) container should be used for creating new types
+	std::optional<BinaryNinja::TypeContainer> typeContainerForCreating(bool makeSureItHasPlatform = true, bool preferView = false) const;
 	// Selected type container ids, or containers of selected types
 	std::unordered_set<std::string> selectedTypeContainerIds() const;
 
