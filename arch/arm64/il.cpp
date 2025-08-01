@@ -2803,8 +2803,13 @@ bool GetLowLevelILForInstruction(
 				operand2.implspec[3], operand2.implspec[4]);
 		}
 
-		il.AddInstruction(
-		    il.Intrinsic({RegisterOrFlag::Register(REG_O(operand1))}, ARM64_INTRIN_MRS, {il.Const(4, reg)}));
+		if (IS_ZERO_REG(REG_O(operand1))) {
+			il.AddInstruction(
+			    il.Intrinsic({}, ARM64_INTRIN_MRS, {il.Const(4, reg)}));
+		} else {
+			il.AddInstruction(
+			    il.Intrinsic({RegisterOrFlag::Register(REG_O(operand1))}, ARM64_INTRIN_MRS, {il.Const(4, reg)}));
+		}
 		break;
 	}
 	case ARM64_MSUB:
