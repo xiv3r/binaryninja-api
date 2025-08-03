@@ -452,7 +452,7 @@ pub(crate) fn download_debug_info(
                 "GET",
                 &artifact_url,
                 vec![],
-                DownloadInstanceInputOutputCallbacks {
+                &DownloadInstanceInputOutputCallbacks {
                     read: None,
                     write: Some(Box::new(write)),
                     progress: None,

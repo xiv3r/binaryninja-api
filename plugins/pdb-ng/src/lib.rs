@@ -195,7 +195,7 @@ fn read_from_sym_store(bv: &BinaryView, path: &str) -> Result<(bool, Vec<u8>)> {
             "GET",
             path,
             vec![],
-            DownloadInstanceInputOutputCallbacks {
+            &DownloadInstanceInputOutputCallbacks {
                 read: None,
                 write: Some(Box::new(write)),
                 progress: None,
