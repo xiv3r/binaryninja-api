@@ -595,12 +595,16 @@ public:
 	void NotifyOnViewChange(ViewFrame* frame, const QString& type);
 	void NotifyOnAddressChange(ViewFrame* frame, View* view, const ViewLocation& location);
 	void NotifyOnILViewTypeChange(ViewFrame* frame, View* view, const BinaryNinja::FunctionViewType& viewType);
-	void updateCrossReferences(ViewFrame* frame, View* view, const SelectionInfoForXref& selection);
+	virtual void updateCrossReferences(ViewFrame* frame, View* view, const SelectionInfoForXref& selection);
 	void NotifyOnActionExecuted(UIActionHandler* handler, const QString& name, const UIActionContext& ctx, std::function<void(const UIActionContext&)>& action);
 	void NotifyOnActionExecutedImmutable(UIActionHandler* handler, const QString& name, const UIActionContext& ctx);
 	void NotifyOnContextMenuCreated(View* view, Menu& menu);
 
 	virtual void findAll(const BinaryNinja::FindParameters& params);
+
+	virtual void beginNavigationForCrossReference(ViewFrame* frame, const SelectionInfoForXref& selection) = 0;
+	virtual void endNavigationForCrossReference() = 0;
+	virtual bool isNavigatingForCrossReference() = 0;
 
 	/*!
 	    Register an object to receive notifications of UIContext events

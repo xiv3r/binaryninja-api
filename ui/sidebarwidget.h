@@ -53,6 +53,7 @@ public:
 	SidebarWidget(const QString& title);
 	~SidebarWidget();
 	const QString& title() const { return m_title; }
+	void setTitle(const QString& title) { m_title = title; }
 
 	void enableRefreshTimer(int interval);
 	void setRefreshQuiesce(bool enable);
@@ -103,6 +104,7 @@ public:
 	~SidebarWidgetAndHeader() override;
 
 	SidebarWidget* widget() const { return m_widget; }
+	SidebarWidgetType* type() const { return m_type; }
 	QWidget* header() const;
 
 	void addWidget(SidebarWidget* widget, bool canClose = false);
@@ -110,6 +112,7 @@ public:
 	SidebarWidget* widgetWithTitle(const QString& title) const;
 	bool hasWidgetWithTitle(const QString& title) const;
 	bool activateWidgetWithTitle(const QString& title);
+	bool activateWidget(SidebarWidget* widget);
 	bool hasContent() const;
 
 	void updateTheme();
@@ -283,6 +286,8 @@ public:
 	{
 		return nullptr;
 	}
+
+	virtual bool deactivateOnLastTabClose() const { return false; }
 
 	void updateTheme();
 };

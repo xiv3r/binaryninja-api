@@ -397,7 +397,9 @@ class BINARYNINJAUIAPI SplitTabWidget : public QWidget
 	QString savedLayoutString() const;
 	void restoreLayoutString(const QString& layout);
 
-  Q_SIGNALS:
+	bool isEmpty() const;
+
+Q_SIGNALS:
 	void tabClosed(QWidget* widget);
 	void currentChanged(QWidget* widget);
 	void layoutChanged();

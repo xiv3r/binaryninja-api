@@ -25,6 +25,7 @@
 #include "viewframe.h"
 #include "fontsettings.h"
 #include "expandablegroup.h"
+#include "tabwidget.h"
 
 class XrefHeader;
 
@@ -676,7 +677,6 @@ class BINARYNINJAUIAPI CrossReferenceWidget : public SidebarWidget, public UICon
 	SelectionInfoForXref m_curRef;
 	SelectionInfoForXref m_newRef;
 	std::optional<SelectionInfoForXref> m_pendingSelection;
-	bool m_navigating = false;
 	bool m_navToNextOrPrevStarted = false;
 	bool m_pinned;
 	bool m_uiMaxItemsExceeded = false;
@@ -729,11 +729,13 @@ class BINARYNINJAUIAPI CrossReferenceWidget : public SidebarWidget, public UICon
 	void notifyRefresh() override;
 	void notifyQuiesce(bool quiesce) override;
 
+	const SelectionInfoForXref& getCurrentSelection() const { return m_curRef; }
+
 private Q_SLOTS:
 	void hoverTimerEvent();
-	void newPinnedPane();
+	void newPinnedTab();
 
-  public Q_SLOTS:
+public Q_SLOTS:
 	void referenceActivated(const QModelIndex& idx);
 	void pinnedStateChanged(bool state);
 	void selectionChanged();
@@ -751,6 +753,21 @@ class BINARYNINJAUIAPI CrossReferenceSidebarWidgetType : public SidebarWidgetTyp
 	CrossReferenceSidebarWidgetType();
 	virtual bool isInReferenceArea() const override { return true; }
 	virtual SidebarWidget* createWidget(ViewFrame* frame, BinaryViewRef data) override;
+};
+
+/*!
+    \ingroup xreflist
+*/
+class BINARYNINJAUIAPI PinnedCrossReferenceSidebarWidgetType : public SidebarWidgetType
+{
+public:
+	PinnedCrossReferenceSidebarWidgetType();
+	SidebarWidgetLocation defaultLocation() const override { return SidebarWidgetLocation::RightBottom; }
+	SidebarContextSensitivity contextSensitivity() const override { return PerViewTypeSidebarContext; }
+	bool alwaysShowTabs() const override { return true; }
+	QString noWidgetMessage() const override { return "No pinned cross references"; }
+	DockableTabStyle* tabStyle() const override { return new DefaultDockableTabStyle(); }
+	bool deactivateOnLastTabClose() const override { return true; }
 };
 
 
