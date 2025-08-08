@@ -9,9 +9,12 @@ use crate::low_level_il::{LowLevelILMutableFunction, LowLevelILRegularFunction};
 use crate::medium_level_il::MediumLevelILFunction;
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
 use crate::string::{BnString, IntoCStr};
-use std::ffi::{c_char, c_void};
+use std::ffi::c_char;
 use std::ptr;
 use std::ptr::NonNull;
+
+pub mod activity;
+pub use activity::Activity;
 
 #[repr(transparent)]
 /// The AnalysisContext struct is used to represent the current state of
@@ -142,82 +145,6 @@ unsafe impl RefCountable for AnalysisContext {
 
     unsafe fn dec_ref(handle: &Self) {
         BNFreeAnalysisContext(handle.handle.as_ptr());
-    }
-}
-
-// TODO: This needs to be made into a trait similar to that of `Command`.
-#[repr(transparent)]
-pub struct Activity {
-    handle: NonNull<BNActivity>,
-}
-
-impl Activity {
-    #[allow(unused)]
-    pub(crate) unsafe fn from_raw(handle: NonNull<BNActivity>) -> Self {
-        Self { handle }
-    }
-
-    pub(crate) unsafe fn ref_from_raw(handle: NonNull<BNActivity>) -> Ref<Self> {
-        Ref::new(Self { handle })
-    }
-
-    pub fn new(config: &str) -> Ref<Self> {
-        unsafe extern "C" fn cb_action_nop(_: *mut c_void, _: *mut BNAnalysisContext) {}
-        let config = config.to_cstr();
-        let result =
-            unsafe { BNCreateActivity(config.as_ptr(), std::ptr::null_mut(), Some(cb_action_nop)) };
-        unsafe { Activity::ref_from_raw(NonNull::new(result).unwrap()) }
-    }
-
-    pub fn new_with_action<F>(config: &str, mut action: F) -> Ref<Self>
-    where
-        F: FnMut(&AnalysisContext),
-    {
-        unsafe extern "C" fn cb_action<F: FnMut(&AnalysisContext)>(
-            ctxt: *mut c_void,
-            analysis: *mut BNAnalysisContext,
-        ) {
-            let ctxt = &mut *(ctxt as *mut F);
-            if let Some(analysis) = NonNull::new(analysis) {
-                ctxt(&AnalysisContext::from_raw(analysis))
-            }
-        }
-        let config = config.to_cstr();
-        let result = unsafe {
-            BNCreateActivity(
-                config.as_ptr(),
-                &mut action as *mut F as *mut c_void,
-                Some(cb_action::<F>),
-            )
-        };
-        unsafe { Activity::ref_from_raw(NonNull::new(result).unwrap()) }
-    }
-
-    pub fn name(&self) -> String {
-        let result = unsafe { BNActivityGetName(self.handle.as_ptr()) };
-        assert!(!result.is_null());
-        unsafe { BnString::into_string(result) }
-    }
-}
-
-impl ToOwned for Activity {
-    type Owned = Ref<Self>;
-
-    fn to_owned(&self) -> Self::Owned {
-        unsafe { RefCountable::inc_ref(self) }
-    }
-}
-
-unsafe impl RefCountable for Activity {
-    unsafe fn inc_ref(handle: &Self) -> Ref<Self> {
-        Ref::new(Self {
-            handle: NonNull::new(BNNewActivityReference(handle.handle.as_ptr()))
-                .expect("valid handle"),
-        })
-    }
-
-    unsafe fn dec_ref(handle: &Self) {
-        BNFreeActivity(handle.handle.as_ptr());
     }
 }
 
