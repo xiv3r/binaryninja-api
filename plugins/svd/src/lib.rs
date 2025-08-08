@@ -6,18 +6,8 @@ use crate::settings::LoadSettings;
 use binaryninja::binary_view::{BinaryView, BinaryViewBase, BinaryViewExt};
 use binaryninja::command::Command;
 use binaryninja::logger::Logger;
-use binaryninja::workflow::{Activity, AnalysisContext, Workflow};
+use binaryninja::workflow::{activity, Activity, AnalysisContext, Workflow};
 use log::LevelFilter;
-
-const LOADER_ACTIVITY_CONFIG: &str = r#"{
-    "name": "analysis.svd.loader",
-    "title" : "SVD Loader",
-    "description": "This analysis step applies SVD info to the view...",
-    "eligibility": {
-        "auto": {},
-        "runOnce": true
-    }
-}"#;
 
 struct LoadSVDFile;
 
@@ -118,7 +108,13 @@ fn plugin_init() -> Result<(), ()> {
     };
 
     // Register new workflow activity to load svd information.
-    let loader_activity = Activity::new_with_action(LOADER_ACTIVITY_CONFIG, loader_activity);
+    let loader_config = activity::Config::action(
+        "analysis.svd.loader",
+        "SVD Loader",
+        "This analysis step applies SVD info to the view...",
+    )
+    .eligibility(activity::Eligibility::auto().run_once(true));
+    let loader_activity = Activity::new_with_action(loader_config, loader_activity);
     Workflow::cloned("core.module.metaAnalysis")
         .ok_or(())?
         .activity_before(&loader_activity, "core.module.loadDebugInfo")?
