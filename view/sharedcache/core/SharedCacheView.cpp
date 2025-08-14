@@ -164,6 +164,7 @@ enum DSCPlatform
 	DSCPlatformiOSSimulator = 7,
 	DSCPlatformTVOSSimulator = 8,
 	DSCPlatformWatchOSSimulator = 9,
+	DSCPlatformDriverKit = 10,
 	DSCPlatformVisionOS = 11,          // Apple Vision Pro
 	DSCPlatformVisionOSSimulator = 12  // Apple Vision Pro Simulator
 };
@@ -219,6 +220,11 @@ bool SharedCacheView::Init()
 	case DSCPlatformVisionOS:
 	case DSCPlatformVisionOSSimulator:
 		os = "ios";
+		break;
+	case DSCPlatformDriverKit:
+		// TODO: The same platform value is used for both macOS and iOS DriverKit shared caches.
+		// Until we have a way to differentiate them, default to macOS.
+		os = "mac";
 		break;
 	// armv7 or slide info v1 (unsupported)
 	case DSCPlatformWatchOS:
@@ -864,7 +870,7 @@ bool SharedCacheView::InitController()
 		// Verify that we are not missing any entries that were stored in the metadata.
 		// If we are that means we should alert the user that a previously associated cache entry is missing.
 		std::set<std::string> missingCacheEntries = m_secondaryFileNames;
-		uint64_t expectedFileCount = 1;
+		std::optional<uint64_t> expectedFileCount;
 		for (const auto& entry : sharedCacheBuilder.GetCache().GetEntries())
 		{
 			missingCacheEntries.erase(entry.GetFileName());
@@ -873,21 +879,21 @@ bool SharedCacheView::InitController()
 			if (entry.GetType() == CacheEntryType::Primary)
 			{
 				const auto& entryHeader = entry.GetHeader();
-				// TODO: Some caches seem to have less sub caches than what we report having.
-				expectedFileCount += entryHeader.subCacheArrayCount;
-				// On older caches we don't have any sub-caches, so we want to skip alerting the user to that fact.
-				if (entryHeader.subCacheArrayOffset == 0)
-					expectedFileCount = 0;
+				if (expectedFileCount)
+					m_logger->LogWarnF("Multiple primary cache files found for '{}'.", m_primaryFileName);
+
+				// TODO: Some caches seem to have fewer sub caches than what we report having.
+				expectedFileCount = 1 + entryHeader.subCacheArrayCount;
 			}
 		}
 		for (const auto& missingFileName: missingCacheEntries)
 			m_logger->LogErrorF("Secondary cache file '{}' is missing!", missingFileName);
 
 		// Verify that we have the required amount of sub-caches, if not alert the user.
-		if (expectedFileCount == 1)
-			m_logger->LogWarnF("Primary cache file '{}' has no sub-caches! You are likely opening a secondary cache file instead of a primary one.", m_primaryFileName);
+		if (!expectedFileCount)
+			m_logger->LogWarnF("Did not find a primary cache file for '{}'! You are likely opening a secondary cache file instead of a primary one.", m_primaryFileName);
 		else if (totalEntries < expectedFileCount)
-			m_logger->LogWarnF("Insufficient cache files in dyld header ({}/{}), loading as partial shared cache...", totalEntries, expectedFileCount);
+			m_logger->LogWarnF("Insufficient cache files in dyld header ({}/{}), loading as partial shared cache...", totalEntries, *expectedFileCount);
 	}
 
 	auto sharedCache = sharedCacheBuilder.Finalize();
