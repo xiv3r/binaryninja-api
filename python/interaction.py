@@ -1520,6 +1520,8 @@ def show_message_box(title, text, buttons=MessageBoxButtonSet.OKButtonSet, icon=
 	"""
 	``show_message_box`` Displays a configurable message box in the UI, or prompts on the console as appropriate
 
+	:note: This uses a standard QDialog which means simple HTML will render as HTML, but links are not clickable and special characters need to be escaped.
+
 	:param str title: Text title for the message box.
 	:param str text: Text for the main body of the message box.
 	:param MessageBoxButtonSet buttons: One of :py:class:`MessageBoxButtonSet`
