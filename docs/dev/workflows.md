@@ -381,6 +381,7 @@ Eligibility determines whether an Activity should execute, based on certain cond
 	- `type` (required): A string indicating the type of predicate. Valid values:
 		- `"setting"`: Evaluates the value of specific setting.
 		- `"viewType"`: Evaluates the type of BinaryView.
+		- `"platform"`: Evaluates the platform of the BinaryView.
 	- `value` (required): The value to compare against, which can be one of the following types:
 		- `string`
 		- `number`
