@@ -2156,7 +2156,13 @@ extern "C"
 		// Sidebar colors
 		SidebarBackgroundColor,
 		SidebarInactiveIconColor,
+		SidebarHoverIconColor,
 		SidebarActiveIconColor,
+		SidebarFocusedIconColor,
+		SidebarHoverBackgroundColor,
+		SidebarActiveBackgroundColor,
+		SidebarFocusedBackgroundColor,
+		SidebarActiveIndicatorLineColor,
 		SidebarHeaderBackgroundColor,  // Deprecated, has no effect (paints as QPalette::Window)
 		SidebarHeaderTextColor,
 		SidebarWidgetBackgroundColor,

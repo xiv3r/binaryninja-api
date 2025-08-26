@@ -29,6 +29,10 @@ struct BINARYNINJAUIAPI SidebarIcon
 	QImage original;
 	QImage active;
 	QImage inactive;
+	QImage hover;
+	QImage focused;
+
+	const QImage& iconForState(bool isActive, bool isHovered, bool isFocused) const;
 
 	static SidebarIcon generate(const QImage& src);
 };
