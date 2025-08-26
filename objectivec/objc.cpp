@@ -295,7 +295,7 @@ std::vector<QualifiedNameOrType> ObjCProcessor::ParseEncodedType(const std::stri
 			nameOrType.type = Type::IntegerType(2, true);
 			break;
 		case 'S':
-			nameOrType.type = Type::IntegerType(1, false);
+			nameOrType.type = Type::IntegerType(2, false);
 			break;
 		case 'i':
 			nameOrType.type = Type::IntegerType(4, true);
@@ -304,26 +304,26 @@ std::vector<QualifiedNameOrType> ObjCProcessor::ParseEncodedType(const std::stri
 			nameOrType.type = Type::IntegerType(4, false);
 			break;
 		case 'l':
-			nameOrType.type = Type::IntegerType(8, true);
+			nameOrType.type = Type::IntegerType(4, true);
 			break;
 		case 'L':
+			nameOrType.type = Type::IntegerType(4, false);
+			break;
+		case 'q':
 			nameOrType.type = Type::IntegerType(8, true);
 			break;
+		case 'Q':
+			nameOrType.type = Type::IntegerType(8, false);
+			break;
 		case 'f':
-			nameOrType.type = Type::IntegerType(4, true);
+			nameOrType.type = Type::FloatType(4);
+			break;
+		case 'd':
+			nameOrType.type = Type::FloatType(8);
 			break;
 		case 'b':
 		case 'B':
 			nameOrType.type = Type::BoolType();
-			break;
-		case 'q':
-			qualifiedName = "NSInteger";
-			break;
-		case 'Q':
-			qualifiedName = "NSUInteger";
-			break;
-		case 'd':
-			qualifiedName = "CGFloat";
 			break;
 		case '*':
 			nameOrType.type = Type::PointerType(m_data->GetAddressSize(), Type::IntegerType(1, true));
