@@ -2692,15 +2692,15 @@ class WindowsArm64SystemCallConvention : public CallingConvention
 	virtual bool IsEligibleForHeuristics() override { return false; }
 };
 
-class MacosArm64SystemCallConvention : public CallingConvention
+class AppleArm64SystemCallConvention : public CallingConvention
 {
  public:
-	MacosArm64SystemCallConvention(Architecture* arch) : CallingConvention(arch, "macos-syscall") {}
+	AppleArm64SystemCallConvention(Architecture* arch) : CallingConvention(arch, "apple-syscall") {}
 
 
 	virtual vector<uint32_t> GetIntegerArgumentRegisters() override
 	{
-		return vector<uint32_t> {REG_X16, REG_X0, REG_X1, REG_X2, REG_X3, REG_X4, REG_X5};
+		return vector<uint32_t> {REG_X16, REG_X0, REG_X1, REG_X2, REG_X3, REG_X4, REG_X5, REG_X6, REG_X7, REG_X8};
 	}
 
 
@@ -3498,6 +3498,9 @@ extern "C"
 		arm64->RegisterCallingConvention(conv);
 
 		conv = new WindowsArm64SystemCallConvention(arm64);
+		arm64->RegisterCallingConvention(conv);
+
+		conv = new AppleArm64SystemCallConvention(arm64);
 		arm64->RegisterCallingConvention(conv);
 
 		conv = new AppleArm64CallingConvention(arm64);
