@@ -118,7 +118,7 @@ impl MediumLevelILFunction {
     }
 
     pub fn create_user_stack_var<'a, C: Into<Conf<&'a Type>>>(
-        self,
+        &self,
         offset: i64,
         var_type: C,
         name: &str,
@@ -135,7 +135,7 @@ impl MediumLevelILFunction {
         }
     }
 
-    pub fn delete_user_stack_var(self, offset: i64) {
+    pub fn delete_user_stack_var(&self, offset: i64) {
         unsafe { BNDeleteUserStackVariable(self.function().handle, offset) }
     }
 
