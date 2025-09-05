@@ -48,6 +48,7 @@ pub type NamedTypeReferenceClass = BNNamedTypeReferenceClass;
 pub type MemberAccess = BNMemberAccess;
 pub type MemberScope = BNMemberScope;
 pub type IntegerDisplayType = BNIntegerDisplayType;
+pub type PointerBaseType = BNPointerBaseType;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct TypeBuilder {
@@ -92,6 +93,11 @@ impl TypeBuilder {
     pub fn set_volatile<T: Into<Conf<bool>>>(&self, value: T) -> &Self {
         let mut bool_with_confidence = value.into().into();
         unsafe { BNTypeBuilderSetVolatile(self.handle, &mut bool_with_confidence) };
+        self
+    }
+
+    pub fn set_pointer_base(&self, base_type: PointerBaseType, base_offset: i64) -> &Self {
+        unsafe { BNSetTypeBuilderPointerBase(self.handle, base_type, base_offset) }
         self
     }
 
@@ -229,6 +235,14 @@ impl TypeBuilder {
 
     pub fn stack_adjustment(&self) -> Conf<i64> {
         unsafe { BNGetTypeBuilderStackAdjustment(self.handle).into() }
+    }
+
+    pub fn pointer_base_type(&self) -> PointerBaseType {
+        unsafe { BNTypeBuilderGetPointerBaseType(self.handle) }
+    }
+
+    pub fn pointer_base_offset(&self) -> i64 {
+        unsafe { BNTypeBuilderGetPointerBaseOffset(self.handle) }
     }
 
     // TODO : This and properties
@@ -600,6 +614,14 @@ impl Type {
             false => Some(unsafe { NamedTypeReference::ref_from_raw(raw_type_ref_ptr) }),
             true => None,
         }
+    }
+
+    pub fn pointer_base_type(&self) -> BNPointerBaseType {
+        unsafe { BNTypeGetPointerBaseType(self.handle) }
+    }
+
+    pub fn pointer_base_offset(&self) -> i64 {
+        unsafe { BNTypeGetPointerBaseOffset(self.handle) }
     }
 
     // TODO : This and properties
