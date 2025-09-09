@@ -5903,6 +5903,7 @@ class MediumLevelILFunction:
 		"""
 		``prepare_to_copy_function`` sets up state in this MLIL function in preparation
 		of copying instructions from ``src``
+		It enables use of :py:func:`get_label_for_source_instruction` during function transformation.
 
 		:param MediumLevelILFunction src: function about to be copied from
 		"""
@@ -5912,6 +5913,7 @@ class MediumLevelILFunction:
 		"""
 		``prepare_to_copy_block`` sets up state when copying a function in preparation
 		of copying the instructions from the block ``src``
+		It enables use of :py:func:`get_label_for_source_instruction` during function transformation.
 
 		:param MediumLevelILBasicBlock src: block about to be copied from
 		"""
@@ -5919,8 +5921,14 @@ class MediumLevelILFunction:
 
 	def get_label_for_source_instruction(self, i: InstructionIndex) -> Optional['MediumLevelILLabel']:
 		"""
-		Get the MediumLevelILLabel for a given source instruction. The returned label is to an internal object with
-		the same lifetime as the containing MediumLevelILFunction.
+		Get the MediumLevelILLabel for a given source instruction. The source instruction must be
+		at the start of a basic block in the source function passed to :py:func:`prepare_to_copy_function`.
+		The label will be marked resolved when its source block is passed to :py:func:`prepare_to_copy_block`.
+
+		.. warning:: The instruction index parameter for this pertains to the *source function*
+		             passed to `prepare_to_copy_function`, not the current function.
+
+		.. note:: The returned label is to an internal object with the same lifetime as the containing MediumLevelILFunction.
 
 		:param i: The source instruction index
 		:return: The MediumLevelILLabel for the source instruction
