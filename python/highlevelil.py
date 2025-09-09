@@ -2647,7 +2647,7 @@ class HighLevelILFunction:
 	def basic_blocks(self) -> 'function.HighLevelILBasicBlockList':
 		return function.HighLevelILBasicBlockList(self)
 
-	def get_basic_block_at(self, index: int) -> Optional['basicblock.BasicBlock']:
+	def get_basic_block_at(self, index: int) -> Optional['HighLevelILBasicBlock']:
 		"""
 		``get_basic_block_at`` returns the BasicBlock at the given HLIL instruction ``index``.
 

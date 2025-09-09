@@ -3429,7 +3429,7 @@ class MediumLevelILFunction:
 	def basic_blocks(self) -> 'function.MediumLevelILBasicBlockList':
 		return function.MediumLevelILBasicBlockList(self)
 
-	def get_basic_block_at(self, index: int) -> Optional['basicblock.BasicBlock']:
+	def get_basic_block_at(self, index: int) -> Optional['MediumLevelILBasicBlock']:
 		"""
 		``get_basic_block_at`` returns the BasicBlock at the given MLIL instruction ``index``.
 

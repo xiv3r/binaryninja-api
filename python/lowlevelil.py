@@ -3410,7 +3410,7 @@ class LowLevelILFunction:
 	def basic_blocks(self) -> 'function.LowLevelILBasicBlockList':
 		return function.LowLevelILBasicBlockList(self)
 
-	def get_basic_block_at(self, index: int) -> Optional['basicblock.BasicBlock']:
+	def get_basic_block_at(self, index: int) -> Optional['LowLevelILBasicBlock']:
 		"""
 		``get_basic_block_at`` returns the BasicBlock at the given LLIL instruction ``index``.
 
