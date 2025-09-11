@@ -99,7 +99,7 @@ There are five menu items that can be used to save some combination of a raw fil
 
 ### 1. Save
 
-This menu is the only one bound to a hotkey by default and it is intended to be the "do what I probably want" option.
+This option is the only one bound to a hotkey by default and it is intended to be the "do what I probably want" option.
 
     - If you have edited the contents of a file and have not yet confirmed the file name to save over, this will ask you to save the file contents and prompt for a file name (check the save dialog title text to confirm this).
     - If you have edited the file contents and _have_ previously specified the file name, this option will save those changes to that file without a prompt.
@@ -111,8 +111,8 @@ This menu is the only one bound to a hotkey by default and it is intended to be 
 
 "Save As" Will prompt to save the analysis database or just the file contents.
 
-    - If you choose to save the analysis database, it behaves similarly to "Save" above, except for the cases that save without prompt. In those cases, you will _always_ be prompted for a filename.
-    - If you choose to save the file contents only, you will be prompted for a filename to which to save the current contents of the binary view, including any modifications.
+    - If you choose to save an analysis database, you will be prompted for a file name, and a new database containing only a single new snapshot will be created.
+    - If you choose to save the file contents only, you will be prompted for a file name to which to save the current contents of the binary view, including any modifications.
 
 ### 3. Save All
 
