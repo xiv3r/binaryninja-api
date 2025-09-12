@@ -16,6 +16,22 @@ struct ObjCOptimizationHeader
 	uint64_t relativeMethodSelectorBaseAddressOffset;
 };
 
+// `objc_opt_t` from dyld/include/objc-shared-cache.h
+struct LegacyObjCOptimizationHeader
+{
+    uint32_t version;
+    uint32_t flags;
+    int32_t selopt_offset;
+    int32_t headeropt_ro_offset;
+    int32_t unused_clsopt_offset;
+    int32_t unused_protocolopt_offset;
+    int32_t headeropt_rw_offset;
+    int32_t unused_protocolopt2_offset;
+    int32_t largeSharedCachesClassOffset;
+    int32_t largeSharedCachesProtocolOffset;
+    int64_t relativeMethodSelectorBaseAddressOffset;
+};
+
 namespace DSCObjC {
 	class SharedCacheObjCReader : public BinaryNinja::ObjCReader
 	{
