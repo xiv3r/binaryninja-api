@@ -790,6 +790,9 @@ MachOHeader MachoView::HeaderForAddress(BinaryView* data, uint64_t address, bool
 				}
 				break;
 			case LC_LOAD_DYLIB:
+			case LC_LOAD_WEAK_DYLIB:
+			case LC_REEXPORT_DYLIB:
+			case LC_LOAD_UPWARD_DYLIB:
 			{
 				uint32_t offset = reader.Read32();
 				reader.Read32(); // timestamp
@@ -2087,6 +2090,8 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		if (objcProcessor)
 			objcProcessor->AddRelocatedPointer(relocationLocation, slidTarget);
 	}
+
+	Ref<Metadata> symbolToLibraryMapping = new Metadata(KeyValueDataType);
 	for (auto& [relocation, name, ordinal] : header.bindingRelocations)
 	{
 		bool handled = false;
@@ -2149,6 +2154,8 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 					DefineRelocation(m_arch, relocation, symbol, relocation.address);
 					handled = true;
 				}
+				if (ordinal - 1 < header.dylibs.size())
+					symbolToLibraryMapping->SetValueForKey(name, new Metadata(header.dylibs[ordinal - 1].first));
 			}
 			break;
 		}
@@ -2156,6 +2163,8 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		if (!handled)
 			m_logger->LogErrorF("Failed to find external symbol {:?}, couldn't bind symbol at {:#x}", name, relocation.address);
 	}
+
+	StoreMetadata("SymbolExternalLibraryMapping", std::move(symbolToLibraryMapping), true);
 
 	auto relocationHandler = m_arch->GetRelocationHandler("Mach-O");
 	if (relocationHandler)
