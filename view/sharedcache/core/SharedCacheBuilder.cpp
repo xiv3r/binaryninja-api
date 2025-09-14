@@ -37,6 +37,9 @@ bool SharedCacheBuilder::AddFile(
 	// Skip bndb files!
 	if (fileName.find(".bndb") != std::string::npos)
 		return false;
+	// Skip a2s files
+	if (fileName.find(".a2s") != std::string::npos)
+		return false;
 
 	try
 	{
