@@ -1697,12 +1697,7 @@ impl Function {
         let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
         let name = name.to_cstr();
         unsafe {
-            BNCreateUserStackVariable(
-                self.handle,
-                offset,
-                &mut owned_raw_var_ty,
-                name.as_ptr(),
-            )
+            BNCreateUserStackVariable(self.handle, offset, &mut owned_raw_var_ty, name.as_ptr())
         }
     }
 
@@ -1750,12 +1745,7 @@ impl Function {
         let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
         let name = name.to_cstr();
         unsafe {
-            BNCreateAutoStackVariable(
-                self.handle,
-                offset,
-                &mut owned_raw_var_ty,
-                name.as_ptr(),
-            )
+            BNCreateAutoStackVariable(self.handle, offset, &mut owned_raw_var_ty, name.as_ptr())
         }
     }
 
