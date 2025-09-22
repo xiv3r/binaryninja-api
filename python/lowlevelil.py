@@ -5251,8 +5251,8 @@ class LowLevelILFunction:
 
 	def call(self, dest: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
-		``call`` returns an expression which first pushes the address of the next instruction onto the stack then jumps
-		(branches) to the expression ``dest``
+		``call`` returns an expression which (on architectures without a link register) first pushes the address of the 
+		next instruction onto the stack then jumps (branches) to the expression ``dest``
 
 		:param ExpressionIndex dest: the expression to call
 		:param ILSourceLocation loc: location of returned expression
@@ -5269,9 +5269,8 @@ class LowLevelILFunction:
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
-		``call_stack_adjust`` returns an expression which first pushes the address of the next instruction onto the stack
-		then jumps (branches) to the expression ``dest``. After the function exits, ``stack_adjust`` is added to the
-		stack pointer register.
+		``call_stack_adjust`` returns an expression which (on architectures without a link register) first pushes the address of the next instruction onto the stack
+		then jumps (branches) to the expression ``dest``. After the function exits, ``stack_adjust`` is added to the stack pointer register.
 
 		:param ExpressionIndex dest: the expression to call
 		:param ILSourceLocation loc: location of returned expression
