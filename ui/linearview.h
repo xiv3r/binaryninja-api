@@ -394,6 +394,7 @@ private Q_SLOTS:
 	void makeFloat64();
 	void toggleFloatSize();
 	void makePtr();
+	bool canMakeString(size_t charSize);
 	void makeString(size_t charSize = 1);
 	void changeType(const UIActionContext& context);
 	void undefineInRange();
