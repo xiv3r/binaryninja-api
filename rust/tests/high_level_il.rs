@@ -1,4 +1,4 @@
-use binaryninja::binary_view::BinaryViewExt;
+use binaryninja::binary_view::{BinaryViewBase, BinaryViewExt};
 use binaryninja::headless::Session;
 use binaryninja::high_level_il::{
     HighLevelExpressionIndex, HighLevelILInstructionKind, HighLevelInstructionIndex,
@@ -35,5 +35,29 @@ fn test_hlil_info() {
             assert_eq!(op.num_srcs, 1);
         }
         _ => panic!("Expected Ret"),
+    }
+}
+
+#[test]
+fn test_hlil_var_info() {
+    let _session = Session::new().expect("Failed to initialize session");
+    let out_dir = env!("OUT_DIR").parse::<PathBuf>().unwrap();
+    let view = binaryninja::load(out_dir.join("atox.obj")).expect("Failed to create view");
+
+    let function = view
+        .function_at(&view.default_platform().unwrap(), view.start() + 0x28600)
+        .unwrap();
+    let hlil_function = function.high_level_il(false).unwrap();
+
+    for v in hlil_function.variables().iter() {
+        let defs = hlil_function.variable_definitions(v).to_vec();
+        if v.index != 0 {
+            // Make sure non-param vars have a def site
+            assert!(defs.len() > 0)
+        }
+        let _ = hlil_function.variable_uses(v).to_vec();
+        for ssa_var in hlil_function.ssa_variables(&v).iter() {
+            let _ = hlil_function.ssa_variable_uses(ssa_var).to_vec();
+        }
     }
 }

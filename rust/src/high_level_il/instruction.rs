@@ -1068,7 +1068,7 @@ unsafe impl CoreArrayProviderInner for HighLevelILInstruction {
 
     unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, context: &'a Self::Context) -> Self::Wrapped<'a> {
         context
-            .instruction_from_index(HighLevelInstructionIndex(*raw))
+            .instruction_from_expr_index(HighLevelExpressionIndex(*raw))
             .unwrap()
     }
 }
