@@ -191,19 +191,10 @@ fn return_type_for_super_init(call: &Call, view: &BinaryView) -> Option<Ref<Type
 
     let src_var = match src.kind {
         MediumLevelILLiftedInstructionKind::AddressOf(Var { src: src_var }) => src_var,
-        MediumLevelILLiftedInstructionKind::VarSsa(_)
-        | MediumLevelILLiftedInstructionKind::Sub(_) => {
+        _ => {
             // The Swift compiler generates code that initializes the `objc_super` variable in more varied ways.
             log::debug!(
                 "  found non-address-of variable definition of `objc_super` variable at {:#0x} {:?}",
-                super_param_def.address,
-                super_param_def
-            );
-            return None;
-        }
-        _ => {
-            log::error!(
-                "Unexpected source of variable definition at {:#0x} {:x?}",
                 super_param_def.address,
                 super_param_def
             );
