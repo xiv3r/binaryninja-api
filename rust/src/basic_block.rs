@@ -205,6 +205,10 @@ impl<C: BlockContext> BasicBlock<C> {
         }
     }
 
+    pub fn has_invalid_instructions(&self) -> bool {
+        unsafe { BNBasicBlockHasInvalidInstructions(self.handle) }
+    }
+
     pub fn raw_length(&self) -> u64 {
         unsafe { BNGetBasicBlockLength(self.handle) }
     }

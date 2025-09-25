@@ -49,6 +49,7 @@ use crate::variable::{
     StackVariableReference, Variable,
 };
 use crate::workflow::Workflow;
+use std::collections::HashSet;
 use std::ffi::CStr;
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
@@ -2585,6 +2586,21 @@ impl Function {
     pub fn remove_metadata(&self, key: &str) {
         let key = key.to_cstr();
         unsafe { BNFunctionRemoveMetadata(self.handle, key.as_ptr()) };
+    }
+
+    pub fn guided_source_blocks(&self) -> HashSet<ArchAndAddr> {
+        let mut count = 0;
+        let raw = unsafe { BNGetGuidedSourceBlocks(self.handle, &mut count) };
+        if raw.is_null() || count == 0 {
+            return HashSet::new();
+        }
+
+        (0..count)
+            .map(|i| {
+                let raw = unsafe { std::ptr::read(raw.add(i)) };
+                ArchAndAddr::from(raw)
+            })
+            .collect::<HashSet<_>>()
     }
 }
 
