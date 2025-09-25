@@ -300,6 +300,7 @@ QWidget* DSCTriageView::initImageTable()
 	m_imageTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_imageTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+	m_imageTable->sortByColumn(0, Qt::AscendingOrder);
 	m_imageTable->setSortingEnabled(true);
 
 	m_imageTable->verticalHeader()->setVisible(false);
@@ -421,32 +422,34 @@ void DSCTriageView::initCacheInfoTables()
 	m_mappingTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_mappingTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+	m_mappingTable->sortByColumn(0, Qt::AscendingOrder);
 	m_mappingTable->setSortingEnabled(true);
 
 	m_mappingTable->verticalHeader()->setVisible(false);
 
-	auto regionTable = new FilterableTableView(cacheInfoSubwidget);
-	m_regionModel = new QStandardItemModel(0, 4, regionTable);
+	m_regionTable = new FilterableTableView(cacheInfoSubwidget);
+	m_regionModel = new QStandardItemModel(0, 4, m_regionTable);
 	m_regionModel->setHorizontalHeaderLabels({"Address", "Size", "Type", "Name"});
 
 	// Apply custom column styling
-	regionTable->setItemDelegateForColumn(0, new AddressColorDelegate(regionTable));
+	m_regionTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_regionTable));
 
-	regionTable->setModel(m_regionModel);
+	m_regionTable->setModel(m_regionModel);
 
-	regionTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-	regionTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-	regionTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-	regionTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+	m_regionTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+	m_regionTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+	m_regionTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+	m_regionTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
 
-	regionTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	m_regionTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-	regionTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-	regionTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
+	m_regionTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+	m_regionTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-	regionTable->setSortingEnabled(true);
+	m_regionTable->sortByColumn(0, Qt::AscendingOrder);
+	m_regionTable->setSortingEnabled(true);
 
-	regionTable->verticalHeader()->setVisible(false);
+	m_regionTable->verticalHeader()->setVisible(false);
 
 	auto mappingLabel = new QLabel("Mappings");
 	auto mappingFilterEdit = new FilterEdit(m_mappingTable);
@@ -462,10 +465,10 @@ void DSCTriageView::initCacheInfoTables()
 	mappingHeaderLayout->setSpacing(30);
 
 	auto regionLabel = new QLabel("Regions");
-	auto regionFilterEdit = new FilterEdit(regionTable);
+	auto regionFilterEdit = new FilterEdit(m_regionTable);
 	regionFilterEdit->setPlaceholderText("Filter regions");
-	connect(regionFilterEdit, &FilterEdit::textChanged, [regionTable](const QString& filter) {
-		regionTable->setFilter(filter.toStdString());
+	connect(regionFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
+		m_regionTable->setFilter(filter.toStdString());
 	});
 
 	auto regionHeaderLayout = new QHBoxLayout;
@@ -480,7 +483,7 @@ void DSCTriageView::initCacheInfoTables()
 
 	auto regionLayout = new QVBoxLayout;
 	regionLayout->addLayout(regionHeaderLayout);
-	regionLayout->addWidget(regionTable);
+	regionLayout->addWidget(m_regionTable);
 
 	cacheInfoLayout->addLayout(mappingLayout);
 	cacheInfoLayout->addLayout(regionLayout);
@@ -552,6 +555,10 @@ void DSCTriageView::RefreshData()
 	for (const auto& loadedImg : controller->GetLoadedImages())
 		setImageLoaded(loadedImg.headerAddress);
 
+	// Reapply the current sort after repopulating the model
+	// TODO: This should use `QSortFilterProxyModel`, but that's a bigger change.
+	m_imageTable->setSortingEnabled(true);
+
 	m_regionModel->setRowCount(0);
 	for (const auto& region : controller->GetRegions())
 	{
@@ -562,6 +569,10 @@ void DSCTriageView::RefreshData()
 			new QStandardItem(QString::fromStdString(region.name))
 		});
 	}
+
+	// Reapply the current sort after repopulating the model
+	// TODO: This should use `QSortFilterProxyModel`, but that's a bigger change.
+	m_regionTable->setSortingEnabled(true);
 
 	m_mappingModel->setRowCount(0);
 	for (const auto& entry : controller->GetEntries())
@@ -577,6 +588,11 @@ void DSCTriageView::RefreshData()
 			});
 		}
 	}
+
+	// Reapply the current sort after repopulating the model
+	// TODO: This should use `QSortFilterProxyModel`, but that's a bigger change.
+	m_mappingTable->setSortingEnabled(true);
+
 
 	m_symbolTable->populateSymbols(*m_data);
 }

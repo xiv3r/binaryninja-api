@@ -298,6 +298,7 @@ QWidget* KCTriageView::initImageTable()
 	m_imageTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_imageTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+	m_imageTable->sortByColumn(0, Qt::AscendingOrder);
 	m_imageTable->setSortingEnabled(true);
 
 	m_imageTable->verticalHeader()->setVisible(false);
@@ -454,4 +455,8 @@ void KCTriageView::RefreshData()
 		setImageLoaded(loadedImg.headerVirtualAddress);
 
 	m_symbolTable->populateSymbols(*m_data);
+
+	// Reapply the current sort after repopulating the model
+	// TODO: This should use `QSortFilterProxyModel`, but that's a bigger change.
+	m_imageTable->setSortingEnabled(true);
 }

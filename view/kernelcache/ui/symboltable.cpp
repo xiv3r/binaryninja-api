@@ -196,6 +196,10 @@ void SymbolTableView::populateSymbols(BinaryView &view)
 			{
 				auto symbols = watcher->result();
 				m_model->updateSymbols(std::move(symbols));
+
+				// Reapply the current sort after repopulating the model
+				// TODO: The model should use `QSortFilterProxyModel`, but that's a bigger change.
+				setSortingEnabled(true);
 			}
 		});
 		QFuture<SymbolList> future = QtConcurrent::run([controller]() {
