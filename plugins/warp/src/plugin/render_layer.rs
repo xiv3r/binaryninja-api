@@ -48,7 +48,11 @@ impl HighlightRenderLayer {
         llil: &LowLevelILRegularFunction,
         lines: &mut [DisassemblyTextLine],
     ) {
-        let relocatable_regions = relocatable_regions(&lifted_il.function().view());
+        let Some(owner_function) = lifted_il.function() else {
+            return;
+        };
+
+        let relocatable_regions = relocatable_regions(&owner_function.view());
         for line in lines {
             // We use address here instead of index since it's more reliable for other IL's.
             for lifted_il_instr in filtered_instructions_at(lifted_il, line.address) {

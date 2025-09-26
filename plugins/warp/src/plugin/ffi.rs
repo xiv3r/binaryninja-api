@@ -142,7 +142,10 @@ pub unsafe extern "C" fn BNWARPIsLiftedInstructionVariant(
         unsafe { LowLevelILFunction::from_raw(analysis_function) };
     match lifted_il.instruction_from_index(index) {
         Some(instr) => {
-            let relocatable_regions = relocatable_regions(&lifted_il.function().view());
+            let Some(owner_function) = lifted_il.function() else {
+                return false;
+            };
+            let relocatable_regions = relocatable_regions(&owner_function.view());
             is_variant_instruction(&relocatable_regions, &instr)
         }
         None => false,
@@ -158,7 +161,10 @@ pub unsafe extern "C" fn BNWARPIsLowLevelInstructionComputedVariant(
         unsafe { LowLevelILFunction::from_raw(analysis_function) };
     match llil.instruction_from_index(index) {
         Some(instr) => {
-            let relocatable_regions = relocatable_regions(&llil.function().view());
+            let Some(owner_function) = llil.function() else {
+                return false;
+            };
+            let relocatable_regions = relocatable_regions(&owner_function.view());
             is_computed_variant_instruction(&relocatable_regions, &instr)
         }
         None => false,

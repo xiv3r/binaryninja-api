@@ -88,8 +88,9 @@ where
     }
 
     pub(crate) fn arch(&self) -> CoreArchitecture {
+        // TODO: self.function() can return None under rare circumstances
         match self.arch {
-            None => self.function().arch(),
+            None => self.function().unwrap().arch(),
             Some(arch) => arch,
         }
     }
@@ -167,10 +168,13 @@ where
         }
     }
 
-    pub fn function(&self) -> Ref<Function> {
+    pub fn function(&self) -> Option<Ref<Function>> {
         unsafe {
             let func = BNGetLowLevelILOwnerFunction(self.handle);
-            Function::ref_from_raw(func)
+            if func.is_null() {
+                return None;
+            }
+            Some(Function::ref_from_raw(func))
         }
     }
 
