@@ -209,6 +209,7 @@ class BINARYNINJAUIAPI StringsContainer : public QWidget, public ViewContainer
 	FilteredView* m_filter;
 	FilterEdit* m_separateEdit = nullptr;
 	StringsViewSidebarWidget* m_widget;
+	UIActionHandler m_actionHandler;
 
   public:
 	StringsContainer(BinaryViewRef data, StringsViewSidebarWidget* parent, bool separateEdit = false);
@@ -220,6 +221,11 @@ class BINARYNINJAUIAPI StringsContainer : public QWidget, public ViewContainer
 
   protected:
 	virtual void focusInEvent(QFocusEvent* event) override;
+
+  private:
+	void bindNavigationShortcuts();
+	void navigateBack();
+	void navigateForward();
 };
 
 /*!
