@@ -453,6 +453,52 @@ impl From<ViewType> for Predicate {
     }
 }
 
+/// A predicate that checks the platform of the [`BinaryView`](crate::binary_view::BinaryView).
+#[must_use]
+pub enum Platform {
+    In(Vec<String>),
+    NotIn(Vec<String>),
+}
+
+impl Platform {
+    /// Creates a new predicate that checks if the platform of the [`BinaryView`](crate::binary_view::BinaryView)
+    /// _is_ in the provided list.
+    pub fn in_<I, S>(values: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Platform::In(values.into_iter().map(|s| s.as_ref().to_string()).collect())
+    }
+
+    /// Creates a new predicate that checks if the platform of the [`BinaryView`](crate::binary_view::BinaryView)
+    /// _is not_ in the provided list.
+    pub fn not_in<I, S>(values: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Platform::NotIn(values.into_iter().map(|s| s.as_ref().to_string()).collect())
+    }
+}
+
+impl From<Platform> for Predicate {
+    fn from(predicate: Platform) -> Self {
+        match predicate {
+            Platform::In(value) => Predicate {
+                predicate_type: PredicateType::Platform,
+                operator: Operator::In,
+                value: serde_json::json!(value),
+            },
+            Platform::NotIn(value) => Predicate {
+                predicate_type: PredicateType::Platform,
+                operator: Operator::NotIn,
+                value: serde_json::json!(value),
+            },
+        }
+    }
+}
+
 /// A predicate that evaluates the value of a specific setting.
 #[must_use]
 pub struct Setting {
@@ -533,6 +579,7 @@ impl From<Setting> for Predicate {
 enum PredicateType {
     Setting { identifier: String },
     ViewType,
+    Platform,
 }
 
 #[derive(Deserialize, Serialize, Debug, Copy, Clone)]
