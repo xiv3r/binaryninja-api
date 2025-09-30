@@ -69,9 +69,28 @@ pub fn register_activities() -> Result<(), WorkflowRegistrationError> {
         run(activities::super_init::process),
     );
 
+    let remove_memory_management_activity = Activity::new_with_action(
+        activity::Config::action(
+            "core.function.objectiveC.removeMemoryManagement",
+            "Obj-C: Remove reference counting calls",
+            "Remove calls to objc_retain / objc_release / objc_autorelease to simplify the resulting higher-level ILs",
+        )
+        .eligibility(
+            activity::Eligibility::auto_with_default(false).matching_all_predicates(&[
+                activity::ViewType::in_(["Mach-O", "DSCView"]).into(),
+                activity::Platform::in_(["mac-aarch64", "ios-aarch64"]).into()
+            ])
+        ),
+        run(activities::remove_memory_management::process),
+    );
+
     workflow
         .activity_after(&inline_stubs_activity, "core.function.translateTailCalls")?
         .activity_after(&objc_msg_send_calls_activity, &inline_stubs_activity.name())?
+        .activity_before(
+            &remove_memory_management_activity,
+            "core.function.generateMediumLevelIL",
+        )?
         .activity_after(&super_init_activity, "core.function.generateMediumLevelIL")?
         .register_with_config(WORKFLOW_INFO)?;
 
