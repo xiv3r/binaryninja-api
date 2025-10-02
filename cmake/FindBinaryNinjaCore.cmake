@@ -33,7 +33,7 @@ if(NOT BN_INTERNAL_BUILD)
         NAMES binaryninjacore libbinaryninjacore.so.1
         HINTS ${PATH_HINTS})
 
-    if(NOT CORE_LIBRARY_FOUND)
+    if(NOT CORE_LIBRARY)
         set(BN_FOUND 0)
         set(BinaryNinjaCore_FOUND 0)
         return()
