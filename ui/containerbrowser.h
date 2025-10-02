@@ -102,5 +102,5 @@ public:
 
 	QStringList selectedPaths() const { return m_selectedPaths; }
 
-	static BinaryViewRef openContainerFile(const QString& path);
+	static std::vector<TransformContextRef> openContainerFile(const QString& path);
 };
