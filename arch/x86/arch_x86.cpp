@@ -417,7 +417,7 @@ bool X86CommonArchitecture::Decode(const uint8_t* data, size_t len, xed_decoded_
 	xed_decoded_inst_zero_keep_mode(xedd);
 
 	xed3_operand_set_cet(xedd, 1);
-	xed3_operand_set_mpxmode(xedd, 1);
+	xed3_operand_set_mpxmode(xedd, m_disassembly_options.mpx);
 
 	// Decode the data and check for errors
 	xed_error_enum_t xed_error = xed_decode(xedd, data, (unsigned)len);
@@ -1918,6 +1918,7 @@ X86CommonArchitecture::X86CommonArchitecture(const string& name, size_t bits): A
 	const bool lowercase = settings->Get<bool>("arch.x86.disassembly.lowercase");
 	const string flavor = settings->Get<string>("arch.x86.disassembly.syntax");
 	const string separator = settings->Get<string>("arch.x86.disassembly.separator");
+	const bool mpx = settings->Get<bool>("arch.x86.disassembly.mpx");
 
 	DISASSEMBLY_FLAVOR_ENUM flavorEnum;
 
@@ -1932,7 +1933,7 @@ X86CommonArchitecture::X86CommonArchitecture(const string& name, size_t bits): A
 	else
 		flavorEnum = DF_BN_INTEL;
 
-	m_disassembly_options = DISASSEMBLY_OPTIONS(flavorEnum, lowercase, separator);
+	m_disassembly_options = DISASSEMBLY_OPTIONS(flavorEnum, lowercase, separator, mpx);
 }
 
 BNEndianness X86CommonArchitecture::GetEndianness() const
@@ -4792,6 +4793,15 @@ static void InitX86Settings()
 			"default" : true,
 			"aliases" : ["arch.x86.disassemblyLowercase"],
 			"description" : "Specify the case for opcodes, operands, and registers.",
+			"ignore" : ["SettingsProjectScope", "SettingsResourceScope"]
+			})~");
+
+	settings->RegisterSetting("arch.x86.disassembly.mpx",
+			R"~({
+			"title" : "x86 Disassembly Support for MPX",
+			"type" : "boolean",
+			"default" : false,
+			"description" : "Enable support for MPX extensions in the disassembler.",
 			"ignore" : ["SettingsProjectScope", "SettingsResourceScope"]
 			})~");
 }
