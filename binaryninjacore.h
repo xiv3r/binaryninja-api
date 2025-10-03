@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 133
+#define BN_CURRENT_CORE_ABI_VERSION 134
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 133
+#define BN_MINIMUM_CORE_ABI_VERSION 134
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -353,7 +353,8 @@ extern "C"
 	typedef enum BNTransformCapabilities
 	{
 		TransformNoCapabilities = 0,
-		TransformSupportsDetection = 1
+		TransformSupportsDetection = 1,
+		TransformSupportsContext = 2
 	} BNTransformCapabilities;
 
 	typedef enum BNTransformSessionMode
@@ -1770,6 +1771,7 @@ extern "C"
 		void (*freeParameters)(BNTransformParameterInfo* params, size_t count);
 		bool (*decode)(void* ctxt, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
 		bool (*encode)(void* ctxt, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
+		bool (*decodeWithContext)(void* ctxt, BNTransformContext* context, BNTransformParameter* params, size_t paramCount);
 		bool (*canDecode)(void* ctxt, BNBinaryView* input);
 	} BNCustomTransform;
 
@@ -4634,6 +4636,7 @@ extern "C"
 	BINARYNINJACOREAPI BNTransformType BNGetTransformType(BNTransform* xform);
 	BINARYNINJACOREAPI uint32_t BNGetTransformCapabilities(BNTransform* xform);
 	BINARYNINJACOREAPI bool BNTransformSupportsDetection(BNTransform* xform);
+	BINARYNINJACOREAPI bool BNTransformSupportsContext(BNTransform* xform);
 	BINARYNINJACOREAPI char* BNGetTransformName(BNTransform* xform);
 	BINARYNINJACOREAPI char* BNGetTransformLongName(BNTransform* xform);
 	BINARYNINJACOREAPI char* BNGetTransformGroup(BNTransform* xform);
@@ -4643,6 +4646,7 @@ extern "C"
 	    BNTransform* xform, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
 	BINARYNINJACOREAPI bool BNEncode(
 	    BNTransform* xform, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
+	BINARYNINJACOREAPI bool BNDecodeWithContext(BNTransform* xform, BNTransformContext* context, BNTransformParameter* params, size_t paramCount);
 	BINARYNINJACOREAPI bool BNCanDecode(BNTransform* xform, BNBinaryView* input);
 
 	// Transform Context

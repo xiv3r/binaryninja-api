@@ -8928,6 +8928,8 @@ namespace BinaryNinja {
 		size_t fixedLength;  // Variable length if zero
 	};
 
+	class TransformContext;
+
 	/*! Allows users to implement custom transformations.
 
 	    New transformations may be added at runtime, so an instance of a transform is created like
@@ -8970,6 +8972,7 @@ namespace BinaryNinja {
 		    void* ctxt, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
 		static bool EncodeCallback(
 		    void* ctxt, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
+		static bool DecodeWithContextCallback(void* ctxt, BNTransformContext* context, BNTransformParameter* params, size_t paramCount);
 		static bool CanDecodeCallback(void* ctxt, BNBinaryView* input);
 
 		static std::vector<TransformParameter> EncryptionKeyParameters(size_t fixedKeyLength = 0);
@@ -8987,6 +8990,7 @@ namespace BinaryNinja {
 		BNTransformType GetType() const;
 		BNTransformCapabilities GetCapabilities() const;
 		bool SupportsDetection() const;
+		bool SupportsContext() const;
 		std::string GetName() const;
 		std::string GetLongName() const;
 		std::string GetGroup() const;
@@ -8995,6 +8999,7 @@ namespace BinaryNinja {
 
 		virtual bool Decode(const DataBuffer& input, DataBuffer& output, const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
 		virtual bool Encode(const DataBuffer& input, DataBuffer& output, const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
+		virtual bool DecodeWithContext(Ref<TransformContext> context, const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
 		virtual bool CanDecode(Ref<BinaryView> input) const;
 	};
 
@@ -9010,6 +9015,8 @@ namespace BinaryNinja {
 		virtual bool Decode(const DataBuffer& input, DataBuffer& output,
 		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>()) override;
 		virtual bool Encode(const DataBuffer& input, DataBuffer& output,
+		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>()) override;
+		virtual bool DecodeWithContext(Ref<TransformContext> context,
 		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>()) override;
 		virtual bool CanDecode(Ref<BinaryView> input) const override;
 	};

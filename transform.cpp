@@ -107,6 +107,18 @@ bool Transform::EncodeCallback(
 }
 
 
+bool Transform::DecodeWithContextCallback(void* ctxt, BNTransformContext* context, BNTransformParameter* params, size_t paramCount)
+{
+	map<string, DataBuffer> paramMap;
+	for (size_t i = 0; i < paramCount; i++)
+		paramMap[params[i].name] = DataBuffer(BNDuplicateDataBuffer(params[i].value));
+
+	CallbackRef<Transform> xform(ctxt);
+	Ref<TransformContext> contextRef = new TransformContext(BNNewTransformContextReference(context));
+	return xform->DecodeWithContext(contextRef, paramMap);
+}
+
+
 bool Transform::CanDecodeCallback(void* ctxt, BNBinaryView* input)
 {
 	CallbackRef<Transform> xform(ctxt);
@@ -150,6 +162,7 @@ void Transform::Register(Transform* xform)
 	callbacks.freeParameters = FreeParametersCallback;
 	callbacks.decode = DecodeCallback;
 	callbacks.encode = EncodeCallback;
+	callbacks.decodeWithContext = DecodeWithContextCallback;
 	callbacks.canDecode = CanDecodeCallback;
 	xform->AddRefForRegistration();
 	xform->m_object = BNRegisterTransformTypeWithCapabilities(xform->m_typeForRegister, xform->m_capabilitiesForRegister,
@@ -199,6 +212,12 @@ bool Transform::SupportsDetection() const
 }
 
 
+bool Transform::SupportsContext() const
+{
+	return BNTransformSupportsContext(m_object);
+}
+
+
 string Transform::GetName() const
 {
 	char* name = BNGetTransformName(m_object);
@@ -241,6 +260,12 @@ bool Transform::Decode(const DataBuffer& input, DataBuffer& output, const map<st
 
 
 bool Transform::Encode(const DataBuffer&, DataBuffer&, const map<string, DataBuffer>&)
+{
+	return false;
+}
+
+
+bool Transform::DecodeWithContext(Ref<TransformContext>, const map<string, DataBuffer>&)
 {
 	return false;
 }
@@ -304,6 +329,23 @@ bool CoreTransform::Encode(const DataBuffer& input, DataBuffer& output, const ma
 	}
 
 	bool result = BNEncode(m_object, input.GetBufferObject(), output.GetBufferObject(), list, idx);
+
+	delete[] list;
+	return result;
+}
+
+
+bool CoreTransform::DecodeWithContext(Ref<TransformContext> context, const map<string, DataBuffer>& params)
+{
+	BNTransformParameter* list = new BNTransformParameter[params.size()];
+	size_t idx = 0;
+	for (auto& i : params)
+	{
+		list[idx].name = i.first.c_str();
+		list[idx++].value = i.second.GetBufferObject();
+	}
+
+	bool result = BNDecodeWithContext(m_object, context->GetObject(), list, idx);
 
 	delete[] list;
 	return result;

@@ -116,6 +116,7 @@ class Transform(metaclass=_TransformMetaClass):
 			self._cb.freeParameters = self._cb.freeParameters.__class__(self._free_parameters)
 			self._cb.decode = self._cb.decode.__class__(self._decode)
 			self._cb.encode = self._cb.encode.__class__(self._encode)
+			self._cb.decodeWithContext = self._cb.decodeWithContext.__class__(self._decode_with_context)
 			self._cb.canDecode = self._cb.canDecode.__class__(self._can_decode)
 			self._pending_param_lists = {}
 			self.type = self.__class__.transform_type
@@ -131,6 +132,7 @@ class Transform(metaclass=_TransformMetaClass):
 			self.type = TransformType(core.BNGetTransformType(self.handle))
 			self.capabilities = core.BNGetTransformCapabilities(self.handle)
 			self.supports_detection = core.BNTransformSupportsDetection(self.handle)
+			self.supports_context = core.BNTransformSupportsContext(self.handle)
 			self.name = core.BNGetTransformName(self.handle)
 			self.long_name = core.BNGetTransformLongName(self.handle)
 			self.group = core.BNGetTransformGroup(self.handle)
@@ -232,6 +234,21 @@ class Transform(metaclass=_TransformMetaClass):
 			log_error_for_exception("Unhandled Python exception in Transform._encode")
 			return False
 
+	def _decode_with_context(self, ctxt, context, params, count):
+		try:
+			# TODO: Make Python TransformSession and TransformContext objects
+			from . import transform_context
+			context_obj = transform_context.TransformContext(core.BNNewTransformContextReference(context))
+			param_map = {}
+			for i in range(0, count):
+				data = databuffer.DataBuffer(handle=core.BNDuplicateDataBuffer(params[i].value))
+				param_map[params[i].name] = bytes(data)
+			result = self.perform_decode_with_context(context_obj, param_map)
+			return result if result is not None else False
+		except:
+			log_error_for_exception("Unhandled Python exception in Transform._decode_with_context")
+			return False
+
 	def _can_decode(self, ctxt, input):
 		try:
 			input_obj = binaryview.BinaryView(handle=core.BNNewViewReference(input))
@@ -249,6 +266,9 @@ class Transform(metaclass=_TransformMetaClass):
 	@abc.abstractmethod
 	def perform_encode(self, data, params):
 		return None
+
+	def perform_decode_with_context(self, context, params):
+		return False
 
 	def decode(self, input_buf, params={}):
 		if isinstance(input_buf, int) or isinstance(input_buf, int):
@@ -281,6 +301,22 @@ class Transform(metaclass=_TransformMetaClass):
 		if not core.BNEncode(self.handle, input_buf.handle, output_buf.handle, param_buf, len(keys)):
 			return None
 		return bytes(output_buf)
+
+	def decode_with_context(self, context, params={}):
+		# TODO: Make Python TransformSession and TransformContext objects
+		from . import transform_context
+		if not isinstance(context, transform_context.TransformContext):
+			return None
+		keys = list(params.keys())
+		param_buf = (core.BNTransformParameter * len(keys))()
+		data = []
+		for i in range(0, len(keys)):
+			data.append(databuffer.DataBuffer(params[keys[i]]))
+			param_buf[i].name = keys[i]
+			param_buf[i].value = data[i].handle
+		if not core.BNDecodeWithContext(self.handle, context.handle, param_buf, len(keys)):
+			return False
+		return True
 
 	def can_decode(self, input):
 		"""
