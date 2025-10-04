@@ -287,7 +287,16 @@ impl Container for NetworkContainer {
         source: &SourceId,
         types: &[ComputedType],
     ) -> ContainerResult<()> {
-        self.cache.add_computed_types(source, types)
+        // NOTE: We must `add_computed_types` to the cache before we add the chunk, as `added_chunks` is
+        // not consulted when retrieving types from the cache, if we fail to add the types to
+        // the cache, we will not see them show up in the UI or when matching.
+        self.cache.add_computed_types(source, types)?;
+        let type_chunk = TypeChunk::new_with_computed(types).ok_or(
+            ContainerError::CorruptedData("signature chunk failed to validate"),
+        )?;
+        let chunk = Chunk::new(ChunkKind::Type(type_chunk), CompressionType::None);
+        self.added_chunks.entry(*source).or_default().push(chunk);
+        Ok(())
     }
 
     fn remove_types(&mut self, source: &SourceId, guids: &[TypeGUID]) -> ContainerResult<()> {
@@ -300,6 +309,10 @@ impl Container for NetworkContainer {
         source: &SourceId,
         functions: &[Function],
     ) -> ContainerResult<()> {
+        // NOTE: We must `add_functions` to the cache before we add the chunk, as `added_chunks` is
+        // not consulted when retrieving functions from the cache, if we fail to add the functions to
+        // the cache, we will not see them show up in the UI or when matching.
+        self.cache.add_functions(target, source, functions)?;
         let signature_chunk = SignatureChunk::new(functions).ok_or(
             ContainerError::CorruptedData("signature chunk failed to validate"),
         )?;
