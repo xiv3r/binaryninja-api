@@ -20,6 +20,7 @@ class WarpFetchDialog : public QDialog
     QListWidget *m_tagsList;
     QPushButton *m_addTagBtn;
     QPushButton *m_removeTagBtn;
+    QPushButton *m_resetTagBtn;
 
     QSpinBox *m_batchSize;
     QCheckBox *m_rerunMatcher;
@@ -39,6 +40,8 @@ private slots:
     void onAddTag();
 
     void onRemoveTag();
+
+    void onResetTags();
 
     void onAccept();
 

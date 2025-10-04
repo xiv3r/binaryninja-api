@@ -39,11 +39,20 @@ WarpFetchDialog::WarpFetchDialog(BinaryViewRef bv,
 
     // Tags editor
     m_tagsList = new QListWidget(this);
-    m_addTagBtn = new QPushButton("Add", this);
-    m_removeTagBtn = new QPushButton("Remove", this);
+    m_addTagBtn = new QPushButton(this);
+    m_addTagBtn->setText("+");
+    m_addTagBtn->setToolTip("Add tag");
+    m_removeTagBtn = new QPushButton(this);
+    m_removeTagBtn->setText("-");
+    m_removeTagBtn->setToolTip("Remove selected tag(s)");
+    m_resetTagBtn = new QPushButton(this);
+    m_resetTagBtn->setText("Reset");
+    m_resetTagBtn->setToolTip("Reset tags to: official, trusted");
     auto tagBtnRow = new QHBoxLayout();
     tagBtnRow->addWidget(m_addTagBtn);
     tagBtnRow->addWidget(m_removeTagBtn);
+    tagBtnRow->addWidget(m_resetTagBtn);
+    tagBtnRow->addStretch();
     auto tagCol = new QVBoxLayout();
     tagCol->addWidget(m_tagsList);
     tagCol->addLayout(tagBtnRow);
@@ -95,6 +104,7 @@ WarpFetchDialog::WarpFetchDialog(BinaryViewRef bv,
     // Wire buttons
     connect(m_addTagBtn, &QPushButton::clicked, this, &WarpFetchDialog::onAddTag);
     connect(m_removeTagBtn, &QPushButton::clicked, this, &WarpFetchDialog::onRemoveTag);
+    connect(m_resetTagBtn, &QPushButton::clicked, this, &WarpFetchDialog::onResetTags);
 }
 
 void WarpFetchDialog::populateContainers()
@@ -114,6 +124,13 @@ void WarpFetchDialog::onRemoveTag()
 {
     for (auto *item: m_tagsList->selectedItems())
         delete item;
+}
+
+void WarpFetchDialog::onResetTags()
+{
+    m_tagsList->clear();
+    AddListItem(m_tagsList, "official");
+    AddListItem(m_tagsList, "trusted");
 }
 
 std::vector<Warp::SourceTag> WarpFetchDialog::collectTags() const
