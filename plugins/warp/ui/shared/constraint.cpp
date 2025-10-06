@@ -41,13 +41,14 @@ QVariant WarpConstraintItemModel::data(const QModelIndex &index, int role) const
         {
             auto itemConstraint = item->GetConstraint();
             // TODO: We really should store the guid in a hashmap or something instead of looping over it for every item.
-            // TODO: Take into account the constraint offset.
             for (const auto &constraint: m_matchedConstraints)
             {
-                if (constraint.offset == itemConstraint.offset)
+                if (constraint.guid == itemConstraint.guid)
                 {
                     static QColor matchedColor = getThemeColor(GreenStandardHighlightColor);
-                    matchedColor.setAlpha(128);
+                    matchedColor.setAlpha(100);
+                    if (constraint.offset == itemConstraint.offset)
+                        matchedColor.setAlpha(128);
                     return matchedColor;
                 }
             }
