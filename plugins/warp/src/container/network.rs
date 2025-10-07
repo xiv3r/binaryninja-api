@@ -8,13 +8,13 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::path::PathBuf;
 use warp::chunk::{Chunk, ChunkKind, CompressionType};
+use warp::r#type::chunk::TypeChunk;
 use warp::r#type::guid::TypeGUID;
 use warp::r#type::{ComputedType, Type};
 use warp::signature::chunk::SignatureChunk;
 use warp::signature::function::{Function, FunctionGUID};
 use warp::target::Target;
 use warp::{WarpFile, WarpFileHeader};
-use warp::r#type::chunk::TypeChunk;
 
 pub mod client;
 
@@ -109,7 +109,7 @@ impl NetworkContainer {
         // Split guids into known and unknown
         let (_known, unknown): (Vec<_>, Vec<_>) = guids
             .into_iter()
-            .cloned()
+            .copied()
             .partition(|guid| self.known_function_sources.contains_key(guid));
 
         let mut result: HashMap<SourceId, Vec<FunctionGUID>> = HashMap::new();
@@ -127,7 +127,7 @@ impl NetworkContainer {
                     let sources = queried_results
                         .keys()
                         .filter(|source_id| queried_results[source_id].contains(guid))
-                        .cloned()
+                        .copied()
                         .collect();
                     self.known_function_sources.insert(*guid, sources);
                 }
