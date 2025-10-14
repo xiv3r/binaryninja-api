@@ -215,6 +215,7 @@ class NotificationType(IntFlag):
 	UndoEntryAdded = 1 << 49
 	UndoEntryTaken = 1 << 50
 	RedoEntryTaken = 1 << 51
+	Rebased = 1 << 52
 
 	BinaryDataUpdates = DataWritten | DataInserted | DataRemoved
 	FunctionLifetime = FunctionAdded | FunctionRemoved
@@ -465,6 +466,9 @@ class BinaryDataNotification:
 		pass
 
 	def redo_entry_taken(self, view: 'BinaryView', entry: 'undo.UndoEntry'):
+		pass
+
+	def rebased(self, old_view: 'BinaryView', new_view: 'BinaryView'):
 		pass
 
 
@@ -725,6 +729,8 @@ class BinaryDataNotificationCallbacks:
 			self._cb.undoEntryAdded = self._cb.undoEntryAdded.__class__(self._undo_entry_added)
 			self._cb.undoEntryTaken = self._cb.undoEntryTaken.__class__(self._undo_entry_taken)
 			self._cb.redoEntryTaken = self._cb.redoEntryTaken.__class__(self._redo_entry_taken)
+
+			self._cb.rebased = self._cb.rebased.__class__(self._rebased)
 		else:
 			if notify.notifications & NotificationType.NotificationBarrier:
 				self._cb.notificationBarrier = self._cb.notificationBarrier.__class__(self._notification_barrier)
@@ -820,6 +826,9 @@ class BinaryDataNotificationCallbacks:
 				self._cb.undoEntryTaken = self._cb.undoEntryTaken.__class__(self._undo_entry_taken)
 			if notify.notifications & NotificationType.RedoEntryTaken:
 				self._cb.redoEntryTaken = self._cb.redoEntryTaken.__class__(self._redo_entry_taken)
+
+			if notify.notifications & NotificationType.Rebased:
+				self._cb.rebased = self._cb.rebased.__class__(self._rebased)
 
 	def _register(self) -> None:
 		core.BNRegisterDataNotification(self._view.handle, self._cb)
@@ -1237,6 +1246,14 @@ class BinaryDataNotificationCallbacks:
 			self._notify.redo_entry_taken(self._view, py_entry)
 		except:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._redo_entry_taken")
+
+	def _rebased(self, ctxt, old_view: core.BNBinaryView, new_view: core.BNBinaryView):
+		try:
+			file_metadata = filemetadata.FileMetadata(handle=core.BNGetFileForView(new_view))
+			new_view_obj = BinaryView(file_metadata=file_metadata, handle=core.BNNewViewReference(new_view))
+			self._notify.rebased(self._view, new_view_obj)
+		except:
+			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._rebased")
 
 	@property
 	def view(self) -> 'BinaryView':
