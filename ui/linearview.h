@@ -135,6 +135,7 @@ public:
 	void updateLine(const LinearViewLine& line);
 	void updateViewType(const BinaryNinja::FunctionViewType& viewType);
 	void updateFonts();
+	void updateTheme();
 
 	virtual void paintEvent(QPaintEvent* event) override;
 };
@@ -490,6 +491,7 @@ public:
 	virtual StatusBarWidget* getStatusBarWidget() override;
 	virtual ViewPaneHeaderSubtypeWidget* getHeaderSubtypeWidget() override;
 	virtual QWidget* getHeaderOptionsWidget() override;
+	virtual void updateTheme() override;
 
 	virtual void followPointer();
 
