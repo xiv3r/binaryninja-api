@@ -3823,6 +3823,10 @@ extern "C"
 	BINARYNINJACOREAPI void BNShutdown(void);
 	BINARYNINJACOREAPI bool BNIsShutdownRequested(void);
 
+#ifdef UNIT
+	BINARYNINJACOREAPI int BNRunUnitTests(int argc, char** argv);
+#endif
+
 	BINARYNINJACOREAPI BNVersionInfo BNGetVersionInfo(void);
 	BINARYNINJACOREAPI char* BNGetVersionString(void);
 	BINARYNINJACOREAPI uint32_t BNGetBuildId(void);
