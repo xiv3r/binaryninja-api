@@ -191,12 +191,13 @@ fn do_structure_parse<R: ReaderType>(
     };
     let mut children = tree_root.children();
     while let Ok(Some(child)) = children.next() {
-        match child.entry().tag() {
+        let child_entry = child.entry();
+        match child_entry.tag() {
             constants::DW_TAG_member => {
                 let Some(child_type_id) = get_type(
                     dwarf,
                     unit,
-                    child.entry(),
+                    child_entry,
                     debug_info_builder_context,
                     debug_info_builder,
                 ) else {
@@ -209,7 +210,7 @@ fn do_structure_parse<R: ReaderType>(
                 let child_type = child_dbg_ty.get_type();
 
                 let Some(child_name) = debug_info_builder_context
-                    .get_name(dwarf, unit, child.entry())
+                    .get_name(dwarf, unit, child_entry)
                     .or_else(|| match child_type.type_class() {
                         TypeClass::StructureTypeClass => Some(String::new()),
                         _ => None,
@@ -218,19 +219,50 @@ fn do_structure_parse<R: ReaderType>(
                     continue;
                 };
 
-                // TODO : support DW_AT_data_bit_offset for offset as well
+                /*
+                    TODO: apply correct member size when that's supported
+                    let child_type_width = get_size_as_u64(child_entry).unwrap_or_else(|| child_type.width());
+                */
                 if let Ok(Some(raw_struct_offset)) =
-                    child.entry().attr(constants::DW_AT_data_member_location)
+                    child_entry.attr(constants::DW_AT_data_member_location)
                 {
-                    // TODO : Let this fail; don't unwrap_or_default get_expr_value
-                    let struct_offset = get_attr_as_u64(&raw_struct_offset).unwrap_or_else(|| {
-                        get_expr_value(unit, raw_struct_offset).unwrap_or_default()
-                    });
+                    let Some(struct_offset_bytes) = get_attr_as_u64(&raw_struct_offset)
+                        .or_else(|| get_expr_value(unit, raw_struct_offset))
+                    else {
+                        log::warn!(
+                            "Failed to get DW_AT_data_member_location for offset {:#x} in unit {:?}",
+                            child_entry.offset().0,
+                            unit.header.offset()
+                        );
+                        continue;
+                    };
 
                     structure_builder.insert(
                         &child_type,
                         &child_name,
-                        struct_offset,
+                        struct_offset_bytes,
+                        false,
+                        MemberAccess::NoAccess, // TODO : Resolve actual scopes, if possible
+                        MemberScope::NoScope,
+                    );
+                } else if let Ok(Some(raw_struct_offset_bits)) =
+                    child_entry.attr(constants::DW_AT_data_bit_offset)
+                {
+                    let Some(struct_offset_bits) = get_attr_as_u64(&raw_struct_offset_bits)
+                        .or_else(|| get_expr_value(unit, raw_struct_offset_bits))
+                    else {
+                        log::warn!(
+                            "Failed to get DW_AT_data_bit_offset for offset {:#x} in unit {:?}",
+                            child_entry.offset().0,
+                            unit.header.offset()
+                        );
+                        continue;
+                    };
+
+                    structure_builder.insert(
+                        &child_type,
+                        &child_name,
+                        struct_offset_bits / 8,
                         false,
                         MemberAccess::NoAccess, // TODO : Resolve actual scopes, if possible
                         MemberScope::NoScope,
@@ -248,7 +280,7 @@ fn do_structure_parse<R: ReaderType>(
                 let Some(base_type_id) = get_type(
                     dwarf,
                     unit,
-                    child.entry(),
+                    child_entry,
                     debug_info_builder_context,
                     debug_info_builder,
                 ) else {
@@ -261,7 +293,7 @@ fn do_structure_parse<R: ReaderType>(
                 let base_type = base_dbg_ty.get_type();
 
                 let Ok(Some(raw_data_member_location)) =
-                    child.entry().attr(constants::DW_AT_data_member_location)
+                    child_entry.attr(constants::DW_AT_data_member_location)
                 else {
                     warn!("Failed to get DW_AT_data_member_location for inheritance");
                     continue;
