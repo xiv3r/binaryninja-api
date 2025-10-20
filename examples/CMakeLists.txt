@@ -1,6 +1,7 @@
 # Personal+ edition (free edition doesn't get plugins due to no API access)
 add_subdirectory(background_task)
 add_subdirectory(breakpoint)
+add_subdirectory(encoded_strings)
 add_subdirectory(x86_extension)
 add_subdirectory(workflows/inliner)
 add_subdirectory(workflows/tailcall)
