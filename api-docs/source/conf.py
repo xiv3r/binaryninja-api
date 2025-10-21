@@ -79,7 +79,7 @@ def classlist(module):
 	return ((name, member) for (name, member) in members if not name[0].startswith("_") and in_mod(member))
 
 def fnlist(module):
-	return [x for x in inspect.getmembers(module, inspect.isfunction) if x[1].__module__ == module]
+	return [x for x in inspect.getmembers(module, inspect.isfunction) if x[1].__module__ == module.__name__]
 
 def setup(app):
 	app.add_css_file('css/other.css')
