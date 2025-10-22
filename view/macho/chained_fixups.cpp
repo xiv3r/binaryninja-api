@@ -39,24 +39,32 @@ namespace {
 
 FixupInfo BindFixup(uint32_t ordinal, int32_t addend, uint16_t next)
 {
-	return { .bind = { ordinal, addend }, FixupType::Bind, .next = next };
+	return { .bind = { ordinal, addend }, .type = FixupType::Bind, .next = next };
 }
 
 FixupInfo RebaseFixup(uint64_t target, uint16_t next)
 {
-	return { .rebase = { target }, FixupType::Rebase, .next = next };
+	return { .rebase = { target }, .type = FixupType::Rebase, .next = next };
 }
 
 FixupInfo AuthBindFixup(uint32_t ordinal,
 	AuthKeyType keyType, bool usesAddressDiversity, uint16_t addressDiversity, uint16_t next)
 {
-	return { .bind = { ordinal, 0 }, FixupType::Bind, true, keyType, usesAddressDiversity, addressDiversity, next };
+	return {
+		.bind = { ordinal, 0 }, .type = FixupType::Bind, .isAuthenticated = true,
+		.authKeyType = keyType, .usesAddressDiversity = usesAddressDiversity,
+		.addressDiversity = addressDiversity, .next = next
+	};
 }
 
 FixupInfo AuthRebaseFixup(uint64_t target,
 	AuthKeyType keyType, bool usesAddressDiversity, uint16_t addressDiversity, uint16_t next)
 {
-	return { .rebase = { target }, FixupType::Rebase, true, keyType, usesAddressDiversity, addressDiversity, next };
+	return {
+		.rebase = { target }, .type = FixupType::Rebase, .isAuthenticated = true,
+		.authKeyType = keyType, .usesAddressDiversity = usesAddressDiversity,
+		.addressDiversity = addressDiversity, .next = next
+	};
 }
 
 FixupInfo ConvertFromAddressToOffset(FixupInfo fixup, uint64_t preferredLoadAddress)
@@ -239,7 +247,7 @@ ImportEntry ReadChainedImport32(BinaryReader& reader, std::span<const char> symb
 	return {
 		std::string_view(&symbolData[import.name_offset]),
 		0,
-		import.lib_ordinal,
+		static_cast<int32_t>(import.lib_ordinal),
 		(bool)import.weak_import,
 	};
 }
@@ -251,7 +259,7 @@ ImportEntry ReadChainedImportAddend32(BinaryReader& reader, std::span<const char
 	return {
 		std::string_view(&symbolData[import.name_offset]),
 		static_cast<uint32_t>(import.addend),
-		import.lib_ordinal,
+		static_cast<int32_t>(import.lib_ordinal),
 		(bool)import.weak_import,
 	};
 }
@@ -263,7 +271,7 @@ ImportEntry ReadChainedImportAddend64(BinaryReader& reader, std::span<const char
 	return {
 		std::string_view(&symbolData[import.name_offset]),
 		import.addend,
-		(int32_t)import.lib_ordinal,
+		static_cast<int32_t>(import.lib_ordinal),
 		(bool)import.weak_import,
 	};
 }
