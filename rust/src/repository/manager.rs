@@ -1,9 +1,7 @@
-use crate::rc::{Array, Ref, RefCountable};
+use crate::rc::{Array, Ref};
 use crate::repository::Repository;
 use crate::string::IntoCStr;
-use binaryninjacore_sys::{
-    BNCreateRepositoryManager, BNFreeRepositoryManager, BNGetRepositoryManager,
-    BNNewRepositoryManagerReference, BNRepositoryGetRepositoryByPath, BNRepositoryManager,
+use binaryninjacore_sys::{BNRepositoryGetRepositoryByPath,
     BNRepositoryManagerAddRepository, BNRepositoryManagerCheckForUpdates,
     BNRepositoryManagerGetDefaultRepository, BNRepositoryManagerGetRepositories,
 };
@@ -13,38 +11,24 @@ use std::ptr::NonNull;
 
 /// Keeps track of all the repositories and keeps the `enabled_plugins.json`
 /// file coherent with the plugins that are installed/uninstalled enabled/disabled
-#[repr(transparent)]
 pub struct RepositoryManager {
-    handle: NonNull<BNRepositoryManager>,
 }
 
 impl RepositoryManager {
-    #[allow(clippy::should_implement_trait)]
-    pub fn default() -> Ref<Self> {
-        let result = unsafe { BNGetRepositoryManager() };
-        unsafe { Self::ref_from_raw(NonNull::new(result).unwrap()) }
-    }
-
-    pub(crate) unsafe fn ref_from_raw(handle: NonNull<BNRepositoryManager>) -> Ref<Self> {
-        Ref::new(Self { handle })
-    }
-
-    pub fn new(plugins_path: &str) -> Ref<Self> {
-        let plugins_path = plugins_path.to_cstr();
-        let result = unsafe { BNCreateRepositoryManager(plugins_path.as_ptr()) };
-        unsafe { Self::ref_from_raw(NonNull::new(result).unwrap()) }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// Check for updates for all managed [`Repository`] objects
     pub fn check_for_updates(&self) -> bool {
-        unsafe { BNRepositoryManagerCheckForUpdates(self.handle.as_ptr()) }
+        unsafe { BNRepositoryManagerCheckForUpdates() }
     }
 
     /// List of [`Repository`] objects being managed
     pub fn repositories(&self) -> Array<Repository> {
         let mut count = 0;
         let result =
-            unsafe { BNRepositoryManagerGetRepositories(self.handle.as_ptr(), &mut count) };
+            unsafe { BNRepositoryManagerGetRepositories(&mut count) };
         assert!(!result.is_null());
         unsafe { Array::new(result, count, ()) }
     }
@@ -64,20 +48,20 @@ impl RepositoryManager {
         let url = url.to_cstr();
         let repo_path = repository_path.to_cstr();
         unsafe {
-            BNRepositoryManagerAddRepository(self.handle.as_ptr(), url.as_ptr(), repo_path.as_ptr())
+            BNRepositoryManagerAddRepository(url.as_ptr(), repo_path.as_ptr())
         }
     }
 
     pub fn repository_by_path(&self, path: &Path) -> Option<Repository> {
         let path = path.to_cstr();
         let result =
-            unsafe { BNRepositoryGetRepositoryByPath(self.handle.as_ptr(), path.as_ptr()) };
+            unsafe { BNRepositoryGetRepositoryByPath(path.as_ptr()) };
         NonNull::new(result).map(|raw| unsafe { Repository::from_raw(raw) })
     }
 
     /// Gets the default [`Repository`]
     pub fn default_repository(&self) -> Ref<Repository> {
-        let result = unsafe { BNRepositoryManagerGetDefaultRepository(self.handle.as_ptr()) };
+        let result = unsafe { BNRepositoryManagerGetDefaultRepository() };
         assert!(!result.is_null());
         unsafe { Repository::ref_from_raw(NonNull::new(result).unwrap()) }
     }
@@ -88,25 +72,5 @@ impl Debug for RepositoryManager {
         f.debug_struct("RepositoryManager")
             .field("repositories", &self.repositories().to_vec())
             .finish()
-    }
-}
-
-impl ToOwned for RepositoryManager {
-    type Owned = Ref<Self>;
-
-    fn to_owned(&self) -> Self::Owned {
-        unsafe { RefCountable::inc_ref(self) }
-    }
-}
-
-unsafe impl RefCountable for RepositoryManager {
-    unsafe fn inc_ref(handle: &Self) -> Ref<Self> {
-        Self::ref_from_raw(
-            NonNull::new(BNNewRepositoryManagerReference(handle.handle.as_ptr())).unwrap(),
-        )
-    }
-
-    unsafe fn dec_ref(handle: &Self) {
-        BNFreeRepositoryManager(handle.handle.as_ptr())
     }
 }

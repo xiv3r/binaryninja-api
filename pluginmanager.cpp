@@ -12,7 +12,7 @@ using namespace std;
 		return result; \
 	} while (0)
 
-RepoPlugin::RepoPlugin(BNRepoPlugin* plugin)
+RepoPlugin::RepoPlugin(BNPlugin* plugin)
 {
 	m_object = plugin;
 }
@@ -291,7 +291,7 @@ vector<Ref<RepoPlugin>> Repository::GetPlugins() const
 {
 	vector<Ref<RepoPlugin>> plugins;
 	size_t count = 0;
-	BNRepoPlugin** pluginsPtr = BNRepositoryGetPlugins(m_object, &count);
+	BNPlugin** pluginsPtr = BNRepositoryGetPlugins(m_object, &count);
 	plugins.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		plugins.push_back(new RepoPlugin(BNNewPluginReference(pluginsPtr[i])));
@@ -310,31 +310,16 @@ string Repository::GetFullPath() const
 	RETURN_STRING(BNRepositoryGetPluginsPath(m_object));
 }
 
-RepositoryManager::RepositoryManager(const string& enabledPluginsPath)
-{
-	m_object = BNCreateRepositoryManager(enabledPluginsPath.c_str());
-}
-
-RepositoryManager::RepositoryManager(BNRepositoryManager* mgr)
-{
-	m_object = mgr;
-}
-
-RepositoryManager::RepositoryManager()
-{
-	m_object = BNGetRepositoryManager();
-}
-
 bool RepositoryManager::CheckForUpdates()
 {
-	return BNRepositoryManagerCheckForUpdates(m_object);
+	return BNRepositoryManagerCheckForUpdates();
 }
 
 vector<Ref<Repository>> RepositoryManager::GetRepositories()
 {
 	vector<Ref<Repository>> repos;
 	size_t count = 0;
-	BNRepository** reposPtr = BNRepositoryManagerGetRepositories(m_object, &count);
+	BNRepository** reposPtr = BNRepositoryManagerGetRepositories(&count);
 	for (size_t i = 0; i < count; i++)
 		repos.push_back(new Repository(BNNewRepositoryReference(reposPtr[i])));
 	BNFreeRepositoryManagerRepositoriesList(reposPtr);
@@ -344,15 +329,15 @@ vector<Ref<Repository>> RepositoryManager::GetRepositories()
 bool RepositoryManager::AddRepository(const std::string& url,
     const std::string& repoPath)  // Relative path within the repositories directory
 {
-	return BNRepositoryManagerAddRepository(m_object, url.c_str(), repoPath.c_str());
+	return BNRepositoryManagerAddRepository(url.c_str(), repoPath.c_str());
 }
 
 Ref<Repository> RepositoryManager::GetRepositoryByPath(const std::string& repoPath)
 {
-	return new Repository(BNRepositoryGetRepositoryByPath(m_object, repoPath.c_str()));
+	return new Repository(BNRepositoryGetRepositoryByPath(repoPath.c_str()));
 }
 
 Ref<Repository> RepositoryManager::GetDefaultRepository()
 {
-	return new Repository(BNRepositoryManagerGetDefaultRepository(m_object));
+	return new Repository(BNRepositoryManagerGetDefaultRepository());
 }

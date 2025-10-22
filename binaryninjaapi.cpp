@@ -49,24 +49,6 @@ bool BinaryNinja::InitPlugins(bool allowUserPlugins)
 }
 
 
-void BinaryNinja::InitCorePlugins()
-{
-	BNInitCorePlugins();
-}
-
-
-void BinaryNinja::InitUserPlugins()
-{
-	BNInitUserPlugins();
-}
-
-
-void BinaryNinja::InitRepoPlugins()
-{
-	BNInitRepoPlugins();
-}
-
-
 string BinaryNinja::GetBundledPluginDirectory()
 {
 	char* path = BNGetBundledPluginDirectory();
