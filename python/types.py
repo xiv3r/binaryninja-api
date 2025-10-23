@@ -2275,6 +2275,19 @@ class Type:
 		handle=core.BNTypeWithReplacedNamedTypeReference(self._handle, from_ref.ntr_handle, to_ref.ntr_handle)
 		return Type.create(handle)
 
+	def deref_named_type_reference(self, view: 'binaryview.BinaryView') -> 'Type':
+		"""
+		Dereferences any named type references to find the underlying type. This may still return a
+		named type reference if there are circular references. If the type isn't a named type
+		reference, the input type is returned unchanged.
+
+		:param BinaryView view: BinaryView object owning this Type
+		:return: Type with named type references resolved
+		:rtype: :py:class:`Type`
+		"""
+		handle = core.BNDerefNamedTypeReference(view.handle, self._handle)
+		return Type.create(handle)
+
 	@staticmethod
 	def void() -> 'VoidType':
 		return VoidType.create()

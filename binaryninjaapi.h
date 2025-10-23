@@ -10680,6 +10680,8 @@ namespace BinaryNinja {
 			int paddingCols = 64, bool collapsed = false, BNTokenEscapingType escaping = NoTokenEscapingType) const;
 
 		static std::string GetSizeSuffix(size_t size);
+
+		Ref<Type> DerefNamedTypeReference(BinaryView* view) const;
 	};
 
 	class EnumerationBuilder;

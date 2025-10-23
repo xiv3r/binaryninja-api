@@ -1416,6 +1416,12 @@ string Type::GetSizeSuffix(size_t size)
 }
 
 
+Ref<Type> Type::DerefNamedTypeReference(BinaryView* view) const
+{
+	return new Type(BNDerefNamedTypeReference(view->GetObject(), m_object));
+}
+
+
 TypeBuilder::TypeBuilder()
 {
 	m_object = BNCreateVoidTypeBuilder();
