@@ -621,9 +621,9 @@ class TypeBuilder:
 		    TypeClass.IntegerTypeClass: IntegerType, TypeClass.FloatTypeClass: FloatType,
 		    TypeClass.PointerTypeClass: PointerType, TypeClass.ArrayTypeClass: ArrayType,
 		    TypeClass.FunctionTypeClass: FunctionType, TypeClass.WideCharTypeClass: WideCharType,
-		    # TypeClass.StructureTypeClass:StructureType,
-		    # TypeClass.EnumerationTypeClass:EnumerationType,
-		    # TypeClass.NamedTypeReferenceClass:NamedTypeReferenceType,
+		    TypeClass.StructureTypeClass: StructureType,
+		    TypeClass.EnumerationTypeClass: EnumerationType,
+		    TypeClass.NamedTypeReferenceClass: NamedTypeReferenceType,
 		}
 		return Types[self.type_class](self.finalized, self.platform, self.confidence)
 
@@ -1450,14 +1450,6 @@ class StructureBuilder(TypeBuilder):
 		assert type_builder_handle is not None, "core.BNCreateStructureTypeBuilderWithBuilder returned None"
 		return cls(type_builder_handle, structure_builder_handle, platform, confidence)
 
-	def immutable_copy(self) -> 'StructureType':
-		assert self.builder_handle is not None
-		structure_handle = core.BNFinalizeStructureBuilder(self.builder_handle)
-		assert structure_handle is not None, "core.BNFinalizeStructureBuilder returned None"
-		handle = core.BNCreateStructureType(structure_handle)
-		assert handle is not None, "core.BNCreateStructureType returned None"
-		return StructureType(handle, self.platform, self.confidence)
-
 	@property
 	def members(self) -> List[StructureMember]:
 		"""Structure member list (read-only)"""
@@ -1683,14 +1675,6 @@ class EnumerationBuilder(TypeBuilder):
 		assert type_builder_handle is not None, "core.BNCreateEnumerationTypeBuilderWithBuilder returned None"
 		return cls(type_builder_handle, enum_builder_handle, platform, confidence)
 
-	def immutable_copy(self) -> 'EnumerationType':
-		enum_handle = core.BNFinalizeEnumerationBuilder(self.enum_builder_handle)
-		assert enum_handle is not None, "core.BNFinalizeEnumerationBuilder returned None"
-		_signed = BoolWithConfidence.get_core_struct(self.signed)
-		handle = core.BNCreateEnumerationType(None, enum_handle, self.width, _signed)
-		assert handle is not None, "core.BNCreateEnumerationType returned None"
-		return EnumerationType(handle, self.platform, self.confidence)
-
 	@property
 	def members(self) -> List[EnumerationMember]:
 		"""Enumeration member list (read-only)"""
@@ -1807,17 +1791,6 @@ class NamedTypeReferenceBuilder(TypeBuilder):
 		)
 		assert type_builder_handle is not None, "core.BNCreateNamedTypeReferenceBuilderWithBuilder returned None"
 		return cls(type_builder_handle, ntr_builder_handle, platform, confidence)
-
-	def immutable_copy(self) -> 'NamedTypeReferenceType':
-		ntr_handle = core.BNFinalizeNamedTypeReferenceBuilder(self.ntr_builder_handle)
-		assert ntr_handle is not None, "core.BNFinalizeEnumerationBuilder returned None"
-
-		_const = BoolWithConfidence.get_core_struct(self.const)
-		_volatile = BoolWithConfidence.get_core_struct(self.volatile)
-
-		handle = core.BNCreateNamedTypeReference(ntr_handle, self.width, self.alignment, _const, _volatile)
-		assert handle is not None, "core.BNCreateEnumerationType returned None"
-		return NamedTypeReferenceType(handle, self.platform, self.confidence)
 
 	@property
 	def name(self) -> QualifiedName:
@@ -2603,6 +2576,7 @@ class StructureType(Type):
 		assert structure_handle is not None, "core.BNGetTypeStructure returned None"
 		structure_builder_handle = core.BNCreateStructureBuilderFromStructure(structure_handle)
 		assert structure_builder_handle is not None, "core.BNCreateStructureBuilderFromStructure returned None"
+		core.BNSetStructureBuilder(type_builder_handle, structure_builder_handle)
 		return StructureBuilder(type_builder_handle, structure_builder_handle, self.platform, self.confidence)
 
 	@classmethod
@@ -2912,6 +2886,7 @@ class EnumerationType(IntegerType):
 		assert enumeration_handle is not None, "core.BNGetTypeEnumeration returned None"
 		enumeration_builder_handle = core.BNCreateEnumerationBuilderFromEnumeration(enumeration_handle)
 		assert enumeration_builder_handle is not None, "core.BNCreateEnumerationBuilderFromEnumeration returned None"
+		core.BNSetEnumerationBuilder(type_builder_handle, enumeration_builder_handle)
 		return EnumerationBuilder(type_builder_handle, enumeration_builder_handle, self.platform, self.confidence)
 
 	def generate_named_type_reference(self, guid: str, name: QualifiedNameType):
@@ -3253,6 +3228,7 @@ class NamedTypeReferenceType(Type):
 		    self.named_type_class, self.type_id, self.name._to_core_struct()
 		)
 		assert ntr_builder_handle is not None, "core.BNCreateNamedTypeBuilder returned None"
+		core.BNSetNamedTypeReferenceBuilder(type_builder_handle, ntr_builder_handle)
 		return NamedTypeReferenceBuilder(type_builder_handle, ntr_builder_handle, self.platform, self.confidence)
 
 	@classmethod

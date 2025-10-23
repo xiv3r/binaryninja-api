@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 141
+#define BN_CURRENT_CORE_ABI_VERSION 142
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -7003,6 +7003,7 @@ extern "C"
 	BINARYNINJACOREAPI BNNamedTypeReferenceClass BNGetTypeReferenceBuilderClass(BNNamedTypeReferenceBuilder* nt);
 	BINARYNINJACOREAPI char* BNGetTypeReferenceBuilderId(BNNamedTypeReferenceBuilder* nt);
 	BINARYNINJACOREAPI BNQualifiedName BNGetTypeReferenceBuilderName(BNNamedTypeReferenceBuilder* nt);
+	BINARYNINJACOREAPI void BNSetNamedTypeReferenceBuilder(BNTypeBuilder* type, BNNamedTypeReferenceBuilder* nt);
 
 	BINARYNINJACOREAPI BNStructureBuilder* BNCreateStructureBuilder(void);
 	BINARYNINJACOREAPI BNStructureBuilder* BNCreateStructureBuilderWithOptions(BNStructureVariant type, bool packed);
@@ -7012,6 +7013,7 @@ extern "C"
 	BINARYNINJACOREAPI BNStructure* BNNewStructureReference(BNStructure* s);
 	BINARYNINJACOREAPI void BNFreeStructure(BNStructure* s);
 	BINARYNINJACOREAPI void BNFreeStructureBuilder(BNStructureBuilder* s);
+	BINARYNINJACOREAPI void BNSetStructureBuilder(BNTypeBuilder* type, BNStructureBuilder* s);
 
 	BINARYNINJACOREAPI BNStructureMember* BNGetStructureMemberByName(BNStructure* s, const char* name);
 	BINARYNINJACOREAPI BNStructureMember* BNGetStructureMemberAtOffset(BNStructure* s, int64_t offset, size_t* idx);
@@ -7083,6 +7085,7 @@ extern "C"
 	BINARYNINJACOREAPI BNEnumeration* BNNewEnumerationReference(BNEnumeration* e);
 	BINARYNINJACOREAPI void BNFreeEnumeration(BNEnumeration* e);
 	BINARYNINJACOREAPI void BNFreeEnumerationBuilder(BNEnumerationBuilder* e);
+	BINARYNINJACOREAPI void BNSetEnumerationBuilder(BNTypeBuilder* type, BNEnumerationBuilder* e);
 
 	BINARYNINJACOREAPI BNEnumerationMember* BNGetEnumerationMembers(BNEnumeration* e, size_t* count);
 	BINARYNINJACOREAPI BNInstructionTextToken* BNGetEnumerationTokensForValue(BNEnumeration* e, uint64_t value,
