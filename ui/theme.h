@@ -48,6 +48,7 @@ class BINARYNINJAUIAPI CustomFusionStyle : public QProxyStyle
 };
 
 void BINARYNINJAUIAPI pixmapForBWMaskIcon(const QString& url, QPixmap* pixmapOut, BNThemeColor color = SidebarActiveIconColor, const QString& cacheSuffix = "");
+void BINARYNINJAUIAPI pixmapForBWMaskIcon(const QString& url, QPixmap* pixmapOut, QColor color, const QString& cacheSuffix = "");
 
 void BINARYNINJAUIAPI initThemes();
 void BINARYNINJAUIAPI resetUserThemes();
