@@ -13,7 +13,7 @@
 /// - Moveable, resizeable columns with saved state
 /// - QSettings save to Tables/<viewName>/<Suffix>
 /// - Reset columns context menu action
-class TableViewBase: public QTableView {
+class BINARYNINJAUIAPI TableViewBase: public QTableView {
 	Q_OBJECT
 
 public:
