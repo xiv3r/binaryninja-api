@@ -21,14 +21,16 @@
 import traceback
 import ctypes
 import abc
+from typing import List, Optional, Union
 
 # Binary Ninja components
 import binaryninja
 from .log import log_error_for_exception
 from . import databuffer
 from . import binaryview
+from . import metadata
 from . import _binaryninjacore as core
-from .enums import TransformType
+from .enums import TransformType, TransformResult
 
 
 class _TransformMetaClass(type):
@@ -183,8 +185,8 @@ class Transform(metaclass=_TransformMetaClass):
 			count[0] = len(self.parameters)
 			param_buf = (core.BNTransformParameterInfo * len(self.parameters))()
 			for i in range(0, len(self.parameters)):
-				param_buf[i].name = self.parameters[i].name
-				param_buf[i].longName = self.parameters[i].long_name
+				param_buf[i].name = self.parameters[i].name.encode('utf-8')
+				param_buf[i].longName = self.parameters[i].long_name.encode('utf-8')
 				param_buf[i].fixedLength = self.parameters[i].fixed_length
 			result = ctypes.cast(param_buf, ctypes.c_void_p)
 			self._pending_param_lists[result.value] = (result, param_buf)
@@ -239,9 +241,7 @@ class Transform(metaclass=_TransformMetaClass):
 
 	def _decode_with_context(self, ctxt, context, params, count):
 		try:
-			# TODO: Make Python TransformSession and TransformContext objects
-			from . import transform_context
-			context_obj = transform_context.TransformContext(core.BNNewTransformContextReference(context))
+			context_obj = TransformContext(context)
 			param_map = {}
 			for i in range(0, count):
 				data = databuffer.DataBuffer(handle=core.BNDuplicateDataBuffer(params[i].value))
@@ -274,15 +274,22 @@ class Transform(metaclass=_TransformMetaClass):
 		return False
 
 	def decode(self, input_buf, params={}):
-		if isinstance(input_buf, int) or isinstance(input_buf, int):
-			return None
+		if isinstance(input_buf, int):
+			raise TypeError("input_buf cannot be an integer")
 		input_buf = databuffer.DataBuffer(input_buf)
 		output_buf = databuffer.DataBuffer()
 		keys = list(params.keys())
 		param_buf = (core.BNTransformParameter * len(keys))()
 		data = []
 		for i in range(0, len(keys)):
-			data.append(databuffer.DataBuffer(params[keys[i]]))
+			param_value = params[keys[i]]
+			# Validate parameter type
+			if not isinstance(param_value, (bytes, bytearray, str, databuffer.DataBuffer)):
+				raise TypeError(f"Transform parameter '{keys[i]}' must be bytes, bytearray, str, or DataBuffer, not {type(param_value).__name__}. "
+				                f"If you need to pass an integer like 0x{param_value:x} as a key, convert it to bytes first: bytes([0x{param_value:x}])"
+				                if isinstance(param_value, int) else
+				                f"Transform parameter '{keys[i]}' must be bytes, bytearray, str, or DataBuffer, not {type(param_value).__name__}")
+			data.append(databuffer.DataBuffer(param_value))
 			param_buf[i].name = keys[i]
 			param_buf[i].value = data[i].handle
 		if not core.BNDecode(self.handle, input_buf.handle, output_buf.handle, param_buf, len(keys)):
@@ -290,15 +297,22 @@ class Transform(metaclass=_TransformMetaClass):
 		return bytes(output_buf)
 
 	def encode(self, input_buf, params={}):
-		if isinstance(input_buf, int) or isinstance(input_buf, int):
-			return None
+		if isinstance(input_buf, int):
+			raise TypeError("input_buf cannot be an integer")
 		input_buf = databuffer.DataBuffer(input_buf)
 		output_buf = databuffer.DataBuffer()
 		keys = list(params.keys())
 		param_buf = (core.BNTransformParameter * len(keys))()
 		data = []
 		for i in range(0, len(keys)):
-			data.append(databuffer.DataBuffer(params[keys[i]]))
+			param_value = params[keys[i]]
+			# Validate parameter type
+			if not isinstance(param_value, (bytes, bytearray, str, databuffer.DataBuffer)):
+				raise TypeError(f"Transform parameter '{keys[i]}' must be bytes, bytearray, str, or DataBuffer, not {type(param_value).__name__}. "
+				                f"If you need to pass an integer like 0x{param_value:x} as a key, convert it to bytes first: bytes([0x{param_value:x}])"
+				                if isinstance(param_value, int) else
+				                f"Transform parameter '{keys[i]}' must be bytes, bytearray, str, or DataBuffer, not {type(param_value).__name__}")
+			data.append(databuffer.DataBuffer(param_value))
 			param_buf[i].name = keys[i]
 			param_buf[i].value = data[i].handle
 		if not core.BNEncode(self.handle, input_buf.handle, output_buf.handle, param_buf, len(keys)):
@@ -306,15 +320,101 @@ class Transform(metaclass=_TransformMetaClass):
 		return bytes(output_buf)
 
 	def decode_with_context(self, context, params={}):
-		# TODO: Make Python TransformSession and TransformContext objects
-		from . import transform_context
-		if not isinstance(context, transform_context.TransformContext):
+		"""
+		``decode_with_context`` performs context-aware transformation for container formats,
+		enabling multi-file extraction
+
+		**Processing Protocol:**
+
+		Container transforms typically operate in two phases:
+
+		1. **Discovery Phase**: Transform enumerates available files and populates
+		   ``context.available_files``. Returns ``False`` to indicate user file selection
+		   is required.
+
+		2. **Extraction Phase**: Transform processes ``context.requested_files`` and
+		   creates child contexts for each file with extraction results. Returns ``True``
+		   when extraction is complete.
+
+		**Return Value Semantics:**
+
+		- ``True``: Processing complete, no more user interaction needed
+		- ``False``: Processing incomplete, requires user input or session management
+		  (e.g., file selection after discovery)
+
+		**Error Reporting:**
+
+		Extraction results and messages are accessible via context properties:
+
+		- **Context-level** (transformation/extraction status):
+		  - ``context.extraction_result``: Result of parent producing input
+		  - ``context.extraction_message``: Human-readable extraction message
+		  - ``context.transform_result``: Result of applying transform to input
+
+		Common error scenarios:
+		  - Archive encrypted, password required
+		  - Corrupt archive structure
+		  - Unsupported archive format
+		  - Individual file extraction failures
+
+		**Usage Examples:**
+
+		.. code-block:: python
+
+			from binaryninja import TransformSession
+
+			# Full mode - automatically extracts all files
+			session = TransformSession("archive.zip")
+			if session.process(): # All extraction complete, no interaction needed
+				# Select the intended context(s) for loading
+				session.set_selected_contexts(session.current_context)
+				# Load the resulting BinaryView(s)
+				loaded_view = load(session.current_view)
+			else:
+				# Extraction incomplete - user input required
+				print("Extraction requires user input")
+
+			# Interactive mode - requires manual processing for each step
+			session = TransformSession("nested.zip")
+			while not session.process():
+				# Process returned False - user input needed
+				ctx = session.current_context
+
+				# Check if parent has available files for selection
+				if ctx.parent and ctx.parent.has_available_files:
+					# Show files to user and let them select
+					available = ctx.parent.available_files
+					print(f"Available files: {available}")
+
+					# Select files to extract (or all)
+					ctx.parent.set_requested_files(available)
+
+					# Continue processing from parent
+					session.process_from(ctx.parent)
+
+			# Extraction complete - select and load the final context
+			session.set_selected_contexts(session.current_context)
+			final_view = session.current_view
+
+		:param TransformContext context: Transform context containing input data and state
+		:param dict params: Optional transform parameters (e.g., passwords, settings)
+		:return: True if processing complete, False if user input required
+		:rtype: bool
+		"""
+		if not isinstance(context, TransformContext):
 			return None
 		keys = list(params.keys())
 		param_buf = (core.BNTransformParameter * len(keys))()
 		data = []
 		for i in range(0, len(keys)):
-			data.append(databuffer.DataBuffer(params[keys[i]]))
+			param_value = params[keys[i]]
+			# Validate parameter type
+			if not isinstance(param_value, (bytes, bytearray, str, databuffer.DataBuffer)):
+				raise TypeError(f"Transform parameter '{keys[i]}' must be bytes, bytearray, str, or DataBuffer, not {type(param_value).__name__}. "
+				                f"If you need to pass an integer like 0x{param_value:x} as a key, convert it to bytes first: bytes([0x{param_value:x}])"
+				                if isinstance(param_value, int) else
+				                f"Transform parameter '{keys[i]}' must be bytes, bytearray, str, or DataBuffer, not {type(param_value).__name__}")
+			data.append(databuffer.DataBuffer(param_value))
 			param_buf[i].name = keys[i]
 			param_buf[i].value = data[i].handle
 		if not core.BNDecodeWithContext(self.handle, context.handle, param_buf, len(keys)):
@@ -335,3 +435,376 @@ class Transform(metaclass=_TransformMetaClass):
 		elif isinstance(input, binaryview.BinaryView):
 				return core.BNCanDecode(self.handle, input.handle)
 		return False
+
+
+class TransformContext:
+	"""
+	``TransformContext`` represents a node in the container extraction tree, containing the input data,
+	transformation state, and relationships to parent/child contexts.
+
+	Each context can have:
+	- Input data (BinaryView)
+	- Transform information (name, parameters, results)
+	- File selection state (available_files, requested_files)
+	- Parent/child relationships for nested containers
+	- Extraction status and error messages
+
+	Contexts are typically accessed through a ``TransformSession`` rather than created directly.
+
+	**Example:**
+
+	.. code-block:: python
+
+		session = TransformSession("archive.zip")
+		session.process()
+
+		# Access context properties
+		ctx = session.current_context
+		print(f"Filename: {ctx.filename}")
+		print(f"Transform: {ctx.transform_name}")
+		print(f"Size: {ctx.input.length}")
+
+		# Navigate the tree
+		if ctx.parent:
+			print(f"Parent files: {ctx.parent.available_files}")
+
+		# Check extraction status
+		if ctx.extraction_result != 0:
+			print(f"Error: {ctx.extraction_message}")
+	"""
+	def __init__(self, handle):
+		self.handle = core.handle_of_type(handle, core.BNTransformContext)
+
+	def __del__(self):
+		if core is not None:
+			core.BNFreeTransformContext(self.handle)
+
+	@property
+	def available_transforms(self) -> List[str]:
+		"""Get the list of transforms that can decode this context's input"""
+		count = ctypes.c_size_t()
+		transforms = core.BNTransformContextGetAvailableTransforms(self.handle, ctypes.byref(count))
+		if transforms is None:
+			return []
+		result = []
+		for i in range(count.value):
+			result.append(transforms[i].decode('utf-8'))
+		core.BNFreeStringList(transforms, count.value)
+		return result
+
+	@property
+	def transform_name(self) -> str:
+		"""Get the name of the transform that created this context"""
+		return core.BNTransformContextGetTransformName(self.handle)
+
+	def set_transform_name(self, transform_name: str):
+		"""Set the transform name for this context"""
+		core.BNTransformContextSetTransformName(self.handle, transform_name.encode('utf-8'))
+
+	@property
+	def filename(self) -> str:
+		"""Get the filename for this context"""
+		return core.BNTransformContextGetFileName(self.handle)
+
+	@property
+	def input(self) -> Optional['binaryview.BinaryView']:
+		"""Get the input BinaryView for this context"""
+		view = core.BNTransformContextGetInput(self.handle)
+		if view is None:
+			return None
+		return binaryview.BinaryView(handle=view)
+
+	@property
+	def metadata_obj(self) -> Optional['metadata.Metadata']:
+		"""Get the metadata for this context"""
+		meta = core.BNTransformContextGetMetadata(self.handle)
+		if meta is None:
+			return None
+		return metadata.Metadata(handle=meta)
+
+	def set_transform_parameter(self, name: str, data: databuffer.DataBuffer):
+		"""Set a transform parameter"""
+		core.BNTransformContextSetTransformParameter(self.handle, name.encode('utf-8'), data.handle)
+
+	def has_transform_parameter(self, name: str) -> bool:
+		"""Check if a transform parameter exists"""
+		return core.BNTransformContextHasTransformParameter(self.handle, name.encode('utf-8'))
+
+	def clear_transform_parameter(self, name: str):
+		"""Clear a transform parameter"""
+		core.BNTransformContextClearTransformParameter(self.handle, name.encode('utf-8'))
+
+	@property
+	def extraction_message(self) -> str:
+		"""Get the extraction message"""
+		return core.BNTransformContextGetExtractionMessage(self.handle)
+
+	@property
+	def extraction_result(self) -> TransformResult:
+		"""Get the extraction result"""
+		return TransformResult(core.BNTransformContextGetExtractionResult(self.handle))
+
+	@property
+	def transform_result(self) -> TransformResult:
+		"""Get the transform result"""
+		return TransformResult(core.BNTransformContextGetTransformResult(self.handle))
+
+	@property
+	def parent(self) -> Optional['TransformContext']:
+		"""Get the parent context"""
+		parent = core.BNTransformContextGetParent(self.handle)
+		if parent is None:
+			return None
+		return TransformContext(parent)
+
+	@property
+	def child_count(self) -> int:
+		"""Get the number of child contexts"""
+		return core.BNTransformContextGetChildCount(self.handle)
+
+	@property
+	def children(self) -> List['TransformContext']:
+		"""Get all child contexts"""
+		count = ctypes.c_size_t()
+		children = core.BNTransformContextGetChildren(self.handle, ctypes.byref(count))
+		if children is None:
+			return []
+		result = []
+		for i in range(count.value):
+			result.append(TransformContext(core.BNNewTransformContextReference(children[i])))
+		core.BNFreeTransformContextList(children, count.value)
+		return result
+
+	def get_child(self, filename: str) -> Optional['TransformContext']:
+		"""Get a child context by filename"""
+		child = core.BNTransformContextGetChild(self.handle, filename.encode('utf-8'))
+		if child is None:
+			return None
+		return TransformContext(child)
+
+	def create_child(self, data: databuffer.DataBuffer, filename: str = "", result: TransformResult = TransformResult.TransformSuccess, message: str = "") -> 'TransformContext':
+		"""Create a new child context with the given data, filename, result status, and message
+
+		:param data: The data for the child context
+		:param filename: The filename for the child context (default: "")
+		:param result: Transform result for the child (default: TransformResult.TransformSuccess)
+		:param message: Extraction message for the child (default: "")
+		"""
+		child = core.BNTransformContextSetChild(self.handle, data.handle, filename.encode('utf-8'), result, message.encode('utf-8'))
+		if child is None:
+			raise RuntimeError("Failed to create child context")
+		return TransformContext(child)
+
+	@property
+	def is_leaf(self) -> bool:
+		"""Check if this context is a leaf (has no children)"""
+		return core.BNTransformContextIsLeaf(self.handle)
+
+	@property
+	def is_root(self) -> bool:
+		"""Check if this context is the root (has no parent)"""
+		return core.BNTransformContextIsRoot(self.handle)
+
+	@property
+	def available_files(self) -> List[str]:
+		"""Get the list of available files for selection"""
+		count = ctypes.c_size_t()
+		files = core.BNTransformContextGetAvailableFiles(self.handle, ctypes.byref(count))
+		if files is None:
+			return []
+		result = []
+		for i in range(count.value):
+			result.append(files[i].decode('utf-8'))
+		core.BNFreeStringList(files, count.value)
+		return result
+
+	def set_available_files(self, files: List[str]):
+		"""Set the list of available files for selection"""
+		file_array = (ctypes.c_char_p * len(files))()
+		for i, f in enumerate(files):
+			file_array[i] = f.encode('utf-8')
+		core.BNTransformContextSetAvailableFiles(self.handle, file_array, len(files))
+
+	@property
+	def has_available_files(self) -> bool:
+		"""Check if this context has available files for selection"""
+		return core.BNTransformContextHasAvailableFiles(self.handle)
+
+	@property
+	def requested_files(self) -> List[str]:
+		"""Get the list of requested files"""
+		count = ctypes.c_size_t()
+		files = core.BNTransformContextGetRequestedFiles(self.handle, ctypes.byref(count))
+		if files is None:
+			return []
+		result = []
+		for i in range(count.value):
+			result.append(files[i].decode('utf-8'))
+		core.BNFreeStringList(files, count.value)
+		return result
+
+	def set_requested_files(self, files: List[str]):
+		"""Set the list of requested files"""
+		file_array = (ctypes.c_char_p * len(files))()
+		for i, f in enumerate(files):
+			file_array[i] = f.encode('utf-8')
+		core.BNTransformContextSetRequestedFiles(self.handle, file_array, len(files))
+
+	@property
+	def has_requested_files(self) -> bool:
+		"""Check if this context has requested files"""
+		return core.BNTransformContextHasRequestedFiles(self.handle)
+
+	@property
+	def is_database(self) -> bool:
+		"""Check if this context represents a database file"""
+		return core.BNTransformContextIsDatabase(self.handle)
+
+
+class TransformSession:
+	"""
+	``TransformSession`` manages the extraction workflow for container files (ZIP, 7z, IMG4, etc.),
+	handling multi-stage extraction, file selection, and transform application.
+
+	Sessions automatically detect and apply appropriate transforms to navigate through nested containers,
+	maintaining a tree of ``TransformContext`` objects representing each extraction stage.
+
+	**Modes:**
+
+	- **Full Mode** (default): Automatically extracts all files through nested containers
+	- **Interactive Mode**: Requires user file selection at each stage
+
+	**Basic Usage:**
+
+	.. code-block:: python
+
+		from binaryninja import TransformSession
+
+		# Full automatic extraction
+		session = TransformSession("archive.zip")
+		if session.process():
+			final_data = session.current_view
+			load(final_data)
+
+	**Interactive Extraction:**
+
+	.. code-block:: python
+
+		session = TransformSession("nested_archive.zip")
+		while not session.process():
+			# User input needed
+			ctx = session.current_context
+			if ctx.parent and ctx.parent.has_available_files:
+				# Show file choices to user
+				print(f"Available: {ctx.parent.available_files}")
+
+				# User selects files
+				ctx.parent.set_requested_files(["important_file.bin"])
+
+				# Continue extraction
+				session.process_from(ctx.parent)
+
+		# Access final extracted data
+		session.set_selected_contexts(session.current_context)
+		final_view = session.current_view
+
+	**Key Methods:**
+
+	- ``process()``: Process the next extraction stage
+	- ``process_from(context)``: Resume processing from a specific context
+	- ``set_selected_contexts(contexts)``: Mark contexts for final access
+
+	**Key Properties:**
+
+	- ``current_context``: The current point in the extraction tree
+	- ``current_view``: The current BinaryView (after processing)
+	- ``root_context``: The root of the extraction tree
+	"""
+	def __init__(self, filename_or_view: Union[str, 'binaryview.BinaryView'], mode=None, handle=None):
+		if handle is not None:
+			self.handle = core.handle_of_type(handle, core.BNTransformSession)
+		elif isinstance(filename_or_view, str):
+			if mode is None:
+				self.handle = core.BNCreateTransformSession(filename_or_view.encode('utf-8'))
+			else:
+				self.handle = core.BNCreateTransformSessionWithMode(filename_or_view.encode('utf-8'), mode)
+		elif hasattr(filename_or_view, 'handle'):  # BinaryView
+			if mode is None:
+				self.handle = core.BNCreateTransformSessionFromBinaryView(filename_or_view.handle)
+			else:
+				self.handle = core.BNCreateTransformSessionFromBinaryViewWithMode(filename_or_view.handle, mode)
+		else:
+			raise TypeError("filename_or_view must be a string filename or BinaryView")
+
+		if self.handle is None:
+			raise RuntimeError("Failed to create TransformSession")
+
+	def __del__(self):
+		if core is not None:
+			core.BNFreeTransformSession(self.handle)
+
+	@property
+	def current_view(self) -> Optional['binaryview.BinaryView']:
+		"""Get the current BinaryView for this session"""
+		view = core.BNTransformSessionGetCurrentView(self.handle)
+		if view is None:
+			return None
+		return binaryview.BinaryView(handle=view)
+
+	@property
+	def root_context(self) -> Optional['TransformContext']:
+		"""Get the root transform context"""
+		context = core.BNTransformSessionGetRootContext(self.handle)
+		if context is None:
+			return None
+		return TransformContext(context)
+
+	@property
+	def current_context(self) -> Optional['TransformContext']:
+		"""Get the current transform context"""
+		context = core.BNTransformSessionGetCurrentContext(self.handle)
+		if context is None:
+			return None
+		return TransformContext(context)
+
+	def process_from(self, context: 'TransformContext') -> bool:
+		"""Process the transform session starting from a specific context"""
+		if not isinstance(context, TransformContext):
+			raise TypeError("context must be a TransformContext")
+		return core.BNTransformSessionProcessFrom(self.handle, context.handle)
+
+	def process(self) -> bool:
+		"""Process the transform session"""
+		return core.BNTransformSessionProcess(self.handle)
+
+	@property
+	def has_any_stages(self) -> bool:
+		"""Check if this session has any processing stages"""
+		return core.BNTransformSessionHasAnyStages(self.handle)
+
+	@property
+	def has_single_path(self) -> bool:
+		"""Check if this session has a single processing path"""
+		return core.BNTransformSessionHasSinglePath(self.handle)
+
+	@property
+	def selected_contexts(self) -> List['TransformContext']:
+		"""Get the currently selected contexts"""
+		count = ctypes.c_size_t()
+		contexts = core.BNTransformSessionGetSelectedContexts(self.handle, ctypes.byref(count))
+		if contexts is None:
+			return []
+		result = []
+		for i in range(count.value):
+			result.append(TransformContext(core.BNNewTransformContextReference(contexts[i])))
+		core.BNFreeTransformContextList(contexts, count.value)
+		return result
+
+	def set_selected_contexts(self, contexts: Union[List['TransformContext'], 'TransformContext']):
+		"""Set the selected contexts"""
+		if isinstance(contexts, TransformContext):
+			contexts = [contexts]
+		context_array = (ctypes.POINTER(core.BNTransformContext) * len(contexts))()
+		for i, ctx in enumerate(contexts):
+			context_array[i] = ctx.handle
+		core.BNTransformSessionSetSelectedContexts(self.handle, context_array, len(contexts))
