@@ -11,6 +11,65 @@ One of the best ways to learn a complicated API is to simply find the right exam
 
 # Recipes
 
+## Loading Files & Databases
+
+When scripting from the Binary Ninja UI, the `bv` magic variable is already defined and available in the Python console or scripts loaded via `File -> Run Script...`. You can directly use `bv` to access the currently open binary.
+
+If you have Binary Ninja Commercial and above (Commercial, Ultimate, and Enterprise), you can also use Binary Ninja headlessly as a library. This allows you to write standalone scripts that load and analyze files without the UI.
+
+!!! note "Headless Usage Requirement"
+    Using Binary Ninja as a library (headlessly) is only available in Binary Ninja Commercial and above. This feature is not available in the Personal edition.
+
+### Basic file loading
+
+```python
+from binaryninja import load
+
+# Using context manager (recommended)
+with load('/bin/ls') as bv:
+    if bv is not None:
+        print(f"{bv.arch.name}: {hex(bv.entry_point)}")
+
+# Without context manager - must close manually
+bv = load('/bin/ls')
+if bv is not None:
+    print(f"Loaded {bv.file.filename}")
+    bv.file.close()  # Important: prevents memory leaks
+```
+
+### Loading with options
+
+```python
+from binaryninja import load
+
+bv = load('/bin/ls', options={
+    'loader.imageBase': 0xfffffff0000,
+    'loader.macho.processFunctionStarts': False,
+    'analysis.mode': 'basic'
+})
+```
+
+### Loading a database
+
+```python
+from binaryninja import load
+
+# .bndb files use the same API
+bv = load('/path/to/analysis.bndb')
+```
+
+### Controlling analysis
+
+```python
+from binaryninja import load
+
+# Load without running analysis
+bv = load('/bin/ls', update_analysis=False)
+if bv is not None:
+    bv.update_analysis_and_wait()  # Run analysis manually
+    bv.file.close()
+```
+
 ## Navigation / Search
 
 ### Getting all functions in a binary
