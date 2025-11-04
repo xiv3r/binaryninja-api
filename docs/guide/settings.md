@@ -244,6 +244,7 @@ The setting will appear under the Quick Settings section in the Function Setting
 |corePlugins|DWARF Import Plugin|Enable the DWARF import plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.dwarfImport'>corePlugins.dwarfImport</a>|
 |corePlugins|EFI Resolver|Enable the built-in EFI Resolver plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.efiResolver'>corePlugins.efiResolver</a>|
 |corePlugins|Firmware Ninja|Enable the Firmware Ninja plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.firmwareNinja'>corePlugins.firmwareNinja</a>|
+|corePlugins|Ghidra Import Plugin|Enable the built-in Ghidra import plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.ghidraImport'>corePlugins.ghidraImport</a>|
 |corePlugins|IDB Import Plugin|Enable the IDB import plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.idbImport'>corePlugins.idbImport</a>|
 |corePlugins|PDB Import Plugin|Enable the built-in PDB import plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.pdbImport'>corePlugins.pdbImport</a>|
 |corePlugins|Stack Render Layer Plugin|Enable the built-in Stack Render Layer plugin.|`boolean`|`True`|[`SettingsUserScope`]|<a id='corePlugins.stackRenderLayer'>corePlugins.stackRenderLayer</a>|

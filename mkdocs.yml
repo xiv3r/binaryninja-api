@@ -111,7 +111,9 @@ nav:
         - Migration Guide:
             - 'guide/migration/index.md'
             - Migrating from IDA: 'guide/migration/migrationguideida.md'
-            - Migrating from Ghidra: 'guide/migration/migrationguideghidra.md'
+            - Migrating from Ghidra:
+                - 'guide/migration/ghidra/index.md'
+                - Ghidra Import: 'guide/migration/ghidra/ghidraimport.md'
         - Types:
             - 'guide/types/index.md'
             - Basic Types: 'guide/types/basictypes.md'

@@ -10,7 +10,7 @@ We have quick start guides for the following:
 
 - [New Users](../../getting-started.md)
 - [IDA Pro Users](migrationguideida.md)
-- [Ghidra Users](migrationguideghidra.md)
+- [Ghidra Users](./ghidra/index.md)
 
 ## Additional Resources
 
