@@ -61,6 +61,7 @@ Due to its different document generation system, all our rust dependencies and t
 * [Tricore Rust Licenses](./rust-tricore.html)
 * [C-SKY Rust Licenses](./rust-csky.html)
 * [Ghidra Import Rust Licenses](./rust-ghidra-import.html)
+* [Hexagon Rust Licenses](./rust-hexagon.html)
 
 ## First Party Open Source
 
