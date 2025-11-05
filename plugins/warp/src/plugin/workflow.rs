@@ -19,6 +19,7 @@ use itertools::Itertools;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 use warp::r#type::class::function::{Location, RegisterLocation, StackLocation};
 use warp::signature::function::{Function, FunctionGUID};
@@ -134,6 +135,7 @@ pub fn run_matcher(view: &BinaryView) {
 
     // TODO: Target gets cloned a lot.
     // TODO: Containers might both match on the same function. What should we do?
+    let matched_count = AtomicUsize::new(0);
     for_cached_containers(|container| {
         if background_task.is_cancelled() {
             return;
@@ -180,6 +182,7 @@ pub fn run_matcher(view: &BinaryView) {
                         if let Some(matched_function) =
                             matcher.match_function_from_constraints(function, &matched_functions)
                         {
+                            matched_count.fetch_add(1, Ordering::Relaxed);
                             // We were able to find a match, add it to the match cache and then mark the function
                             // as requiring updates; this is so that we know about it in the applier activity.
                             insert_cached_function_match(function, Some(matched_function.clone()));
@@ -193,7 +196,11 @@ pub fn run_matcher(view: &BinaryView) {
         log::info!("Matcher was cancelled by user, you may run it again by running the 'Run Matcher' command.");
     }
 
-    log::info!("Function matching took {:?}", start.elapsed());
+    log::info!(
+        "Function matching took {:.3} seconds and matched {} functions",
+        start.elapsed().as_secs_f64(),
+        matched_count.load(Ordering::Relaxed)
+    );
     background_task.finish();
 
     // Now we want to trigger re-analysis.
