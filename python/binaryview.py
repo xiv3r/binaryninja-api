@@ -2450,6 +2450,7 @@ class MemoryMap:
 		precedence by default.
 
 		All MemoryMap APIs support undo and redo operations. During BinaryView::Init, these APIs should be used conditionally:
+
 		* Initial load: Use the MemoryMap APIs to define the memory regions that compose the system.
 		* Database load: Do not use the MemoryMap APIs, as the regions are already persisted and will be restored automatically.
 
