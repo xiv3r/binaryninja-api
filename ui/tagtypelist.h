@@ -8,7 +8,6 @@
 #include <QtWidgets/QComboBox>
 #include "binaryninjaapi.h"
 #include "viewframe.h"
-#include "tableviewbase.h"
 
 #define TAGS_UPDATE_CHECK_INTERVAL 200
 
@@ -89,7 +88,7 @@ class BINARYNINJAUIAPI TagTypeItemDelegate : public QItemDelegate
 
     \ingroup tagtypelist
 */
-class BINARYNINJAUIAPI TagTypeList : public TableViewBase, public BinaryNinja::BinaryDataNotification
+class BINARYNINJAUIAPI TagTypeList : public QTableView, public BinaryNinja::BinaryDataNotification
 {
 	Q_OBJECT
 

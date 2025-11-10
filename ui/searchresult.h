@@ -1,6 +1,5 @@
 #pragma once
 
-#include <tableviewbase.h>
 #include <QtCore/QAbstractItemModel>
 #include <QtCore/QItemSelectionModel>
 #include <QtCore/QSortFilterProxyModel>
@@ -174,7 +173,7 @@ class SearchResultWidget;
 /*!
     \ingroup searchresult
 */
-class BINARYNINJAUIAPI SearchResultTable : public TableViewBase
+class BINARYNINJAUIAPI SearchResultTable : public QTableView
 {
 	Q_OBJECT
 
