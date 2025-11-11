@@ -413,6 +413,13 @@ The Mini Graph only shows content when the currently selected main pane contains
 
 The Cross References view in the lower-left section of the sidebar shows all cross-references to the currently selected address, address range, variable or type. This pane will change depending on whether an entire line is selected (all cross-references to that address/type/variable are shown), or whether a specific token within the line is selected. For instance if you click on the symbol `memmove` in `call memmove` it will display all known cross-references to `memmove`, whereas if you click on the line the `call` instruction is on, you will only get cross-references to the address of the call instruction. Cross-references can be either incoming or outgoing, and they can be either data, code, type, or variable.
 
+When using the `X` hotkey, a [pinned cross-reference](#cross-reference-pinning) tab will be opened and the "Pinned Cross References" panel will be focused. [Some users](migrationguideida.md) may prefer a modal dialog, or the original Binary Ninja behavior of focusing the dynamic cross-reference window. This behavior can be changed either by adjusting the [ui.defaultXrefInterface](settings.md#ui.defaultXrefInterface) setting to `pinned`, `sidebar`, or `dialog` setting, OR by [changing the keybinding](#custom-hotkeys) for the appropriate command palette action:
+
+- `Focus Cross References`
+- `Pin Cross References` (opens a new tab in the existing Pinned Cross References dialog)
+- `Pin Cross References to New Pane`
+- `Cross References Dialog...`
+
 ![Cross References](../img/cross-reference-tree.png "xrefs"){ width="600" }
 
 #### Code References
@@ -425,7 +432,7 @@ Data References are references created _by_ data (i.e. pointers), not necessaril
 
 #### Variable References
 
-Variable References are all the set of uses of a given variable. As these references are intraprocedural we're able to show the currently viewed IL in the preview.
+Variable References are all the set of uses of a given variable. As these references are intra-procedural we're able to show the currently viewed IL in the preview.
 
 #### Type References
 
@@ -450,17 +457,19 @@ The first of the two drop down boxes allows the selection of incoming, outgoing,
 
 ![xrefs](../img/cross-reference-panel-pin.png "xrefs panel pin"){ width="600" }
 
-By default, Binary Ninja's cross-reference pane is dynamic, allowing quick navigation to relevant references. Sometimes you might rather have the current references stick around, so they can be used as a sort of work-list. This workflow is supported in four different ways. First is the `Pin` checkbox (which is only visible if the `Filter` drop-down is open). This prevents the list of cross-references from being updated even after the current selection is changed.
+By default, Binary Ninja's cross-reference pane is dynamic, allowing quick navigation to relevant references. Sometimes you might rather have the current references stick around, so they can be used as a sort of work-list. This workflow is supported in many different ways. 
 
-Alternatively clicking the `Pin Cross References to New Pane` button at the top right of the cross references pane in the sidebar, selecting `Pin Cross References` in the context menu or command palette, or using the `SHIFT+X` shortcut pops up a `Pinned Cross References` pane. This pane has a static address range which can only be updated through the `Pin Cross References` action. The third way would be to select (or multi-select in table view) a set of cross-references then right-click `Tag Selected Rows`. The tag pane can then be used to navigate those references. Tags allow for persistent lists to be saved to an analysis database whereas the other options only last for the current session.
+1. First is the `Pin` checkbox (which is only visible if the `Filter` drop-down is open). This prevents the list of cross-references from being updated even after the current selection is changed.
+1. Second, you can clicking the `Pin Cross References to New Pane` button at the top right of the cross references pane in the sidebar.
+1. Third, you can use the `X` hotkey or select `Pin Cross References` in the context menu or command palette. 
+1. The final way is to select (or multi-select in table view) a set of cross-references then right-click `Tag Selected Rows`. The tag pane can then be used to navigate those references. Tags allow for persistent lists to be saved to an analysis database whereas the other options only last for the current session.
 
 ???+ Tip "Tip"
-    The dynamic cross-reference pane limits the number of references that are displayed at one time to keep the user interface responsive. If the list of references is not complete, a `+` will appear next to the count of references. Clicking the `Pin Cross References to New Pane` button will increase the limit substantially and allow you to see the missing references. The limits for both the dynamic pane and the pinned references can be controlled in the settings.
+    The dynamic cross-reference pane limits the number of references that are displayed at one time to keep the user interface responsive. If the list of references is not complete, a `+` will appear next to the count of references. Clicking the `Pin Cross References to New Pane` button will increase the limit substantially and allow you to see the missing references. The limits for both the dynamic pane and the pinned references can be controlled in [settings](settings.md#ui.maxXrefItems).
 
 #### Cross-Reference Hotkeys
 
-* `x` - Focus the cross-references pane
-* `[SHIFT] x` Create a new pinned cross-references pane
+* `x` - Create a new pinned cross-references pane
 * `[OPTION/ALT] x` - Navigate to the next cross-reference
 * `[OPTION/ALT-SHIFT] x` - Navigate to the previous cross-reference
 

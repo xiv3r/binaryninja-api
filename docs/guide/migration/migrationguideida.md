@@ -46,7 +46,9 @@ Some major exceptions are:
 
 ![xref icon >](../../img/xref-icon.png "Xref Icon")
 
-If you prefer the pop-up style cross-references from IDA or Ghidra, you can enable that behavior by right-clicking on the xref-icon and selecting "Window". Whenever you navigate from the window by double-clicking or pressing enter the main window will be focused. ESC can also be used to close the xref window.
+The hotkey for Cross-References in Binary Ninja will match your IDA muscle-memory, however the look is simlar to Ghidra with a pinned UI element containing tabs for references. To get the full IDA experience, change the [`ui.defaultXrefInterface`](settings.md#ui.defaultXrefInterface) setting to `dialog`.
+
+<!-- TODO: Make a screenshot -->
 
 ## Theme
 
