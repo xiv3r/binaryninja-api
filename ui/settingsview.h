@@ -105,16 +105,18 @@ class BINARYNINJAUIAPI SettingsFilterProxyModel : public QSortFilterProxyModel
 	int scopeFilter() { return m_scopeFilter; }
 	void setScopeFilter(int scope)
 	{
+		beginFilterChange();
 		m_scopeFilter = scope;
-		invalidateFilter();
 		m_subgroupFilterCache.clear();
+		endFilterChange();
 	}
 	int scopeForSchema() { return m_scopeForSchema; }
 	void setScopeForSchema(int scope)
 	{
-		invalidateFilter();
+		beginFilterChange();
 		m_subgroupFilterCache.clear();
 		m_scopeForSchema = scope;
+		endFilterChange();
 	}
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
