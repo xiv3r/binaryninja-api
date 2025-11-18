@@ -2951,7 +2951,7 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 		uint64_t offset = 0;
 		char* name = NULL;
 		// uint32_t flags = 0;
-		uint32_t type = 0;
+		// uint32_t type = 0;
 		size_t i = 0;
 		//bool done = false;
 		while (i < tableSize)
@@ -2969,7 +2969,7 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 					offset = 0;
 					name = NULL;
 					// flags = 0;
-					type = 0;
+					// type = 0;
 					break;
 				case BindOpcodeSetDylibOrdinalImmediate: ordinal = imm;break;
 				case BindOpcodeSetDylibOrdinalULEB: ordinal = readLEB128(table, tableSize, i); break;
@@ -2981,7 +2981,7 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 					{;}
 					break;
 				case BindOpcodeSetTypeImmediate:
-					type = imm;
+					// type = imm;
 					break;
 				case BindOpcodeSetAddendSLEB: /* addend = */ readSLEB128(table, tableSize, i); break;
 				case BindOpcodeSetSegmentAndOffsetULEB:
