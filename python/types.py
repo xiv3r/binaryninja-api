@@ -27,7 +27,7 @@ import uuid
 # Binary Ninja components
 from . import _binaryninjacore as core
 from .enums import (
-	StructureVariant, SymbolType, SymbolBinding, TypeClass, NamedTypeReferenceClass,
+	InlineDuringAnalysis, StructureVariant, SymbolType, SymbolBinding, TypeClass, NamedTypeReferenceClass,
 	ReferenceType, VariableSourceType,
 	TypeReferenceType, MemberAccess, MemberScope, TypeDefinitionLineType,
 	TokenEscapingType,
@@ -526,6 +526,39 @@ class BoolWithConfidence:
 			return value._to_core_struct()
 		else:
 			return BoolWithConfidence(value, confidence)._to_core_struct()
+
+
+@dataclass(frozen=True)
+class InlineDuringAnalysisWithConfidence:
+	"""Represents an InlineDuringAnalysis value with an associated confidence level."""
+	value: InlineDuringAnalysis
+	confidence: int = core.max_confidence
+
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			# For backward compatibility, allow comparison with bool
+			if isinstance(other, bool):
+				return bool(self.value) == other
+			# Allow comparison with enum value directly
+			return self.value == other
+		else:
+			return (self.value, self.confidence) == (other.value, other.confidence)
+
+	def __ne__(self, other):
+		return not (self == other)
+
+	def __bool__(self):
+		return bool(self.value)
+
+	def _to_core_struct(self) -> core.BNInlineDuringAnalysisWithConfidence:
+		result = core.BNInlineDuringAnalysisWithConfidence()
+		result.value = self.value
+		result.confidence = self.confidence
+		return result
+
+	@classmethod
+	def from_core_struct(cls, core_struct: core.BNInlineDuringAnalysisWithConfidence) -> 'InlineDuringAnalysisWithConfidence':
+		return cls(InlineDuringAnalysis(core_struct.value), core_struct.confidence)
 
 
 @dataclass

@@ -36,6 +36,7 @@ pub use binaryninjacore_sys::BNBuiltinType as BuiltinType;
 pub use binaryninjacore_sys::BNFunctionAnalysisSkipOverride as FunctionAnalysisSkipOverride;
 pub use binaryninjacore_sys::BNFunctionUpdateType as FunctionUpdateType;
 pub use binaryninjacore_sys::BNHighlightStandardColor as HighlightStandardColor;
+pub use binaryninjacore_sys::BNInlineDuringAnalysis as InlineDuringAnalysis;
 
 use crate::architecture::{IndirectBranchInfo, RegisterId};
 use crate::binary_view::AddressRange;
@@ -1127,17 +1128,17 @@ impl Function {
 
     pub fn set_auto_inline_during_analysis<C>(&self, value: C)
     where
-        C: Into<Conf<bool>>,
+        C: Into<Conf<InlineDuringAnalysis>>,
     {
-        let value: Conf<bool> = value.into();
+        let value: Conf<InlineDuringAnalysis> = value.into();
         unsafe { BNSetAutoFunctionInlinedDuringAnalysis(self.handle, value.into()) }
     }
 
     pub fn set_user_inline_during_analysis<C>(&self, value: C)
     where
-        C: Into<Conf<bool>>,
+        C: Into<Conf<InlineDuringAnalysis>>,
     {
-        let value: Conf<bool> = value.into();
+        let value: Conf<InlineDuringAnalysis> = value.into();
         unsafe { BNSetUserFunctionInlinedDuringAnalysis(self.handle, value.into()) }
     }
 

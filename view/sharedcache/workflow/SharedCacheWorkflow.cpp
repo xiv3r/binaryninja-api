@@ -199,7 +199,7 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 		{
 		case MLIL_CONST_PTR:
 			// NOTE: This runs every single function update.
-			func->SetAutoInlinedDuringAnalysis(true);
+			func->SetAutoInlinedDuringAnalysis(InlineUsingCallAddress);
 			break;
 		default:
 			break;

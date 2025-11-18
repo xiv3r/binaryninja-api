@@ -6,7 +6,8 @@ use crate::rc::{Ref, RefCountable};
 use crate::types::Type;
 use binaryninjacore_sys::{
     BNBoolWithConfidence, BNCallingConventionWithConfidence, BNGetCallingConventionArchitecture,
-    BNOffsetWithConfidence, BNTypeWithConfidence,
+    BNInlineDuringAnalysis, BNInlineDuringAnalysisWithConfidence, BNOffsetWithConfidence,
+    BNTypeWithConfidence,
 };
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
@@ -280,6 +281,15 @@ impl From<BNOffsetWithConfidence> for Conf<i64> {
     }
 }
 
+impl From<BNInlineDuringAnalysisWithConfidence> for Conf<BNInlineDuringAnalysis> {
+    fn from(inline_with_confidence: BNInlineDuringAnalysisWithConfidence) -> Self {
+        Self::new(
+            inline_with_confidence.value,
+            inline_with_confidence.confidence,
+        )
+    }
+}
+
 impl From<Conf<bool>> for BNBoolWithConfidence {
     fn from(conf: Conf<bool>) -> Self {
         Self {
@@ -291,6 +301,15 @@ impl From<Conf<bool>> for BNBoolWithConfidence {
 
 impl From<Conf<i64>> for BNOffsetWithConfidence {
     fn from(conf: Conf<i64>) -> Self {
+        Self {
+            value: conf.contents,
+            confidence: conf.confidence,
+        }
+    }
+}
+
+impl From<Conf<BNInlineDuringAnalysis>> for BNInlineDuringAnalysisWithConfidence {
+    fn from(conf: Conf<BNInlineDuringAnalysis>) -> Self {
         Self {
             value: conf.contents,
             confidence: conf.confidence,

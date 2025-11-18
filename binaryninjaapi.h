@@ -13139,6 +13139,8 @@ namespace BinaryNinja {
 		bool GetInstructionContainingAddress(Architecture* arch, uint64_t addr, uint64_t* start);
 
 		Confidence<bool> IsInlinedDuringAnalysis();
+		Confidence<BNInlineDuringAnalysis> GetInlinedDuringAnalysis();
+
 		/*! Set whether the function should be inlined during analysis.
 
 		This will take effect if the new confidence level is higher than the confidence
@@ -13148,8 +13150,30 @@ namespace BinaryNinja {
 		\param inlined Whether the function should be inlined.
 
 		*/
-		void SetAutoInlinedDuringAnalysis(Confidence<bool> inlined);
-		void SetUserInlinedDuringAnalysis(Confidence<bool> inlined);
+		void SetAutoInlinedDuringAnalysis(Confidence<BNInlineDuringAnalysis> inlined);
+		void SetUserInlinedDuringAnalysis(Confidence<BNInlineDuringAnalysis> inlined);
+
+		// These overloads are needed to disambiguate calls that pass enum values directly.
+		void SetAutoInlinedDuringAnalysis(BNInlineDuringAnalysis inlined) { SetAutoInlinedDuringAnalysis(Confidence(inlined)); }
+		void SetUserInlinedDuringAnalysis(BNInlineDuringAnalysis inlined) { SetUserInlinedDuringAnalysis(Confidence(inlined)); }
+
+		/*!
+			\deprecated Use the overload that takes `BNInlineDuringAnalysis`.
+		*/
+		void SetAutoInlinedDuringAnalysis(Confidence<bool> inlined)
+		{
+			BNInlineDuringAnalysis value = inlined.GetValue() ? InlinePreservingTargetInstructionAddresses : DoNotInlineCall;
+			SetAutoInlinedDuringAnalysis(Confidence(value, inlined.GetConfidence()));
+		};
+
+		/*!
+			\deprecated Use the overload that takes `BNInlineDuringAnalysis`.
+		*/
+		void SetUserInlinedDuringAnalysis(Confidence<bool> inlined)
+		{
+			BNInlineDuringAnalysis value = inlined.GetValue() ? InlinePreservingTargetInstructionAddresses : DoNotInlineCall;
+			SetUserInlinedDuringAnalysis(Confidence(value, inlined.GetConfidence()));
+		};
 
 		// TODO: Documentation
 		bool IsInstructionCollapsed(const HighLevelILInstruction& instr, uint64_t designator = 0) const;

@@ -1667,13 +1667,13 @@ class Function:
 		return self.view.get_function_parent_components(self)
 
 	@property
-	def inline_during_analysis(self) -> 'types.BoolWithConfidence':
+	def inline_during_analysis(self) -> 'types.InlineDuringAnalysisWithConfidence':
 		"""Whether the function's IL should be inlined into all callers' IL"""
-		result = core.BNIsFunctionInlinedDuringAnalysis(self.handle)
-		return types.BoolWithConfidence(result.value, confidence=result.confidence)
+		result = core.BNGetFunctionInlinedDuringAnalysis(self.handle)
+		return types.InlineDuringAnalysisWithConfidence(result.value, confidence=result.confidence)
 
 	@inline_during_analysis.setter
-	def inline_during_analysis(self, value: Union[bool, 'types.BoolWithConfidence']):
+	def inline_during_analysis(self, value: Union['types.InlineDuringAnalysis', 'types.InlineDuringAnalysisWithConfidence', bool, 'types.BoolWithConfidence']):
 		self.set_user_inline_during_analysis(value)
 
 	def mark_recent_use(self) -> None:
@@ -3553,23 +3553,26 @@ class Function:
 		"""
 		core.BNUnsplitVariable(self.handle, var.to_BNVariable())
 
-	def set_auto_inline_during_analysis(self, value: Union[bool, 'types.BoolWithConfidence']):
-		bc = core.BNBoolWithConfidence()
-		bc.value = bool(value)
-		if isinstance(value, types.BoolWithConfidence):
-			bc.confidence = value.confidence
-		else:
-			bc.confidence = core.max_confidence
-		core.BNSetAutoFunctionInlinedDuringAnalysis(self.handle, bc)
+	@classmethod
+	def _inline_during_analysis_with_confidence(cls, value: Union['types.InlineDuringAnalysis', 'types.InlineDuringAnalysisWithConfidence', bool, 'types.BoolWithConfidence']) -> 'types.InlineDuringAnalysisWithConfidence':
+		if isinstance(value, types.InlineDuringAnalysisWithConfidence):
+			return value
 
-	def set_user_inline_during_analysis(self, value: Union[bool, 'types.BoolWithConfidence']):
-		bc = core.BNBoolWithConfidence()
-		bc.value = bool(value)
 		if isinstance(value, types.BoolWithConfidence):
-			bc.confidence = value.confidence
-		else:
-			bc.confidence = core.max_confidence
-		core.BNSetUserFunctionInlinedDuringAnalysis(self.handle, bc)
+			return core.BNInlineDuringAnalysisWithConfidence(int(value.value), value.confidence)
+
+		if isinstance(value, bool):
+			return core.BNInlineDuringAnalysisWithConfidence(int(value), core.max_confidence)
+
+		return core.BNInlineDuringAnalysisWithConfidence(value, core.max_confidence)
+
+	def set_auto_inline_during_analysis(self, value: Union['types.InlineDuringAnalysis', 'types.InlineDuringAnalysisWithConfidence', bool, 'types.BoolWithConfidence']):
+		value = self._inline_during_analysis_with_confidence(value)
+		core.BNSetAutoFunctionInlinedDuringAnalysis(self.handle, value)
+
+	def set_user_inline_during_analysis(self, value: Union['types.InlineDuringAnalysis', 'types.InlineDuringAnalysisWithConfidence', bool, 'types.BoolWithConfidence']):
+		value = self._inline_during_analysis_with_confidence(value)
+		core.BNSetUserFunctionInlinedDuringAnalysis(self.handle, value)
 
 	def toggle_region(self, hash):
 		"""

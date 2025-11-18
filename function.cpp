@@ -3230,21 +3230,28 @@ Confidence<bool> Function::IsInlinedDuringAnalysis()
 }
 
 
-void Function::SetAutoInlinedDuringAnalysis(Confidence<bool> inlined)
+Confidence<BNInlineDuringAnalysis> Function::GetInlinedDuringAnalysis()
 {
-	BNBoolWithConfidence bc;
-	bc.value = inlined.GetValue();
-	bc.confidence = inlined.GetConfidence();
-	BNSetAutoFunctionInlinedDuringAnalysis(m_object, bc);
+	BNInlineDuringAnalysisWithConfidence value = BNGetFunctionInlinedDuringAnalysis(m_object);
+	return Confidence(value.value, value.confidence);
 }
 
 
-void Function::SetUserInlinedDuringAnalysis(Confidence<bool> inlined)
+void Function::SetAutoInlinedDuringAnalysis(Confidence<BNInlineDuringAnalysis> inlined)
 {
-	BNBoolWithConfidence bc;
-	bc.value = inlined.GetValue();
-	bc.confidence = inlined.GetConfidence();
-	BNSetUserFunctionInlinedDuringAnalysis(m_object, bc);
+	BNInlineDuringAnalysisWithConfidence value;
+	value.value = inlined.GetValue();
+	value.confidence = inlined.GetConfidence();
+	BNSetAutoFunctionInlinedDuringAnalysis(m_object, value);
+}
+
+
+void Function::SetUserInlinedDuringAnalysis(Confidence<BNInlineDuringAnalysis> inlined)
+{
+	BNInlineDuringAnalysisWithConfidence value;
+	value.value = inlined.GetValue();
+	value.confidence = inlined.GetConfidence();
+	BNSetUserFunctionInlinedDuringAnalysis(m_object, value);
 }
 
 

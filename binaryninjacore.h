@@ -1131,6 +1131,33 @@ extern "C"
 		MemoryIntrinsicClass
 	};
 
+	BN_ENUM(uint8_t, BNInlineDuringAnalysis)
+	{
+		// The called function should not be inlined.
+		DoNotInlineCall,
+
+		// The called function should be inlined, with the inlined
+		// instructions preserving their original addresses.
+		// This was the only behavior available up through Binary Ninja 5.2.
+		InlinePreservingTargetInstructionAddresses,
+
+		// The called function should be inlined, with the inlined
+		// instructions using the call site address as their address.
+		// This ensures that when the function is inlined into a caller
+		// multiple times, each occurrence can have different adjustments
+		// applied to it. The trade-off is that the instructions inlined
+		// at a given call site have the same address, which in turn
+		// prevents applying adjustments that depend on instruction
+		// address to only a subset of those instructions.
+		InlineUsingCallAddress,
+	};
+
+	typedef struct BNInlineDuringAnalysisWithConfidence
+	{
+		BNInlineDuringAnalysis value;
+		uint8_t confidence;
+	} BNInlineDuringAnalysisWithConfidence;
+
 	typedef struct BNLowLevelILInstruction
 	{
 		BNLowLevelILOperation operation;
@@ -5175,8 +5202,9 @@ extern "C"
 	BINARYNINJACOREAPI BNRegisterValueWithConfidence BNGetFunctionRegisterValueAtExit(BNFunction* func, uint32_t reg);
 
 	BINARYNINJACOREAPI BNBoolWithConfidence BNIsFunctionInlinedDuringAnalysis(BNFunction* func);
-	BINARYNINJACOREAPI void BNSetAutoFunctionInlinedDuringAnalysis(BNFunction* func, BNBoolWithConfidence inlined);
-	BINARYNINJACOREAPI void BNSetUserFunctionInlinedDuringAnalysis(BNFunction* func, BNBoolWithConfidence inlined);
+	BINARYNINJACOREAPI BNInlineDuringAnalysisWithConfidence BNGetFunctionInlinedDuringAnalysis(BNFunction* func);
+	BINARYNINJACOREAPI void BNSetAutoFunctionInlinedDuringAnalysis(BNFunction* func, BNInlineDuringAnalysisWithConfidence inlined);
+	BINARYNINJACOREAPI void BNSetUserFunctionInlinedDuringAnalysis(BNFunction* func, BNInlineDuringAnalysisWithConfidence inlined);
 
 	BINARYNINJACOREAPI bool BNGetInstructionContainingAddress(
 	    BNFunction* func, BNArchitecture* arch, uint64_t addr, uint64_t* start);
