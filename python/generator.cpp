@@ -65,7 +65,7 @@ map<string, string> g_pythonKeywordReplacements = {
 };
 
 
-void OutputType(FILE* out, Type* type, bool isReturnType = false, bool isCallback = false)
+void OutputType(FILE* out, Type* type, bool isReturnType = false, bool isCallback = false, bool isTypeHint = false)
 {
 	switch (type->GetClass())
 	{
@@ -129,7 +129,9 @@ void OutputType(FILE* out, Type* type, bool isReturnType = false, bool isCallbac
 		else if ((type->GetChildType()->GetClass() == IntegerTypeClass) && (type->GetChildType()->GetWidth() == 1)
 		         && (type->GetChildType()->IsSigned()))
 		{
-			if (isReturnType)
+			if (isTypeHint)
+				fprintf(out, "ctypes._Pointer[ctypes.c_byte]");
+			else if (isReturnType)
 				fprintf(out, "ctypes.POINTER(ctypes.c_byte)");
 			else
 				fprintf(out, "ctypes.c_char_p");
@@ -137,22 +139,37 @@ void OutputType(FILE* out, Type* type, bool isReturnType = false, bool isCallbac
 		}
 		else if (type->GetChildType()->GetClass() == FunctionTypeClass)
 		{
-			fprintf(out, "ctypes.CFUNCTYPE(");
-			OutputType(out, type->GetChildType()->GetChildType().GetValue(), true, true);
+			if (isTypeHint)
+				fprintf(out, "ctypes.CFUNCTYPE[");
+			else
+				fprintf(out, "ctypes.CFUNCTYPE(");
+			OutputType(out, type->GetChildType()->GetChildType().GetValue(), true, true, isTypeHint);
 			for (auto& i : type->GetChildType()->GetParameters())
 			{
 				fprintf(out, ", ");
-				OutputType(out, i.type.GetValue());
+				OutputType(out, i.type.GetValue(), false, false, isTypeHint);
 			}
-			fprintf(out, ")");
+
+			if (isTypeHint)
+				fprintf(out, "]");
+			else
+				fprintf(out, ")");
 			break;
 		}
-		fprintf(out, "ctypes.POINTER(");
-		OutputType(out, type->GetChildType().GetValue());
-		fprintf(out, ")");
+		if (isTypeHint)
+			fprintf(out, "ctypes._Pointer[");
+		else
+			fprintf(out, "ctypes.POINTER(");
+
+		OutputType(out, type->GetChildType().GetValue(), false, false, isTypeHint);
+
+		if (isTypeHint)
+			fprintf(out, "]");
+		else
+			fprintf(out, ")");
 		break;
 	case ArrayTypeClass:
-		OutputType(out, type->GetChildType().GetValue());
+		OutputType(out, type->GetChildType().GetValue(), false, false, isTypeHint);
 		fprintf(out, " * %" PRId64, type->GetElementCount());
 		break;
 	default:
@@ -162,7 +179,7 @@ void OutputType(FILE* out, Type* type, bool isReturnType = false, bool isCallbac
 }
 
 
-void OutputSwizzledType(FILE* out, Type* type)
+void OutputSwizzledType(FILE* out, Type* type, bool isTypeHint = false)
 {
 	switch (type->GetClass())
 	{
@@ -202,22 +219,35 @@ void OutputSwizzledType(FILE* out, Type* type)
 		}
 		else if (type->GetChildType()->GetClass() == FunctionTypeClass)
 		{
-			fprintf(out, "ctypes.CFUNCTYPE(");
-			OutputType(out, type->GetChildType()->GetChildType().GetValue(), true, true);
+			if (isTypeHint)
+				fprintf(out, "ctypes.CFUNCTYPE[");
+			else
+				fprintf(out, "ctypes.CFUNCTYPE(");
+			OutputType(out, type->GetChildType()->GetChildType().GetValue(), true, true, isTypeHint);
 			for (auto& i : type->GetChildType()->GetParameters())
 			{
 				fprintf(out, ", ");
-				OutputType(out, i.type.GetValue());
+				OutputType(out, i.type.GetValue(), false, false, isTypeHint);
 			}
-			fprintf(out, ")");
+			if (isTypeHint)
+				fprintf(out, "]");
+			else
+				fprintf(out, ")");
+
 			break;
 		}
-		fprintf(out, "ctypes.POINTER(");
-		OutputType(out, type->GetChildType().GetValue());
-		fprintf(out, ")");
+		if (isTypeHint)
+			fprintf(out, "ctypes._Pointer[");
+		else
+			fprintf(out, "ctypes.POINTER(");
+		OutputType(out, type->GetChildType().GetValue(), false, false, isTypeHint);
+		if (isTypeHint)
+			fprintf(out, "]");
+		else
+			fprintf(out, ")");
 		break;
 	case ArrayTypeClass:
-		OutputType(out, type->GetChildType().GetValue());
+		OutputType(out, type->GetChildType().GetValue(), false, false, isTypeHint);
 		fprintf(out, " * %" PRId64, type->GetElementCount());
 		break;
 	default:
@@ -522,20 +552,21 @@ int main(int argc, char* argv[])
 				if (argN > 0)
 					fprintf(out, ", ");
 				fprintf(out, "\n\t\t");
-				fprintf(out, "%s: ", argName.c_str());
+				fprintf(out, "%s: '", argName.c_str());
 				if (swizzleArgs)
-					OutputSwizzledType(out, arg.type.GetValue());
+					OutputSwizzledType(out, arg.type.GetValue(), true);
 				else
-					OutputType(out, arg.type.GetValue());
+					OutputType(out, arg.type.GetValue(), false, false, true);
+				fprintf(out, "'");
 				argN++;
 			}
 		}
 		fprintf(out, "\n\t\t) -> ");
 		if (stringResult || pointerResult)
-			fprintf(out, "Optional[");
-		OutputSwizzledType(out, i.second->GetChildType().GetValue());
+			fprintf(out, "Optional['");
+		OutputSwizzledType(out, i.second->GetChildType().GetValue(), true);
 		if (stringResult || pointerResult)
-			fprintf(out, "]");
+			fprintf(out, "']");
 		fprintf(out, ":\n");
 
 		string stringArgFuncCall = funcName + "(";
