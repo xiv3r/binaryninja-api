@@ -240,6 +240,9 @@ pub(crate) fn parse_lexical_block<R: ReaderType>(
 
         if low_pc < high_pc {
             result.insert(low_pc..high_pc);
+        } else if low_pc == high_pc {
+            // Ranges where start == end may be ignored (DWARFv5 spec, 2.17.3 line 17)
+            return None;
         } else {
             error!(
                 "Invalid lexical block range: {:#x} -> {:#x}",
