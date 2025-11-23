@@ -167,7 +167,11 @@ impl AnalysisContext {
         let key = key.to_cstr();
         unsafe {
             let mut count = 0;
-            let result = BNAnalysisContextGetSettingStringList(self.handle.as_ptr(), key.as_ptr(), &mut count);
+            let result = BNAnalysisContextGetSettingStringList(
+                self.handle.as_ptr(),
+                key.as_ptr(),
+                &mut count,
+            );
             Array::new(result, count, ())
         }
     }
