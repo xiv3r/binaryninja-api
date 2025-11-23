@@ -152,6 +152,160 @@ bool AnalysisContext::Inform(const string& request)
 }
 
 
+// Template specializations for GetSetting<T>
+template<>
+bool AnalysisContext::GetSetting<bool>(const string& key)
+{
+	return BNAnalysisContextGetSettingBool(m_object, key.c_str());
+}
+
+
+template<>
+double AnalysisContext::GetSetting<double>(const string& key)
+{
+	return BNAnalysisContextGetSettingDouble(m_object, key.c_str());
+}
+
+
+template<>
+int64_t AnalysisContext::GetSetting<int64_t>(const string& key)
+{
+	return BNAnalysisContextGetSettingInt64(m_object, key.c_str());
+}
+
+
+template<>
+uint64_t AnalysisContext::GetSetting<uint64_t>(const string& key)
+{
+	return BNAnalysisContextGetSettingUInt64(m_object, key.c_str());
+}
+
+
+template<>
+string AnalysisContext::GetSetting<string>(const string& key)
+{
+	char* str = BNAnalysisContextGetSettingString(m_object, key.c_str());
+	string result = str;
+	BNFreeString(str);
+	return result;
+}
+
+
+template<>
+vector<string> AnalysisContext::GetSetting<vector<string>>(const string& key)
+{
+	size_t count = 0;
+	char** list = BNAnalysisContextGetSettingStringList(m_object, key.c_str(), &count);
+	vector<string> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.push_back(list[i]);
+	BNFreeStringList(list, count);
+	return result;
+}
+
+
+bool AnalysisContext::IsValidOffset(uint64_t offset)
+{
+	return BNAnalysisContextIsValidOffset(m_object, offset);
+}
+
+
+bool AnalysisContext::IsOffsetReadable(uint64_t offset)
+{
+	return BNAnalysisContextIsOffsetReadable(m_object, offset);
+}
+
+
+bool AnalysisContext::IsOffsetWritable(uint64_t offset)
+{
+	return BNAnalysisContextIsOffsetWritable(m_object, offset);
+}
+
+
+bool AnalysisContext::IsOffsetExecutable(uint64_t offset)
+{
+	return BNAnalysisContextIsOffsetExecutable(m_object, offset);
+}
+
+
+bool AnalysisContext::IsOffsetBackedByFile(uint64_t offset)
+{
+	return BNAnalysisContextIsOffsetBackedByFile(m_object, offset);
+}
+
+
+uint64_t AnalysisContext::GetStart()
+{
+	return BNAnalysisContextGetStart(m_object);
+}
+
+
+uint64_t AnalysisContext::GetEnd()
+{
+	return BNAnalysisContextGetEnd(m_object);
+}
+
+
+uint64_t AnalysisContext::GetLength()
+{
+	return BNAnalysisContextGetLength(m_object);
+}
+
+
+uint64_t AnalysisContext::GetNextValidOffset(uint64_t offset)
+{
+	return BNAnalysisContextGetNextValidOffset(m_object, offset);
+}
+
+
+uint64_t AnalysisContext::GetNextMappedAddress(uint64_t addr, uint32_t flags)
+{
+	return BNAnalysisContextGetNextMappedAddress(m_object, addr, flags);
+}
+
+
+uint64_t AnalysisContext::GetNextBackedAddress(uint64_t addr, uint32_t flags)
+{
+	return BNAnalysisContextGetNextBackedAddress(m_object, addr, flags);
+}
+
+
+Ref<Segment> AnalysisContext::GetSegmentAt(uint64_t addr)
+{
+	BNSegment* segment = BNAnalysisContextGetSegmentAt(m_object, addr);
+	if (!segment)
+		return nullptr;
+	return new Segment(segment);
+}
+
+
+vector<BNAddressRange> AnalysisContext::GetMappedAddressRanges()
+{
+	size_t count = 0;
+	BNAddressRange* ranges = BNAnalysisContextGetMappedAddressRanges(m_object, &count);
+	vector<BNAddressRange> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.push_back(ranges[i]);
+	BNFreeAddressRanges(ranges);
+	return result;
+}
+
+
+vector<BNAddressRange> AnalysisContext::GetBackedAddressRanges()
+{
+	size_t count = 0;
+	BNAddressRange* ranges = BNAnalysisContextGetBackedAddressRanges(m_object, &count);
+	vector<BNAddressRange> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+		result.push_back(ranges[i]);
+	BNFreeAddressRanges(ranges);
+	return result;
+}
+
+
 bool WorkflowMachine::PostRequest(const std::string& command)
 {
 	rapidjson::Document request(rapidjson::kObjectType);

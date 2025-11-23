@@ -188,6 +188,204 @@ class AnalysisContext:
 	def inform(self, request: str) -> bool:
 		return core.BNAnalysisContextInform(self.handle, request)
 
+	def get_setting_bool(self, key: str) -> bool:
+		"""
+		Get a boolean setting from the cached settings.
+
+		:param key: Setting key
+		:return: Boolean setting value
+		"""
+		return core.BNAnalysisContextGetSettingBool(self.handle, key)
+
+	def get_setting_double(self, key: str) -> float:
+		"""
+		Get a double setting from the cached settings.
+
+		:param key: Setting key
+		:return: Double setting value
+		"""
+		return core.BNAnalysisContextGetSettingDouble(self.handle, key)
+
+	def get_setting_int64(self, key: str) -> int:
+		"""
+		Get a 64-bit signed integer setting from the cached settings.
+
+		:param key: Setting key
+		:return: Int64 setting value
+		"""
+		return core.BNAnalysisContextGetSettingInt64(self.handle, key)
+
+	def get_setting_uint64(self, key: str) -> int:
+		"""
+		Get a 64-bit unsigned integer setting from the cached settings.
+
+		:param key: Setting key
+		:return: UInt64 setting value
+		"""
+		return core.BNAnalysisContextGetSettingUInt64(self.handle, key)
+
+	def get_setting_string(self, key: str) -> str:
+		"""
+		Get a string setting from the cached settings.
+
+		:param key: Setting key
+		:return: String setting value
+		"""
+		return core.BNAnalysisContextGetSettingString(self.handle, key)
+
+	def get_setting_string_list(self, key: str) -> List[str]:
+		"""
+		Get a string list setting from the cached settings.
+
+		:param key: Setting key
+		:return: List of strings
+		"""
+		count = ctypes.c_size_t()
+		result = core.BNAnalysisContextGetSettingStringList(self.handle, key, ctypes.byref(count))
+		out_list = []
+		for i in range(count.value):
+			out_list.append(result[i].decode('utf-8'))
+		core.BNFreeStringList(result, count.value)
+		return out_list
+
+	def is_valid_offset(self, offset: int) -> bool:
+		"""
+		Check if an offset is mapped in the cached memory map.
+
+		:param offset: Offset to check
+		:return: True if offset is mapped
+		"""
+		return core.BNAnalysisContextIsValidOffset(self.handle, offset)
+
+	def is_offset_readable(self, offset: int) -> bool:
+		"""
+		Check if an offset is readable in the cached memory map.
+
+		:param offset: Offset to check
+		:return: True if offset is readable
+		"""
+		return core.BNAnalysisContextIsOffsetReadable(self.handle, offset)
+
+	def is_offset_writable(self, offset: int) -> bool:
+		"""
+		Check if an offset is writable in the cached memory map.
+
+		:param offset: Offset to check
+		:return: True if offset is writable
+		"""
+		return core.BNAnalysisContextIsOffsetWritable(self.handle, offset)
+
+	def is_offset_executable(self, offset: int) -> bool:
+		"""
+		Check if an offset is executable in the cached memory map.
+
+		:param offset: Offset to check
+		:return: True if offset is executable
+		"""
+		return core.BNAnalysisContextIsOffsetExecutable(self.handle, offset)
+
+	def is_offset_backed_by_file(self, offset: int) -> bool:
+		"""
+		Check if an offset is backed by the file in the cached memory map.
+
+		:param offset: Offset to check
+		:return: True if offset is backed by file
+		"""
+		return core.BNAnalysisContextIsOffsetBackedByFile(self.handle, offset)
+
+	def get_start(self) -> int:
+		"""
+		Get the start address from the cached memory map.
+
+		:return: Start address
+		"""
+		return core.BNAnalysisContextGetStart(self.handle)
+
+	def get_end(self) -> int:
+		"""
+		Get the end address from the cached memory map.
+
+		:return: End address
+		"""
+		return core.BNAnalysisContextGetEnd(self.handle)
+
+	def get_length(self) -> int:
+		"""
+		Get the length of the cached memory map.
+
+		:return: Length
+		"""
+		return core.BNAnalysisContextGetLength(self.handle)
+
+	def get_next_valid_offset(self, offset: int) -> int:
+		"""
+		Get the next valid offset after the given offset from the cached memory map.
+
+		:param offset: Starting offset
+		:return: Next valid offset
+		"""
+		return core.BNAnalysisContextGetNextValidOffset(self.handle, offset)
+
+	def get_next_mapped_address(self, addr: int, flags: int = 0) -> int:
+		"""
+		Get the next mapped address after the given address from the cached memory map.
+
+		:param addr: Starting address
+		:param flags: Optional flags to filter by
+		:return: Next mapped address
+		"""
+		return core.BNAnalysisContextGetNextMappedAddress(self.handle, addr, flags)
+
+	def get_next_backed_address(self, addr: int, flags: int = 0) -> int:
+		"""
+		Get the next backed address after the given address from the cached memory map.
+
+		:param addr: Starting address
+		:param flags: Optional flags to filter by
+		:return: Next backed address
+		"""
+		return core.BNAnalysisContextGetNextBackedAddress(self.handle, addr, flags)
+
+	def get_segment_at(self, addr: int) -> Optional['binaryview.Segment']:
+		"""
+		Get the segment containing the given address from the cached memory map.
+
+		:param addr: Address to query
+		:return: Segment containing the address, or None
+		"""
+		segment = core.BNAnalysisContextGetSegmentAt(self.handle, addr)
+		if not segment:
+			return None
+		return binaryview.Segment(segment)
+
+	def get_mapped_address_ranges(self) -> List[tuple]:
+		"""
+		Get all mapped address ranges from the cached memory map.
+
+		:return: List of (start, end) tuples
+		"""
+		count = ctypes.c_size_t()
+		ranges = core.BNAnalysisContextGetMappedAddressRanges(self.handle, ctypes.byref(count))
+		result = []
+		for i in range(count.value):
+			result.append((ranges[i].start, ranges[i].end))
+		core.BNFreeAddressRanges(ranges)
+		return result
+
+	def get_backed_address_ranges(self) -> List[tuple]:
+		"""
+		Get all backed address ranges from the cached memory map.
+
+		:return: List of (start, end) tuples
+		"""
+		count = ctypes.c_size_t()
+		ranges = core.BNAnalysisContextGetBackedAddressRanges(self.handle, ctypes.byref(count))
+		result = []
+		for i in range(count.value):
+			result.append((ranges[i].start, ranges[i].end))
+		core.BNFreeAddressRanges(ranges)
+		return result
+
 
 class Activity(object):
 	"""

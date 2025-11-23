@@ -6,6 +6,22 @@ use crate::segment::SegmentFlags;
 use crate::string::{BnString, IntoCStr};
 use binaryninjacore_sys::*;
 
+/// MemoryMap provides access to the system-level memory map describing how a BinaryView is loaded into memory.
+///
+/// # Architecture Note
+///
+/// This Rust `MemoryMap` struct is a proxy that accesses the BinaryView's current MemoryMap state through
+/// the FFI boundary. The proxy provides a simple mutable interface: when you call modification operations
+/// (add_memory_region, remove_memory_region, etc.), the proxy automatically accesses the updated MemoryMap.
+/// Internally, the core uses immutable copy-on-write data structures, but the proxy abstracts this away.
+///
+/// When you access a BinaryView's MemoryMap, you always see the current state. For lock-free access during
+/// analysis, AnalysisContext provides memory layout query methods (is_valid_offset, is_offset_readable, get_start,
+/// get_length, etc.) that operate on an immutable snapshot of the MemoryMap cached when the analysis was initiated.
+///
+/// A MemoryMap can contain multiple, arbitrarily overlapping memory regions. When modified, address space
+/// segmentation is automatically managed. If multiple regions overlap, the most recently added region takes
+/// precedence by default.
 #[derive(PartialEq, Eq, Hash)]
 pub struct MemoryMap {
     view: Ref<BinaryView>,
@@ -41,6 +57,18 @@ impl MemoryMap {
     }
 
     /// Whether the memory map is activated for the associated view.
+    ///
+    /// Returns `true` if this MemoryMap represents a parsed BinaryView with real segments
+    /// (ELF, PE, Mach-O, etc.). Returns `false` for Raw BinaryViews or views that failed
+    /// to parse segments.
+    ///
+    /// This is determined by whether the BinaryView has a parent view - parsed views have a
+    /// parent Raw view, while Raw views have no parent.
+    ///
+    /// Use this to gate features that require parsed binary structure (sections, imports,
+    /// relocations, etc.). For basic analysis queries (start, length, is_offset_readable, etc.),
+    /// use the MemoryMap directly regardless of activation state - all BinaryViews have a
+    /// usable MemoryMap.
     pub fn is_activated(&self) -> bool {
         unsafe { BNIsMemoryMapActivated(self.view.handle) }
     }

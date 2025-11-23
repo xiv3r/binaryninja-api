@@ -8129,6 +8129,22 @@ namespace BinaryNinja {
 		std::optional<std::pair<std::string, BNStringType>> StringifyUnicodeData(Architecture* arch, const DataBuffer& buffer, bool nullTerminates = true, bool allowShortStrings = false);
 	};
 
+	/*! MemoryMap provides access to the system-level memory map describing how a BinaryView is loaded into memory.
+
+	    \note Architecture: This API-side MemoryMap class is a proxy that accesses the BinaryView's current
+	    MemoryMap state through the core API. The proxy provides a simple mutable interface: when you call
+	    modification operations (AddMemoryRegion, RemoveMemoryRegion, etc.), the proxy automatically accesses
+	    the updated MemoryMap. Internally, the core uses immutable copy-on-write data structures, but the proxy
+	    abstracts this away.
+
+	    When you access a BinaryView's MemoryMap, you always see the current state. For lock-free access during
+	    analysis, AnalysisContext provides memory layout query methods (IsValidOffset, IsOffsetReadable, GetStart,
+	    GetLength, etc.) that operate on an immutable snapshot of the MemoryMap cached when the analysis was initiated.
+
+	    A MemoryMap can contain multiple, arbitrarily overlapping memory regions. When modified, address space
+	    segmentation is automatically managed. If multiple regions overlap, the most recently added region takes
+	    precedence by default.
+	*/
 	class MemoryMap
 	{
 		BNBinaryView* m_object;
@@ -8142,6 +8158,22 @@ namespace BinaryNinja {
 			BNSetLogicalMemoryMapEnabled(m_object, enabled);
 		}
 
+		/*! Returns true if this MemoryMap represents a parsed BinaryView with real segments.
+
+		    This is determined by whether the BinaryView has a parent view - parsed views
+		    (ELF, PE, Mach-O, etc.) have a parent Raw view, while Raw views have no parent.
+
+		    Returns true for parsed BinaryViews (ELF, PE, Mach-O, etc.) with segments from
+		    binary format parsing. Returns false for Raw BinaryViews (flat file view with
+		    synthetic MemoryMap) or views that failed to parse segments.
+
+		    Use this to gate features that require parsed binary structure (sections, imports,
+		    relocations, etc.). For basic analysis queries (GetStart, IsOffsetReadable,
+		    GetLength, etc.), use the MemoryMap directly regardless of activation state - all
+		    BinaryViews have a usable MemoryMap.
+
+		    \return True if this is an activated (parsed) memory map, false otherwise
+		*/
 		bool IsActivated()
 		{
 			return BNIsMemoryMapActivated(m_object);
@@ -11420,7 +11452,51 @@ namespace BinaryNinja {
 			request.Accept(writer);
 			return Inform(buffer.GetString());
 		}
+
+		// Settings cache access - lock-free access to cached settings
+		/*! Get a setting value from the cached settings
+
+			\code{.cpp}
+			bool enabled = analysisContext->GetSetting<bool>("analysis.conservative");
+			\endcode
+
+			\tparam T type for the value you are retrieving
+			\param key Key for the setting
+			\return Value for the setting, with type T
+		*/
+		template <typename T>
+		T GetSetting(const std::string& key);
+
+		// Memory map access - lock-free access to cached MemoryMap
+		bool IsValidOffset(uint64_t offset);
+		bool IsOffsetReadable(uint64_t offset);
+		bool IsOffsetWritable(uint64_t offset);
+		bool IsOffsetExecutable(uint64_t offset);
+		bool IsOffsetBackedByFile(uint64_t offset);
+		uint64_t GetStart();
+		uint64_t GetEnd();
+		uint64_t GetLength();
+		uint64_t GetNextValidOffset(uint64_t offset);
+		uint64_t GetNextMappedAddress(uint64_t addr, uint32_t flags = 0);
+		uint64_t GetNextBackedAddress(uint64_t addr, uint32_t flags = 0);
+		Ref<Segment> GetSegmentAt(uint64_t addr);
+		std::vector<BNAddressRange> GetMappedAddressRanges();
+		std::vector<BNAddressRange> GetBackedAddressRanges();
 	};
+
+	// Explicit template specialization declarations for AnalysisContext::GetSetting<T>
+	template <>
+	bool AnalysisContext::GetSetting<bool>(const std::string& key);
+	template <>
+	double AnalysisContext::GetSetting<double>(const std::string& key);
+	template <>
+	int64_t AnalysisContext::GetSetting<int64_t>(const std::string& key);
+	template <>
+	uint64_t AnalysisContext::GetSetting<uint64_t>(const std::string& key);
+	template <>
+	std::string AnalysisContext::GetSetting<std::string>(const std::string& key);
+	template <>
+	std::vector<std::string> AnalysisContext::GetSetting<std::vector<std::string>>(const std::string& key);
 
 	/*!
 		\ingroup workflow

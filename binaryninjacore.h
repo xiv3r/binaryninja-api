@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 147
+#define BN_CURRENT_CORE_ABI_VERSION 148
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -5929,6 +5929,30 @@ extern "C"
 	BINARYNINJACOREAPI void BNSetHighLevelILFunction(
 	    BNAnalysisContext* analysisContext, BNHighLevelILFunction* highLevelIL);
 	BINARYNINJACOREAPI bool BNAnalysisContextInform(BNAnalysisContext* analysisContext, const char* request);
+
+	// Settings cache access
+	BINARYNINJACOREAPI bool BNAnalysisContextGetSettingBool(BNAnalysisContext* analysisContext, const char* key);
+	BINARYNINJACOREAPI double BNAnalysisContextGetSettingDouble(BNAnalysisContext* analysisContext, const char* key);
+	BINARYNINJACOREAPI int64_t BNAnalysisContextGetSettingInt64(BNAnalysisContext* analysisContext, const char* key);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetSettingUInt64(BNAnalysisContext* analysisContext, const char* key);
+	BINARYNINJACOREAPI char* BNAnalysisContextGetSettingString(BNAnalysisContext* analysisContext, const char* key);
+	BINARYNINJACOREAPI char** BNAnalysisContextGetSettingStringList(BNAnalysisContext* analysisContext, const char* key, size_t* count);
+
+	// Memory map access
+	BINARYNINJACOREAPI bool BNAnalysisContextIsValidOffset(BNAnalysisContext* analysisContext, uint64_t offset);
+	BINARYNINJACOREAPI bool BNAnalysisContextIsOffsetReadable(BNAnalysisContext* analysisContext, uint64_t offset);
+	BINARYNINJACOREAPI bool BNAnalysisContextIsOffsetWritable(BNAnalysisContext* analysisContext, uint64_t offset);
+	BINARYNINJACOREAPI bool BNAnalysisContextIsOffsetExecutable(BNAnalysisContext* analysisContext, uint64_t offset);
+	BINARYNINJACOREAPI bool BNAnalysisContextIsOffsetBackedByFile(BNAnalysisContext* analysisContext, uint64_t offset);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetStart(BNAnalysisContext* analysisContext);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetEnd(BNAnalysisContext* analysisContext);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetLength(BNAnalysisContext* analysisContext);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetNextValidOffset(BNAnalysisContext* analysisContext, uint64_t offset);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetNextMappedAddress(BNAnalysisContext* analysisContext, uint64_t addr, uint32_t flags);
+	BINARYNINJACOREAPI uint64_t BNAnalysisContextGetNextBackedAddress(BNAnalysisContext* analysisContext, uint64_t addr, uint32_t flags);
+	BINARYNINJACOREAPI BNSegment* BNAnalysisContextGetSegmentAt(BNAnalysisContext* analysisContext, uint64_t addr);
+	BINARYNINJACOREAPI BNAddressRange* BNAnalysisContextGetMappedAddressRanges(BNAnalysisContext* analysisContext, size_t* count);
+	BINARYNINJACOREAPI BNAddressRange* BNAnalysisContextGetBackedAddressRanges(BNAnalysisContext* analysisContext, size_t* count);
 
 	// Activity
 	BINARYNINJACOREAPI BNActivity* BNCreateActivity(const char* configuration, void* ctxt, void (*action)(void*, BNAnalysisContext*));

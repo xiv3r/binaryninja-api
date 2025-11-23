@@ -2457,8 +2457,19 @@ class AdvancedILFunctionList:
 
 class MemoryMap:
 	r"""
-		The MemoryMap object describes a system-level memory map into which a BinaryView is loaded. Each BinaryView
-		exposes its portion of the MemoryMap through the Segments defined within that view.
+		The MemoryMap object provides access to the system-level memory map describing how a BinaryView is loaded
+		into memory. Each BinaryView exposes its portion of the MemoryMap through the Segments defined within that view.
+
+		**Architecture Note:** This Python MemoryMap object is a proxy that accesses the BinaryView's current
+		MemoryMap state through the FFI boundary. The proxy provides a simple mutable interface: when you call
+		modification operations (``add_memory_region``, ``remove_memory_region``, etc.), the proxy automatically
+		accesses the updated MemoryMap. Internally, the core uses immutable copy-on-write data structures, but
+		the proxy abstracts this away.
+
+		When you access ``view.memory_map``, you always see the current state. For lock-free access during analysis,
+		AnalysisContext provides memory layout query methods (``is_valid_offset()``, ``is_offset_readable()``,
+		``get_start()``, ``get_length()``, etc.) that operate on an immutable snapshot of the MemoryMap cached when
+		the analysis was initiated.
 
 		A MemoryMap can contain multiple, arbitrarily overlapping memory regions. When modified, address space
 		segmentation is automatically managed. If multiple regions overlap, the most recently added region takes
@@ -2615,7 +2626,24 @@ class MemoryMap:
 
 	@property
 	def is_activated(self):
-		"""Whether the memory map is activated for the associated view."""
+		"""
+		Whether the memory map is activated for the associated view.
+
+		Returns ``True`` if this MemoryMap represents a parsed BinaryView with real segments
+		(ELF, PE, Mach-O, etc.). Returns ``False`` for Raw BinaryViews or views that failed
+		to parse segments.
+
+		This is determined by whether the BinaryView has a parent view - parsed views have a
+		parent Raw view, while Raw views have no parent.
+
+		Use this to gate features that require parsed binary structure (sections, imports,
+		relocations, etc.). For basic analysis queries (start, length, is_offset_readable, etc.),
+		use the MemoryMap directly regardless of activation state - all BinaryViews have a
+		usable MemoryMap.
+
+		:return: True if this is an activated (parsed) memory map, False otherwise
+		:rtype: bool
+		"""
 		return core.BNIsMemoryMapActivated(self.handle)
 
 	def add_memory_region(self, name: str, start: int, source: Optional[Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor']] = None, flags: SegmentFlag = 0, fill: int = 0, length: Optional[int] = None) -> bool:
