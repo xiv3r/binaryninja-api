@@ -2013,6 +2013,12 @@ bool BinaryView::IsOffsetWritableSemantics(uint64_t offset) const
 }
 
 
+bool BinaryView::IsOffsetReadOnlySemantics(uint64_t offset) const
+{
+	return BNIsOffsetReadOnlySemantics(m_object, offset);
+}
+
+
 uint64_t BinaryView::GetNextValidOffset(uint64_t offset) const
 {
 	return BNGetNextValidOffset(m_object, offset);

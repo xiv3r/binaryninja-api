@@ -471,7 +471,7 @@ pub trait BinaryViewExt: BinaryViewBase {
     /// Consults the [`Section`]'s current [`crate::section::Semantics`] to determine if the
     /// offset has read only semantics.
     fn offset_has_read_only_semantics(&self, offset: u64) -> bool {
-        unsafe { BNIsOffsetExternSemantics(self.as_ref().handle, offset) }
+        unsafe { BNIsOffsetReadOnlySemantics(self.as_ref().handle, offset) }
     }
 
     fn image_base(&self) -> u64 {

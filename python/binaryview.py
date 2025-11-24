@@ -4996,6 +4996,18 @@ class BinaryView:
 		"""
 		return core.BNIsOffsetWritableSemantics(self.handle, addr)
 
+	def is_offset_readonly_semantics(self, addr: int) -> bool:
+		"""
+		``is_offset_readonly_semantics`` checks if a virtual address ``addr`` is semantically read-only. This considers
+		both section semantics and segment permissions to determine if an address should be treated as read-only for
+		analysis purposes.
+
+		:param int addr: a virtual address to be checked
+		:return: True if the virtual address is semantically read-only, False otherwise
+		:rtype: bool
+		"""
+		return core.BNIsOffsetReadOnlySemantics(self.handle, addr)
+
 	def save(self, dest: Union['fileaccessor.FileAccessor', str]) -> bool:
 		"""
 		``save`` saves the original binary file to the provided destination ``dest`` along with any modifications.

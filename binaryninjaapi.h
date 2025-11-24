@@ -6008,8 +6008,9 @@ namespace BinaryNinja {
 		*/
 		bool IsOffsetBackedByFile(uint64_t offset) const;
 		bool IsOffsetCodeSemantics(uint64_t offset) const;
-		bool IsOffsetWritableSemantics(uint64_t offset) const;
 		bool IsOffsetExternSemantics(uint64_t offset) const;
+		bool IsOffsetWritableSemantics(uint64_t offset) const;
+		bool IsOffsetReadOnlySemantics(uint64_t offset) const;
 
 		/*! GetNextValidOffset implements a query for the next valid readable, writable, or executable virtual memory address after `offset`
 
