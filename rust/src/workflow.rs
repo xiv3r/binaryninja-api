@@ -218,35 +218,35 @@ impl AnalysisContext {
 
     /// Check if an offset has code semantics in the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::is_offset_code_semantics`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::offset_has_code_semantics`].
     pub fn is_offset_code_semantics(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetCodeSemantics(self.handle.as_ptr(), offset) }
     }
 
     /// Check if an offset has external semantics in the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::is_offset_extern_semantics`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::offset_has_extern_semantics`].
     pub fn is_offset_extern_semantics(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetExternSemantics(self.handle.as_ptr(), offset) }
     }
 
     /// Check if an offset has writable semantics in the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::is_offset_writable_semantics`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::offset_has_writable_semantics`].
     pub fn is_offset_writable_semantics(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetWritableSemantics(self.handle.as_ptr(), offset) }
     }
 
     /// Check if an offset has read-only semantics in the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::is_offset_readonly_semantics`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::offset_has_read_only_semantics`].
     pub fn is_offset_readonly_semantics(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetReadOnlySemantics(self.handle.as_ptr(), offset) }
     }
 
     /// Get all sections from the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::sections`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::sections`].
     pub fn sections(&self) -> Array<Section> {
         unsafe {
             let mut count = 0;
@@ -257,7 +257,7 @@ impl AnalysisContext {
 
     /// Get a section by name from the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::section_by_name`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::section_by_name`].
     pub fn section_by_name(&self, name: impl IntoCStr) -> Option<Ref<Section>> {
         unsafe {
             let raw_name = name.to_cstr();
@@ -272,7 +272,7 @@ impl AnalysisContext {
 
     /// Get all sections containing the given address from the cached section map.
     ///
-    /// NOTE: This is a lock-free alternative to [`BinaryView::sections_at`].
+    /// NOTE: This is a lock-free alternative to [`BinaryViewExt::sections_at`].
     pub fn sections_at(&self, addr: u64) -> Array<Section> {
         unsafe {
             let mut count = 0;
