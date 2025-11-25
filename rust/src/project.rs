@@ -587,6 +587,15 @@ impl Project {
         unsafe { Array::new(result, count, ()) }
     }
 
+    /// Retrieve a list of files in the project in a given folder.
+    pub fn files_in_folder(&self, folder: Option<&ProjectFolder>) -> Array<ProjectFile> {
+        let folder_ptr = folder.map(|f| f.handle.as_ptr()).unwrap_or(null_mut());
+        let mut count = 0;
+        let result =
+            unsafe { BNProjectGetFilesInFolder(self.handle.as_ptr(), folder_ptr, &mut count) };
+        unsafe { Array::new(result, count, ()) }
+    }
+
     /// Delete a file from the project
     pub fn delete_file(&self, file: &ProjectFile) -> bool {
         unsafe { BNProjectDeleteFile(self.handle.as_ptr(), file.handle.as_ptr()) }

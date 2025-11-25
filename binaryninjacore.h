@@ -4179,6 +4179,7 @@ extern "C"
 	BINARYNINJACOREAPI BNProjectFile* BNProjectGetFileById(BNProject* project, const char* id);
 	BINARYNINJACOREAPI BNProjectFile* BNProjectGetFileByPathOnDisk(BNProject* project, const char* path);
 	BINARYNINJACOREAPI BNProjectFile** BNProjectGetFilesByPathInProject(BNProject* project, const char* path, size_t* count);
+	BINARYNINJACOREAPI BNProjectFile** BNProjectGetFilesInFolder(BNProject* project, BNProjectFolder* folder, size_t* count);
 
 	BINARYNINJACOREAPI bool BNProjectPushFile(BNProject* project, BNProjectFile* file);
 	BINARYNINJACOREAPI bool BNProjectDeleteFile(BNProject* project, BNProjectFile* file);
@@ -4235,6 +4236,7 @@ extern "C"
 	BINARYNINJACOREAPI BNProject* BNProjectFolderGetProject(BNProjectFolder* folder);
 	BINARYNINJACOREAPI bool BNProjectFolderExport(BNProjectFolder* folder, const char* destination, void* ctxt,
 		BNProgressFunction progress);
+	BINARYNINJACOREAPI BNProjectFile** BNProjectFolderGetFiles(BNProjectFolder* folder, size_t* count);
 
 	// ExternalLibrary object
 	BINARYNINJACOREAPI BNExternalLibrary* BNNewExternalLibraryReference(BNExternalLibrary* lib);

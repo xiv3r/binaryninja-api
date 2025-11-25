@@ -383,6 +383,29 @@ class ProjectFolder:
 		"""
 		return core.BNProjectFolderExport(self._handle, str(dest), None, _wrap_progress(progress_func))
 
+	@property
+	def files(self) -> List['ProjectFile']:
+		"""
+		Get the list of files in this folder
+
+		:return: List of files contained in the folder
+		"""
+
+		count = ctypes.c_size_t()
+		value = core.BNProjectFolderGetFiles(self._handle, count)
+		if value is None:
+			raise ProjectException("Failed to get list of project files in folder")
+		result = []
+		try:
+			for i in range(count.value):
+				file_handle = core.BNNewProjectFileReference(value[i])
+				if file_handle is None:
+					raise ProjectException("core.BNNewProjectFileReference returned None")
+				result.append(ProjectFile(file_handle))
+			return result
+		finally:
+			core.BNFreeProjectFileList(value, count.value)
+
 
 class Project:
 	"""
@@ -788,3 +811,26 @@ class Project:
 		core.BNProjectBeginBulkOperation(self._handle)
 		yield
 		core.BNProjectEndBulkOperation(self._handle)
+
+	def get_files_in_folder(self, folder: Optional['ProjectFolder']) -> List['ProjectFile']:
+		"""
+		Get the list of files in a folder
+
+		:return: List of files contained in the folder
+		"""
+
+		count = ctypes.c_size_t()
+		folder_handle = None if folder is None else folder._handle
+		value = core.BNProjectGetFilesInFolder(self._handle, folder_handle, count)
+		if value is None:
+			raise ProjectException("Failed to get list of project files in folder")
+		result = []
+		try:
+			for i in range(count.value):
+				file_handle = core.BNNewProjectFileReference(value[i])
+				if file_handle is None:
+					raise ProjectException("core.BNNewProjectFileReference returned None")
+				result.append(ProjectFile(file_handle))
+			return result
+		finally:
+			core.BNFreeProjectFileList(value, count.value)

@@ -514,6 +514,25 @@ std::vector<Ref<ProjectFile>> Project::GetFilesByPathInProject(
 }
 
 
+std::vector<Ref<ProjectFile>> Project::GetFilesInFolder(Ref<ProjectFolder> folder) const
+{
+	size_t count;
+	BNProjectFile** files = BNProjectGetFilesInFolder(m_object, folder ? folder->m_object : nullptr, &count);
+	if (!files)
+		return {};
+
+	std::vector<Ref<ProjectFile>> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		result.emplace_back(new ProjectFile(BNNewProjectFileReference(files[i])));
+	}
+
+	BNFreeProjectFileList(files, count);
+	return result;
+}
+
+
 bool Project::PushFile(Ref<ProjectFile> file)
 {
 	return BNProjectPushFile(m_object, file->m_object);
@@ -774,4 +793,22 @@ bool ProjectFolder::Export(const std::string& destination, const ProgressFunctio
 	ProgressContext cb;
 	cb.callback = progressCallback;
 	return BNProjectFolderExport(m_object, destination.c_str(), &cb, ProgressCallback);
+}
+
+
+std::vector<Ref<ProjectFile>> ProjectFolder::GetFiles() const
+{
+	size_t count = 0;
+	BNProjectFile** files = BNProjectFolderGetFiles(m_object, &count);
+	if (!files)
+		return {};
+
+	std::vector<Ref<ProjectFile>> out;
+	out.reserve(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		out.push_back(new ProjectFile(BNNewProjectFileReference(files[i])));
+	}
+	BNFreeProjectFileList(files, count);
+	return out;
 }

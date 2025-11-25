@@ -3608,6 +3608,7 @@ namespace BinaryNinja {
 		Ref<ProjectFolder> GetParent() const;
 		bool SetParent(Ref<ProjectFolder> parent);
 		bool Export(const std::string& destination, const ProgressFunction& progressCallback = {}) const;
+		std::vector<Ref<ProjectFile>> GetFiles() const;
 	};
 
 	/*!
@@ -3688,6 +3689,8 @@ namespace BinaryNinja {
 		Ref<ProjectFile> GetFileById(const std::string& id) const;
 		Ref<ProjectFile> GetFileByPathOnDisk(const std::string& path) const;
 		std::vector<Ref<ProjectFile>> GetFilesByPathInProject(const std::string& path) const;
+		std::vector<Ref<ProjectFile>> GetFilesInFolder(Ref<ProjectFolder> folder) const;
+
 		bool PushFile(Ref<ProjectFile> file);
 		bool DeleteFile_(Ref<ProjectFile> file);
 
