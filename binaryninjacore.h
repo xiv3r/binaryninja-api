@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 150
+#define BN_CURRENT_CORE_ABI_VERSION 151
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -3682,6 +3682,19 @@ extern "C"
 		uint32_t flags;
 	} BNSegmentInfo;
 
+	typedef struct BNSectionInfo {
+		const char* name;
+		uint64_t start;
+		uint64_t length;
+		BNSectionSemantics semantics;
+		const char* type;
+		uint64_t align;
+		uint64_t entrySize;
+		const char* linkedSection;
+		const char* infoSection;
+		uint64_t infoData;
+	} BNSectionInfo;
+
 	typedef bool(*BNCollaborationAnalysisConflictHandler)(void*, const char** keys, BNAnalysisMergeConflict** conflicts, size_t conflictCount);
 	typedef bool(*BNCollaborationNameChangesetFunction)(void*, BNCollaborationChangeset*);
 
@@ -4566,10 +4579,12 @@ extern "C"
 	BINARYNINJACOREAPI void BNAddAutoSection(BNBinaryView* view, const char* name, uint64_t start, uint64_t length,
 	    BNSectionSemantics semantics, const char* type, uint64_t align, uint64_t entrySize, const char* linkedSection,
 	    const char* infoSection, uint64_t infoData);
+	BINARYNINJACOREAPI void BNAddAutoSections(BNBinaryView* view, const BNSectionInfo* sectionInfo, size_t count);
 	BINARYNINJACOREAPI void BNRemoveAutoSection(BNBinaryView* view, const char* name);
 	BINARYNINJACOREAPI void BNAddUserSection(BNBinaryView* view, const char* name, uint64_t start, uint64_t length,
 	    BNSectionSemantics semantics, const char* type, uint64_t align, uint64_t entrySize, const char* linkedSection,
 	    const char* infoSection, uint64_t infoData);
+	BINARYNINJACOREAPI void BNAddUserSections(BNBinaryView* view, const BNSectionInfo* sectionInfo, size_t count);
 	BINARYNINJACOREAPI void BNRemoveUserSection(BNBinaryView* view, const char* name);
 	BINARYNINJACOREAPI BNSection** BNGetSections(BNBinaryView* view, size_t* count);
 	BINARYNINJACOREAPI BNSection** BNGetSectionsAt(BNBinaryView* view, uint64_t addr, size_t* count);

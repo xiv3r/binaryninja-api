@@ -5269,6 +5269,12 @@ void BinaryView::AddAutoSection(const string& name, uint64_t start, uint64_t len
 }
 
 
+void BinaryView::AddAutoSections(const vector<BNSectionInfo>& sections)
+{
+	BNAddAutoSections(m_object, sections.data(), sections.size());
+}
+
+
 void BinaryView::RemoveAutoSection(const string& name)
 {
 	BNRemoveAutoSection(m_object, name.c_str());
@@ -5281,6 +5287,12 @@ void BinaryView::AddUserSection(const string& name, uint64_t start, uint64_t len
 {
 	BNAddUserSection(m_object, name.c_str(), start, length, semantics, type.c_str(), align, entrySize,
 	    linkedSection.c_str(), infoSection.c_str(), infoData);
+}
+
+
+void BinaryView::AddUserSections(const vector<BNSectionInfo>& sections)
+{
+	BNAddUserSections(m_object, sections.data(), sections.size());
 }
 
 

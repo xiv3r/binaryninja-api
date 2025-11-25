@@ -10054,6 +10054,16 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		    info_data
 		)
 
+	def add_auto_sections(self, sections: List[core.BNSectionInfo]) -> None:
+		"""
+		``add_auto_sections`` Adds analysis sections that specify semantic information about regions of the binary
+
+		:param List[core.BNSectionInfo] sections: list of sections to add
+		:rtype: None
+		"""
+		section_list = (core.BNSectionInfo * len(sections))(*sections)
+		core.BNAddAutoSections(self.handle, section_list, len(sections))
+
 	def remove_auto_section(self, name: str) -> None:
 		core.BNRemoveAutoSection(self.handle, name)
 
@@ -10082,6 +10092,16 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		    self.handle, name, start, length, semantics, type, align, entry_size, linked_section, info_section,
 		    info_data
 		)
+
+	def add_user_sections(self, sections: List[core.BNSectionInfo]) -> None:
+		"""
+		``add_user_sections`` Adds user-defined sections that specify semantic information about regions of the binary
+
+		:param List[core.BNSectionInfo] sections: list of sections to add
+		:rtype: None
+		"""
+		section_list = (core.BNSectionInfo * len(sections))(*sections)
+		core.BNAddUserSections(self.handle, section_list, len(sections))
 
 	def remove_user_section(self, name: str) -> None:
 		core.BNRemoveUserSection(self.handle, name)

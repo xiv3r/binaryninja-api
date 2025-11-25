@@ -7840,6 +7840,15 @@ namespace BinaryNinja {
 		    uint64_t entrySize = 0, const std::string& linkedSection = "", const std::string& infoSection = "",
 		    uint64_t infoData = 0);
 
+		/*! Adds multiple automatically defined sections in a batch operation
+
+			This method is more efficient than calling AddAutoSection multiple times as it only triggers
+			one SectionMap rebuild for all sections.
+
+			\param sections Vector of BNSectionInfo describing the sections to add
+		*/
+		void AddAutoSections(const std::vector<BNSectionInfo>& sections);
+
 		/*! Remove an automatically defined section by name
 
 			\param name Name of the section
@@ -7866,6 +7875,17 @@ namespace BinaryNinja {
 		    BNSectionSemantics semantics = DefaultSectionSemantics, const std::string& type = "", uint64_t align = 1,
 		    uint64_t entrySize = 0, const std::string& linkedSection = "", const std::string& infoSection = "",
 		    uint64_t infoData = 0);
+
+		/*! Adds multiple user-defined sections in a batch operation
+
+			This method is more efficient than calling AddUserSection multiple times as it only triggers
+			one SectionMap rebuild for all sections.
+
+			Note that all data specified must already be mapped by an existing segment.
+
+			\param sections Vector of BNSectionInfo describing the sections to add
+		*/
+		void AddUserSections(const std::vector<BNSectionInfo>& sections);
 
 		/*! Remove a user defined section by name
 
