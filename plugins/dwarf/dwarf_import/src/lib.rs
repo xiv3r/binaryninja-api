@@ -47,6 +47,7 @@ use binaryninja::logger::Logger;
 use helpers::{get_build_id, load_debug_info_for_build_id};
 use iset::IntervalMap;
 use log::{debug, error, warn};
+use object::read::macho::FatArch;
 use object::{Object, ObjectSection};
 
 trait ReaderType: Reader<Offset = usize> {}
@@ -650,6 +651,60 @@ fn parse_dwarf(
     Ok(debug_info_builder)
 }
 
+fn parse_data_to_object<'a>(
+    data: &'a [u8],
+    target_bv: &BinaryView,
+) -> Result<object::File<'a>, String> {
+    // Try to parse as normal file, fall back to parsing as fat macho and selecting the right arch from the target bv
+    if let Ok(o) = object::File::parse(data) {
+        return Ok(o);
+    }
+
+    if let Some(bv_arch) = target_bv.default_arch() {
+        let target_obj_arch = match bv_arch.name().as_str() {
+            "x86" => object::Architecture::I386,
+            "x86_64" => object::Architecture::X86_64,
+            "aarch64" => object::Architecture::Aarch64,
+            "armv7" | "thumb2" => object::Architecture::Arm,
+            "mips32" => object::Architecture::Mips,
+            "mips64" => object::Architecture::Mips64,
+            "ppc" => object::Architecture::PowerPc,
+            "ppc64" => object::Architecture::PowerPc64,
+            _ => {
+                return Err(format!(
+                    "Unable to determine architecture to load from \"{}\"",
+                    bv_arch.name()
+                ));
+            }
+        };
+        if let Ok(o) = object::read::macho::MachOFatFile32::parse(data) {
+            for arch in o.arches() {
+                if arch.architecture() == target_obj_arch {
+                    let arch_data = arch
+                        .data(data)
+                        .map_err(|e| format!("Failed to read FatArch32: {}", e))?;
+                    return object::File::parse(arch_data)
+                        .map_err(|e| format!("Failed to parse object from FatArch32 data: {}", e));
+                }
+            }
+        }
+
+        if let Ok(o) = object::read::macho::MachOFatFile64::parse(data) {
+            for arch in o.arches() {
+                if arch.architecture() == target_obj_arch {
+                    let arch_data = arch
+                        .data(data)
+                        .map_err(|e| format!("Failed to read FatArch64: {}", e))?;
+                    return object::File::parse(arch_data)
+                        .map_err(|e| format!("Failed to parse object from FatArch64 data: {}", e));
+                }
+            }
+        }
+    }
+
+    Err("Unable to load object from data".to_string())
+}
+
 struct DWARFParser;
 
 impl CustomDebugInfoParser for DWARFParser {
@@ -713,10 +768,10 @@ impl CustomDebugInfoParser for DWARFParser {
             return false;
         };
 
-        let debug_file = match object::File::parse(debug_data_vec.as_slice()) {
+        let debug_file = match parse_data_to_object(debug_data_vec.as_slice(), bv) {
             Ok(x) => x,
             Err(e) => {
-                log::error!("Failed to parse bv: {}", e);
+                log::error!("Failed to parse debug data: {}", e);
                 return false;
             }
         };
@@ -753,16 +808,15 @@ impl CustomDebugInfoParser for DWARFParser {
             },
         );
 
-        let sup_file =
-            sup_view_data
-                .as_ref()
-                .and_then(|data| match object::File::parse(data.as_slice()) {
-                    Ok(x) => Some(x),
-                    Err(e) => {
-                        log::error!("Failed to parse supplementary bv: {}", e);
-                        None
-                    }
-                });
+        let sup_file = sup_view_data.as_ref().and_then(|data| {
+            match parse_data_to_object(data.as_slice(), bv) {
+                Ok(x) => Some(x),
+                Err(e) => {
+                    log::error!("Failed to parse supplementary debug data: {}", e);
+                    None
+                }
+            }
+        });
 
         // If we have a sup file, verify its build id with the expected build id, else warn
         if let Some(sup_file) = &sup_file {
