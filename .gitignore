@@ -79,6 +79,7 @@ suite/binaryninja/
 build
 generator
 types/
+!/docs/guide/types/
 
 # Rust
 rust/**/*.swp
