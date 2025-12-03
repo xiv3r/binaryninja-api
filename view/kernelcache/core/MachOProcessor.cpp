@@ -31,12 +31,15 @@ void KernelCacheMachOProcessor::ApplyHeader(const KernelCache& cache, KernelCach
 	};
 
 	// Add a section for the header itself.
+	m_view->BeginBulkAddSegments();
 	std::string headerSection = fmt::format("{}::__macho_header", header.identifierPrefix);
 	uint64_t machHeaderSize = m_view->GetAddressSize() == 8 ? sizeof(mach_header_64) : sizeof(mach_header);
 	uint64_t headerSectionSize = machHeaderSize + header.ident.sizeofcmds;
 	m_view->AddUserSection(headerSection, header.textBase, headerSectionSize, ReadOnlyDataSectionSemantics);
 
 	ApplyHeaderSections(header);
+	m_view->EndBulkAddSegments();
+
 	ApplyHeaderDataVariables(header);
 
 	// Pull the available type library for the image we are loading, so we can apply known types.
