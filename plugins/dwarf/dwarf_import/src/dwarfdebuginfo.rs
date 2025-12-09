@@ -720,7 +720,9 @@ impl DebugInfoBuilder {
                     // Link mangled names without addresses to existing symbols in the binary
                     if func.address.is_none() && func.raw_name.is_some() {
                         // DWARF doesn't contain GOT info, so remove any entries there...they will be wrong (relying on Binja's mechanisms for the GOT is good )
-                        if symbol.sym_type() != SymbolType::ImportAddress {
+                        // Also ignore externs since we don't want to try and create functions not backed by the file
+                        let symbol_type = symbol.sym_type();
+                        if symbol_type != SymbolType::ImportAddress && symbol_type != SymbolType::External {
                             func.address = Some(symbol.address() - bv.start());
                         }
                     }
