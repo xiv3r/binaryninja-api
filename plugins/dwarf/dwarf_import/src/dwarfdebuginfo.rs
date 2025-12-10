@@ -722,7 +722,9 @@ impl DebugInfoBuilder {
                         // DWARF doesn't contain GOT info, so remove any entries there...they will be wrong (relying on Binja's mechanisms for the GOT is good )
                         // Also ignore externs since we don't want to try and create functions not backed by the file
                         let symbol_type = symbol.sym_type();
-                        if symbol_type != SymbolType::ImportAddress && symbol_type != SymbolType::External {
+                        if symbol_type != SymbolType::ImportAddress
+                            && symbol_type != SymbolType::External
+                        {
                             func.address = Some(symbol.address() - bv.start());
                         }
                     }
