@@ -15,8 +15,7 @@ Since doing is the easiest way to learn let's start with a simple example binary
 ![Low Level IL Option >](../img/llil-option.png)
 
  - Download [chal1](../files/chal1) and open it with Binary Ninja
- - Next, bring up the `Low Level IL` view by clicking in the view drop down at the top of the pane
- (or alternatively, use the `i` key to cycle view levels)
+ - Next, bring up the `Low Level IL` view by clicking in the view drop down at the top of the pane (or alternatively, use the `i` key to cycle view levels)
  - Navigate to main (`g`, then "main", or double-click it in the function list)
  - Finally, bring up the python console using: `~`
 
@@ -97,30 +96,35 @@ For the above instruction, we have a few operations we can perform:
 >>> instr.function
 <binaryninja.lowlevelil.LowLevelILFunction object at 0x111c79810>
 ```
+
 * **instr_index** - returns the LLIL index
 
 ```
 >>> instr.instr_index
 2
 ```
+
 * **operands** - returns a list of all operands.
 
 ```
 >>> instr.operands
 ['rsp', <il: rsp - 0x110>]
 ```
+
 * **operation** - returns the enumeration value of the current operation
 
 ```
 >>> instr.operation
 <LowLevelILOperation.LLIL_SET_REG: 1>
 ```
+
 * **src** - returns the source operand
 
 ```
 >>> instr.src
 <il: rsp - 0x110>
 ```
+
 * **dest** - returns the destination operand
 
 ```

@@ -109,6 +109,7 @@ The outliner then recognizes the intrinsic name and transforms it into the appro
 #### Recognized Intrinsic Names
 
 **Memory Copy Intrinsics**:
+
 - `__memcpy` → `memcpy`, `strcpy`, or `strncpy` (based on data classification)
 - `__memcpy_u8` → `memcpy` (byte-wise, count unchanged)
 - `__memcpy_u16` → `memcpy` (16-bit elements, count × 2)
@@ -116,6 +117,7 @@ The outliner then recognizes the intrinsic name and transforms it into the appro
 - `__memcpy_u64` → `memcpy` (64-bit elements, count × 8)
 
 **Memory Fill Intrinsics**:
+
 - `__memfill` → `memset`
 - `__memfill_u8` → `memset` (byte-wise, count unchanged)
 - `__memfill_u16` → `memset` (16-bit elements, count × 2)
@@ -235,11 +237,13 @@ Outlining is valuable across many analysis domains including reverse engineering
 ### Common Issues
 
 **Patterns not being outlined**:
+
 - Check if `analysis.outlining.builtins` is enabled
 - Verify type information supports the expected operation
 - Ensure patterns meet minimum size thresholds (see below)
 
 **Incorrect function selection**:
+
 - Provide more precise type information
 - Check data stream classification
 - Verify pattern clarity and confidence
@@ -249,17 +253,20 @@ Outlining is valuable across many analysis domains including reverse engineering
 Binary Ninja applies size-based filtering to avoid outlining trivial operations. Understanding these thresholds can help explain why certain patterns aren't outlined:
 
 **Without Type Information** (no user-provided types with full confidence):
+
 - General memory operations: Must be >16 bytes
 - String operations: Must be ≥4 bytes
 - ASCII patterns: Must be ≥4 bytes
 - Fill patterns (memset): Must be ≥16 bytes
 
 **With Type Information** (user-provided types with full confidence):
+
 - Size thresholds are relaxed
 - Type compatibility checks take priority
 - Operations matching type boundaries are more likely to be outlined
 
 **String-Specific Requirements**:
+
 - String must have at least 4 printable characters before null terminator
 - Very short strings (1-3 bytes) are often demoted to general memory operations
 
