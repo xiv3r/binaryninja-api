@@ -2127,14 +2127,26 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		switch (ordinal)
 		{
 		case BindSpecialDylibSelf:
-			if (auto symbol = GetSymbolByRawName(name, GetInternalNameSpace()); symbol)
+		{
+			// When multiple symbols are defined with the same name, which can happen for a symbol is both in the
+			// symbol table and self-bound, `GetSymbolByRawName` prefers the symbol with the lowest type value.
+			// Since `ImportAddressSymbol` is a lower value than `DataSymbol`, using `GetSymbolByRawName` would
+			// return the symbol representing the import we're binding to rather than the actual symbol definition.
+			auto symbols = GetSymbolsByRawName(name, GetInternalNameSpace());
+			auto it = std::ranges::find_if(symbols, [](const Ref<Symbol>& sym) {
+				return sym->GetType() != ImportAddressSymbol;
+			});
+
+			if (it != symbols.end())
 			{
+				auto symbol = *it;
 				DefineRelocation(m_arch, relocation, symbol, relocation.address);
 				if (objcProcessor)
 					objcProcessor->AddRelocatedPointer(relocation.address, symbol->GetAddress());
 				handled = true;
 			}
 			break;
+		}
 
 		case BindSpecialDylibMainExecutable:
 		case BindSpecialDylibFlatLookup:
