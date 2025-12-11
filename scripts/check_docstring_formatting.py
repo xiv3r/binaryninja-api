@@ -23,11 +23,13 @@ Known limitations:
 - Some complex nested structures may not be handled perfectly
 
 Usage:
-  python check_docstring_formatting.py [directory]
+  python check_docstring_formatting.py [paths...]
+  python check_docstring_formatting.py -v [paths...]
 
-If no directory is specified, defaults to ../python relative to this script.
+If no paths are specified, defaults to ../python relative to this script.
 """
 
+import argparse
 import os
 import re
 import ast
@@ -187,24 +189,55 @@ def find_python_files(root_dir):
 
 
 def main():
-    # Default to checking the python directory relative to this script
-    script_dir = Path(__file__).parent
-    python_dir = script_dir.parent / 'python'
+    parser = argparse.ArgumentParser(
+        description='Check Python docstrings for formatting issues.'
+    )
+    parser.add_argument(
+        'paths',
+        nargs='*',
+        help='Files or directories to check (default: python/ directory)'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Show all files being checked, not just files with issues'
+    )
 
-    if len(sys.argv) > 1:
-        python_dir = Path(sys.argv[1])
+    args = parser.parse_args()
 
-    if not python_dir.exists():
-        print(f"Error: Directory {python_dir} does not exist", file=sys.stderr)
-        sys.exit(1)
+    # Determine what to check
+    if args.paths:
+        files_to_check = []
+        for path_str in args.paths:
+            path = Path(path_str)
+            if path.is_dir():
+                files_to_check.extend(find_python_files(path))
+            elif path.is_file() and path.suffix == '.py':
+                files_to_check.append(path)
+            else:
+                print(f"Warning: {path_str} is not a valid Python file or directory", file=sys.stderr)
+    else:
+        # Default to checking the python directory relative to this script
+        script_dir = Path(__file__).parent
+        python_dir = script_dir.parent / 'python'
 
-    print(f"Checking Python files in: {python_dir}")
-    print("=" * 80)
+        if not python_dir.exists():
+            print(f"Error: Directory {python_dir} does not exist", file=sys.stderr)
+            sys.exit(1)
+
+        files_to_check = find_python_files(python_dir)
+
+    if args.verbose:
+        print(f"Checking Python files...")
+        print("=" * 80)
 
     files_with_issues = 0
     total_issues = 0
 
-    for py_file in sorted(find_python_files(python_dir)):
+    for py_file in sorted(files_to_check):
+        if args.verbose:
+            print(f"Checking {py_file}...", end='', flush=True)
+
         docstrings = get_docstrings_from_file(py_file)
         file_issues = []
 
@@ -221,17 +254,27 @@ def main():
             files_with_issues += 1
             total_issues += len(file_issues)
 
-            # Make path relative to python_dir for cleaner output
-            rel_path = py_file.relative_to(python_dir.parent)
-            print(f"\n{rel_path}:")
+            if args.verbose:
+                print(f" {len(file_issues)} issue(s) found")
+            else:
+                print(f"{py_file}: {len(file_issues)} issue(s) found")
 
             for line_num, issue_desc, node_type in sorted(file_issues):
                 print(f"  Line ~{line_num} ({node_type}): {issue_desc}")
+        else:
+            if args.verbose:
+                print(" OK")
 
-    print("\n" + "=" * 80)
-    print(f"Summary: Found {total_issues} issues in {files_with_issues} files")
-
-    return 0 if total_issues == 0 else 1
+    if total_issues > 0:
+        if args.verbose:
+            print("=" * 80)
+        print(f"\nFound {total_issues} issue(s) in {files_with_issues} file(s)")
+        return 1
+    else:
+        if args.verbose:
+            print("=" * 80)
+            print("No issues found!")
+        return 0
 
 
 if __name__ == '__main__':
