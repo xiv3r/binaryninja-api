@@ -3095,6 +3095,7 @@ unordered_set<QualifiedName> BinaryView::GetOutgoingRecursiveTypeReferences(cons
 {
 	size_t count;
 	vector<BNQualifiedName> apiTypes;
+	apiTypes.resize(types.size());
 	for (auto& type: types)
 	{
 		apiTypes.push_back(type.GetAPIObject());
@@ -3146,6 +3147,7 @@ unordered_set<QualifiedName> BinaryView::GetIncomingRecursiveTypeReferences(cons
 {
 	size_t count;
 	vector<BNQualifiedName> apiTypes;
+	apiTypes.reserve(types.size());
 	for (auto& type: types)
 	{
 		apiTypes.push_back(type.GetAPIObject());
@@ -4045,6 +4047,7 @@ vector<DerivedString> BinaryView::GetDerivedStrings()
 	size_t count;
 	BNDerivedString* strings = BNGetDerivedStrings(m_object, &count);
 	vector<DerivedString> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(DerivedString::FromAPIObject(&strings[i], false));
 	BNFreeDerivedStringList(strings, count);
@@ -4281,10 +4284,12 @@ bool BinaryView::ParseTypesFromSource(const string& source, const vector<string>
 	}
 
 	vector<const char*> coreOptions;
+	coreOptions.reserve(options.size());
 	for (auto& option : options)
 		coreOptions.push_back(option.c_str());
 
 	vector<const char*> coreIncludeDirs;
+	coreIncludeDirs.reserve(includeDirs.size());
 	for (auto& includeDir : includeDirs)
 		coreIncludeDirs.push_back(includeDir.c_str());
 
@@ -4911,6 +4916,7 @@ bool BinaryView::DisassociateTypeArchiveType(const std::string& typeId)
 bool BinaryView::PullTypeArchiveTypes(const std::string& archiveId, const std::unordered_set<std::string>& archiveTypeIds, std::unordered_map<std::string, std::string>& updatedTypes)
 {
 	std::vector<const char*> apiArchiveTypeIds;
+	apiArchiveTypeIds.reserve(archiveTypeIds.size());
 	for (const auto& archiveTypeId: archiveTypeIds)
 	{
 		apiArchiveTypeIds.push_back(archiveTypeId.c_str());
@@ -4935,6 +4941,7 @@ bool BinaryView::PullTypeArchiveTypes(const std::string& archiveId, const std::u
 bool BinaryView::PushTypeArchiveTypes(const std::string& archiveId, const std::unordered_set<std::string>& typeIds, std::unordered_map<std::string, std::string>& updatedTypes)
 {
 	std::vector<const char*> apiTypeIds;
+	apiTypeIds.reserve(typeIds.size());
 	for (const auto& typeId: typeIds)
 	{
 		apiTypeIds.push_back(typeId.c_str());

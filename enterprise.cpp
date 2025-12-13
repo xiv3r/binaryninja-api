@@ -55,6 +55,7 @@ std::vector<std::pair<std::string, std::string>> BinaryNinja::Enterprise::GetAut
 	size_t count = BNGetEnterpriseServerAuthenticationMethods(&methods, &names);
 
 	std::vector<std::pair<std::string, std::string>> results;
+	results.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		results.push_back({methods[i], names[i]});

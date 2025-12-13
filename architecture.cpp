@@ -1699,6 +1699,7 @@ vector<Ref<TypeLibrary>> Architecture::GetTypeLibraries()
 	BNTypeLibrary** libs = BNGetArchitectureTypeLibraries(m_object, &count);
 
 	vector<Ref<TypeLibrary>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.push_back(new TypeLibrary(BNNewTypeLibraryReference(libs[i])));
@@ -2133,6 +2134,7 @@ vector<NameAndType> CoreArchitecture::GetIntrinsicInputs(uint32_t intrinsic)
 	BNNameAndType* inputs = BNGetArchitectureIntrinsicInputs(m_object, intrinsic, &count);
 
 	vector<NameAndType> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(NameAndType(inputs[i].name,
@@ -2150,6 +2152,7 @@ vector<Confidence<Ref<Type>>> CoreArchitecture::GetIntrinsicOutputs(uint32_t int
 	BNTypeWithConfidence* outputs = BNGetArchitectureIntrinsicOutputs(m_object, intrinsic, &count);
 
 	vector<Confidence<Ref<Type>>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(Confidence<Ref<Type>>(new Type(BNNewTypeReference(outputs[i].type)), outputs[i].confidence));
 

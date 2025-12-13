@@ -389,6 +389,7 @@ vector<Ref<UndoEntry>> FileMetadata::GetUndoEntries()
 	BNUndoEntry** entries = BNGetUndoEntries(m_object, &count);
 
 	vector<Ref<UndoEntry>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(new UndoEntry(BNNewUndoEntryReference(entries[i])));
@@ -404,6 +405,7 @@ vector<Ref<UndoEntry>> FileMetadata::GetRedoEntries()
 	BNUndoEntry** entries = BNGetRedoEntries(m_object, &count);
 
 	vector<Ref<UndoEntry>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(new UndoEntry(BNNewUndoEntryReference(entries[i])));

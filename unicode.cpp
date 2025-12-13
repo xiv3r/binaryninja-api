@@ -64,6 +64,7 @@ std::vector<std::vector<std::pair<uint32_t, uint32_t>>> BinaryNinja::Unicode::Ge
 	for (size_t i = 0; i < blockListCounts; i ++)
 	{
 		std::vector<std::pair<uint32_t, uint32_t>> blockList;
+		blockList.reserve(blockCounts[i]);
 		for (size_t j = 0; j < blockCounts[i]; j ++)
 		{
 			blockList.push_back(std::make_pair(blockStarts[i][j], blockEnds[i][j]));

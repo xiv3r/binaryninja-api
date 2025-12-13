@@ -165,6 +165,7 @@ vector<Ref<WebsocketProvider>> WebsocketProvider::GetList()
 	size_t count;
 	BNWebsocketProvider** list = BNGetWebsocketProviderList(&count);
 	vector<Ref<WebsocketProvider>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(new CoreWebsocketProvider(list[i]));
 	BNFreeWebsocketProviderList(list);

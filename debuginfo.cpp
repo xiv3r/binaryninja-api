@@ -44,6 +44,7 @@ vector<string> DebugInfo::GetParsers() const
 	char** parsers = BNGetDebugParserNames(m_object, &count);
 
 	vector<string> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(parsers[i]);
@@ -70,6 +71,7 @@ vector<NameAndType> DebugInfo::GetTypes(const string& parserName) const
 		return {};
 
 	vector<NameAndType> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(nameAndTypes[i].name,
@@ -136,6 +138,7 @@ vector<DataVariableAndName> DebugInfo::GetDataVariables(const string& parserName
 		return {};
 
 	vector<DataVariableAndName> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(variablesAndName[i].address,
@@ -193,6 +196,7 @@ vector<tuple<string, Ref<Type>>> DebugInfo::GetTypesByName(const string& name) c
 		return {};
 
 	vector<tuple<string, Ref<Type>>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(namesAndTypes[i].name, Ref<Type>(new Type(BNNewTypeReference(namesAndTypes[i].type))));
@@ -213,6 +217,7 @@ vector<tuple<string, uint64_t, Ref<Type>>> DebugInfo::GetDataVariablesByName(con
 		return {};
 
 	vector<tuple<string, uint64_t, Ref<Type>>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(variablesAndName[i].name, variablesAndName[i].address,
@@ -234,6 +239,7 @@ vector<tuple<string, string, Ref<Type>>> DebugInfo::GetDataVariablesByAddress(co
 		return {};
 
 	vector<tuple<string, string, Ref<Type>>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(variablesAndName[i].parser, variablesAndName[i].name,
@@ -376,6 +382,7 @@ vector<Ref<DebugInfoParser>> DebugInfoParser::GetList()
 	BNDebugInfoParser** parsers = BNGetDebugInfoParsers(&count);
 
 	vector<Ref<DebugInfoParser>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(new DebugInfoParser(BNNewDebugInfoParserReference(parsers[i])));
@@ -392,6 +399,7 @@ vector<Ref<DebugInfoParser>> DebugInfoParser::GetListForView(const Ref<BinaryVie
 	BNDebugInfoParser** parsers = BNGetDebugInfoParsersForView(data->GetObject(), &count);
 
 	vector<Ref<DebugInfoParser>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(new DebugInfoParser(BNNewDebugInfoParserReference(parsers[i])));

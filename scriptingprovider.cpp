@@ -388,6 +388,7 @@ vector<Ref<ScriptingProvider>> ScriptingProvider::GetList()
 	size_t count;
 	BNScriptingProvider** list = BNGetScriptingProviderList(&count);
 	vector<Ref<ScriptingProvider>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(new CoreScriptingProvider(list[i]));
 	BNFreeScriptingProviderList(list);

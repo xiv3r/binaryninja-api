@@ -126,6 +126,7 @@ vector<Ref<LineFormatter>> LineFormatter::GetList()
 	size_t count;
 	BNLineFormatter** list = BNGetLineFormatterList(&count);
 	vector<Ref<LineFormatter>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(new CoreLineFormatter(list[i]));
 	BNFreeLineFormatterList(list);

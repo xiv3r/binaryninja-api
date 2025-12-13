@@ -114,6 +114,7 @@ vector<PluginType> RepoPlugin::GetPluginTypes() const
 	size_t count;
 	BNPluginType* pluginTypesPtr = BNPluginGetPluginTypes(m_object, &count);
 	vector<PluginType> pluginTypes;
+	pluginTypes.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		pluginTypes.push_back((PluginType)pluginTypesPtr[i]);
@@ -170,6 +171,7 @@ vector<string> RepoPlugin::GetInstallPlatforms() const
 	vector<string> result;
 	size_t count = 0;
 	char** platforms = BNPluginGetPlatforms(m_object, &count);
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(platforms[i]);
 	BNFreeStringList(platforms, count);
@@ -335,6 +337,7 @@ vector<Ref<Repository>> RepositoryManager::GetRepositories()
 	vector<Ref<Repository>> repos;
 	size_t count = 0;
 	BNRepository** reposPtr = BNRepositoryManagerGetRepositories(m_object, &count);
+	repos.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		repos.push_back(new Repository(BNNewRepositoryReference(reposPtr[i])));
 	BNFreeRepositoryManagerRepositoriesList(reposPtr);

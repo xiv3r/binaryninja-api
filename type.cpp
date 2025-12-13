@@ -758,6 +758,7 @@ std::vector<TypeAttribute> Type::GetAttributes() const
 	size_t count = 0;
 	BNTypeAttribute* attributes = BNGetTypeAttributes(m_object, &count);
 	std::vector<TypeAttribute> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.emplace_back(attributes[i].name, attributes[i].value);
 	BNFreeTypeAttributeList(attributes, count);
@@ -2259,6 +2260,7 @@ std::vector<TypeAttribute> TypeBuilder::GetAttributes() const
 	size_t count;
 	BNTypeAttribute* attributes = BNGetTypeBuilderAttributes(m_object, &count);
 	std::vector<TypeAttribute> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.emplace_back(attributes[i].name, attributes[i].value);
 	BNFreeTypeAttributeList(attributes, count);

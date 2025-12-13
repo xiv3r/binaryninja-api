@@ -248,6 +248,7 @@ vector<Ref<Snapshot>> Snapshot::GetParents()
 	size_t count;
 	BNSnapshot** parents = BNGetSnapshotParents(m_object, &count);
 	vector<Ref<Snapshot>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(new Snapshot(BNNewSnapshotReference(parents[i])));
@@ -262,6 +263,7 @@ vector<Ref<Snapshot>> Snapshot::GetChildren()
 	size_t count;
 	BNSnapshot** children = BNGetSnapshotChildren(m_object, &count);
 	vector<Ref<Snapshot>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(new Snapshot(BNNewSnapshotReference(children[i])));
@@ -323,6 +325,7 @@ vector<Ref<UndoEntry>> Snapshot::GetUndoEntries(const ProgressFunction& progress
 	}
 
 	vector<Ref<UndoEntry>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(new UndoEntry(BNNewUndoEntryReference(entries[i])));
@@ -390,6 +393,7 @@ vector<Ref<Snapshot>> Database::GetSnapshots()
 	size_t count;
 	BNSnapshot** snapshots = BNGetDatabaseSnapshots(m_object, &count);
 	vector<Ref<Snapshot>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(new Snapshot(BNNewSnapshotReference(snapshots[i])));
 	BNFreeSnapshotList(snapshots, count);
@@ -455,6 +459,7 @@ std::vector<std::string> Database::GetGlobalKeys() const
 	}
 
 	std::vector<std::string> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(value[i]);

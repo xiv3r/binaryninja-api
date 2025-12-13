@@ -73,6 +73,7 @@ std::vector<Ref<SecretsProvider>> SecretsProvider::GetList()
 	size_t count;
 	BNSecretsProvider** list = BNGetSecretsProviderList(&count);
 	std::vector<Ref<SecretsProvider>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(new CoreSecretsProvider(list[i]));
 	BNFreeSecretsProviderList(list);

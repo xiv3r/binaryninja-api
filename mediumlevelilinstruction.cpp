@@ -1014,6 +1014,7 @@ void MediumLevelILInstructionBase::UpdateRawOperandAsExprList(
     size_t operandIndex, const vector<MediumLevelILInstruction>& exprs)
 {
 	vector<ExprId> exprIndexList;
+	exprIndexList.reserve(exprs.size());
 	for (auto& i : exprs)
 		exprIndexList.push_back((ExprId)i.exprIndex);
 	UpdateRawOperand(operandIndex, exprIndexList.size());

@@ -191,6 +191,7 @@ namespace BinaryNinja {
 		size_t count;
 		BNDemangler** list = BNGetDemanglerList(&count);
 		vector<Ref<Demangler>> result;
+		result.reserve(count);
 		for (size_t i = 0; i < count; i++)
 			result.push_back(new CoreDemangler(list[i]));
 		BNFreeDemanglerList(list);

@@ -437,6 +437,7 @@ bool BinaryNinja::Collaboration::TypeArchiveConflictHandlerCallback(void* ctxt, 
 	if (!chctxt->callback)
 		return true;
 	std::vector<Ref<TypeArchiveMergeConflict>> conflictVec;
+	conflictVec.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		conflictVec.push_back(new TypeArchiveMergeConflict(conflicts[i]));
@@ -658,6 +659,7 @@ std::vector<std::pair<std::string, std::string>> Remote::GetAuthBackends()
 		throw RemoteException("Failed to get authentication backends");
 
 	std::vector<std::pair<std::string, std::string>> results;
+	results.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		results.push_back({methods[i], names[i]});
@@ -855,6 +857,7 @@ std::vector<std::pair<uint64_t, std::string>> Remote::SearchGroups(const std::st
 		throw RemoteException("Failed to search groups");
 
 	std::vector<std::pair<uint64_t, std::string>> results;
+	results.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		results.push_back({ids[i], names[i]});
@@ -965,6 +968,7 @@ std::vector<std::pair<std::string, std::string>> Remote::SearchUsers(const std::
 		throw RemoteException("Failed to search users");
 
 	std::vector<std::pair<std::string, std::string>> results;
+	results.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		results.push_back({ids[i], names[i]});
@@ -2527,6 +2531,7 @@ std::vector<std::string> CollabSnapshot::GetParentIds()
 	size_t count = 0;
 	char** strs = BNCollaborationSnapshotGetParentIds(m_object, &count);
 	std::vector<std::string> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(strs[i]);
@@ -2541,6 +2546,7 @@ std::vector<std::string> CollabSnapshot::GetChildIds()
 	size_t count = 0;
 	char** strs = BNCollaborationSnapshotGetParentIds(m_object, &count);
 	std::vector<std::string> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 	{
 		result.push_back(strs[i]);

@@ -230,6 +230,7 @@ vector<Ref<DownloadProvider>> DownloadProvider::GetList()
 	size_t count;
 	BNDownloadProvider** list = BNGetDownloadProviderList(&count);
 	vector<Ref<DownloadProvider>> result;
+	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
 		result.push_back(new CoreDownloadProvider(list[i]));
 	BNFreeDownloadProviderList(list);
