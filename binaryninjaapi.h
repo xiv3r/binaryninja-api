@@ -26,6 +26,15 @@
 	#include <windows.h>
 	#define FMT_UNICODE 0
 #endif
+
+#include "base/compiler.h"
+#include "binaryninjacore.h"
+#include "exceptions.h"
+
+#include "json/json.h"
+#include "rapidjsonwrapper.h"
+#include "vendor/nlohmann/json.hpp"
+
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -41,15 +50,9 @@
 #include <cstdint>
 #include <typeinfo>
 #include <type_traits>
-#include <variant>
 #include <optional>
 #include <memory>
 #include <any>
-#include "binaryninjacore.h"
-#include "exceptions.h"
-#include "json/json.h"
-#include "rapidjsonwrapper.h"
-#include "vendor/nlohmann/json.hpp"
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <fmt/core.h>
@@ -1968,11 +1971,13 @@ namespace BinaryNinja {
 	/*!
 		\deprecated Use `InitPlugins()`
 	*/
-	void InitCorePlugins();  // Deprecated, use InitPlugins
+	BN_DEPRECATED("Use InitPlugins", "InitPlugins")
+	void InitCorePlugins();
 	/*!
 		\deprecated Use `InitPlugins()`
 	*/
-	void InitUserPlugins();  // Deprecated, use InitPlugins
+	BN_DEPRECATED("Use InitPlugins", "InitPlugins")
+	void InitUserPlugins();
 	void InitRepoPlugins();
 
 	std::string GetBundledPluginDirectory();
@@ -6048,6 +6053,7 @@ namespace BinaryNinja {
 
 		    \return the original image base of the BinaryView
 		*/
+		BN_DEPRECATED("Use GetOriginalImageBase", "GetOriginalImageBase")
 		uint64_t GetOriginalBase() const;
 
 		/*! SetOriginalBase sets the original image base in the BinaryView, unaffected by any rebasing operations.
@@ -6057,6 +6063,7 @@ namespace BinaryNinja {
 
 		    \param base the original image base of the binary view
 		*/
+		BN_DEPRECATED("Use SetOriginalImageBase", "SetOriginalImageBase")
 		void SetOriginalBase(uint64_t base);
 
 		/*! GetStart queries for the first valid virtual address in the BinaryView
@@ -6878,6 +6885,7 @@ namespace BinaryNinja {
 
 			\deprecated Prefer \c BulkSymbolModification for bulk symbol modifications.
 		*/
+		BN_DEPRECATED("Prefer BulkSymbolModification for bulk symbol modifications")
 		void BeginBulkModifySymbols();
 
 		/*! Finish an operation that potentially modified many symbols
@@ -6888,6 +6896,7 @@ namespace BinaryNinja {
 
 			\deprecated Prefer \c BulkSymbolModification for bulk symbol modifications.
 		*/
+		BN_DEPRECATED("Prefer BulkSymbolModification for bulk symbol modifications")
 		void EndBulkModifySymbols();
 
 		/*! Add a new TagType to this binaryview
@@ -7948,6 +7957,7 @@ namespace BinaryNinja {
 
 			\return The list of allocated ranges
 		*/
+		BN_DEPRECATED("Use GetMappedAddressRanges", "GetMappedAddressRanges")
 		std::vector<BNAddressRange> GetAllocatedRanges();
 
 		/*! Get the list of ranges mapped into the address space
@@ -8340,19 +8350,25 @@ namespace BinaryNinja {
 		BulkSymbolModification(Ref<BinaryView> view)
 			: m_view(std::move(view))
 		{
+			BN_IGNORE_DEPRECATION_WARNINGS_BEGIN
 			m_view->BeginBulkModifySymbols();
+			BN_IGNORE_DEPRECATION_WARNINGS_END
 		}
 
 		~BulkSymbolModification()
 		{
+			BN_IGNORE_DEPRECATION_WARNINGS_BEGIN
 			if (m_view)
 				m_view->EndBulkModifySymbols();
+			BN_IGNORE_DEPRECATION_WARNINGS_END
 		}
 
 		/*! End this bulk modification early. */
 		void End()
 		{
+			BN_IGNORE_DEPRECATION_WARNINGS_BEGIN
 			m_view->EndBulkModifySymbols();
+			BN_IGNORE_DEPRECATION_WARNINGS_END
 			m_view = nullptr;
 		}
 
@@ -8513,6 +8529,7 @@ namespace BinaryNinja {
 			\param arch Architecture to register this platform with
 			\param platform The Platform to register
 		*/
+		BN_DEPRECATED("Use RegisterPlatform overload without Architecture argument")
 		static void RegisterPlatform(const std::string& name, uint32_t id, Architecture* arch, Platform* platform);
 
 		/*! Register a Platform as a default for a specific view type
@@ -9947,12 +9964,15 @@ namespace BinaryNinja {
 		// have been removed, and they now have no effects.
 		/*! \deprecated This API has been deprecated. The implementation has been removed, and this function no longer has any effect
 		*/
+		BN_DEPRECATED("This function no longer has any effect")
 		bool IsBinaryViewTypeConstantDefined(const std::string& type, const std::string& name);
 		/*! \deprecated This API has been deprecated. The implementation has been removed, and this function no longer has any effect
 		*/
+		BN_DEPRECATED("This function no longer has any effect")
 		uint64_t GetBinaryViewTypeConstant(const std::string& type, const std::string& name, uint64_t defaultValue = 0);
 		/*! \deprecated This API has been deprecated. The implementation has been removed, and this function no longer has any effect
 		*/
+		BN_DEPRECATED("This function no longer has any effect")
 		void SetBinaryViewTypeConstant(const std::string& type, const std::string& name, uint64_t value);
 
 		/*! Register a calling convention with this architecture
@@ -11842,6 +11862,7 @@ namespace BinaryNinja {
 			\param name Workflow name
 			\return The workflow.
 		*/
+		BN_DEPRECATED("Use Workflow::Get or Workflow::GetOrCreate instead.")
 		static Ref<Workflow> Instance(const std::string& name = "") { return GetOrCreate(name); }
 
 		/*! Register a workflow, making it immutable and available for use
@@ -20621,6 +20642,7 @@ namespace BinaryNinja {
 		/*!
 			\deprecated Use `ParseTypeString` with the extra `importDependencies` param
 		 */
+		BN_DEPRECATED("Use ParseTypeString overload with the extra importDependencies param")
 		bool ParseTypeString(
 			const std::string& source,
 			QualifiedNameAndType& result,
@@ -20654,6 +20676,7 @@ namespace BinaryNinja {
 		/*!
 			\deprecated Use `ParseTypesFromSource` with the extra `importDependencies` param
 		 */
+		BN_DEPRECATED("Use ParseTypesFromSource overload with the extra importDependencies param")
 		bool ParseTypesFromSource(
 			const std::string& text,
 			const std::string& fileName,

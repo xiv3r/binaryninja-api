@@ -436,9 +436,8 @@ extern "C"
 			Platform::Register("linux", g_linuxX32);
 
 			// Linux binaries sometimes have an OS identifier of zero, even though 3 is the correct one
-			BinaryViewType::RegisterPlatform("ELF", 0, x64, x64Platform);
-			BinaryViewType::RegisterPlatform("ELF", 3, x64, x64Platform);
-
+			BinaryViewType::RegisterPlatform("ELF", 0, x64Platform);
+			BinaryViewType::RegisterPlatform("ELF", 3, x64Platform);
 
 			Ref<BinaryViewType> elf = BinaryViewType::GetByName("ELF");
 			if (elf)
