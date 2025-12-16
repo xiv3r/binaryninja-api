@@ -79,7 +79,7 @@ If you wish to debug your python scripts, there are a few methods specific to di
 
 ## UI Plugins
 
-Binary Ninja UI plugins should always `import binaryninjaui` before an `import PySide6`. Not only does this make sure the correct PySide6 is loaded (running the wrong version of PySide6 can result in crashing), but this [prevents plugins](https://github.com/Vector35/binaryninja-api/commit/55cb3e76f536bc8d4a6533bd7ea5202d464c5f81) from running headlessly.
+Binary Ninja UI plugins written in python should always `import binaryninjaui` before an `import PySide6`. Not only does this make sure the correct PySide6 is loaded (running the wrong version of PySide6 can result in crashing), but this [prevents plugins](https://github.com/Vector35/binaryninja-api/commit/55cb3e76f536bc8d4a6533bd7ea5202d464c5f81) from running headlessly.
 
 UI plugins can take many forms. Some, like [Snippets](https://github.com/vector35/snippets) create their own UI elements and interact via UIActions. Others extend the UI via existing UI elements such as [Triage](https://github.com/Vector35/binaryninja-api/tree/dev/python/examples/triage), [Kaitai](https://github.com/Vector35/kaitai), [hellosidebar](https://github.com/Vector35/binaryninja-api/blob/dev/python/examples/hellosidebar.py), or [helloglobalarea](https://github.com/Vector35/binaryninja-api/blob/dev/python/examples/helloglobalarea.py).
 
