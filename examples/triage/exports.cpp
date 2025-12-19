@@ -32,7 +32,7 @@ GenericExportsModel::GenericExportsModel(QWidget* parent, BinaryViewRef data): Q
 	connect(m_updateTimer, &QTimer::timeout, this, &GenericExportsModel::updateModel);
 	connect(this, &GenericExportsModel::updateTimerOnUIThread, this, [=, this]() {
 		updateTimer(m_needsUpdate);
-	});
+	}, Qt::QueuedConnection);
 
 	m_data->RegisterNotification(this);
 
@@ -260,19 +260,26 @@ void GenericExportsModel::updateTimer(bool needsUpdate)
 void GenericExportsModel::pauseUpdates()
 {
 	m_updatesPaused = true;
+	m_dirtyWhilePaused = false;
 	setNeedsUpdate(false);
 }
 
 void GenericExportsModel::resumeUpdates()
 {
 	m_updatesPaused = false;
-	setNeedsUpdate(true);
+	// Only refresh if we got notifications while paused
+	if (m_dirtyWhilePaused.exchange(false))
+		setNeedsUpdate(true);
 }
 
 void GenericExportsModel::onBinaryViewNotification()
 {
 	if (m_updatesPaused)
+	{
+		// Track that updates occurred while hidden
+		m_dirtyWhilePaused = true;
 		return;
+	}
 
 	// This can be called from any thread so we cannot directly
 	// update the timer. Emitting a signal is relatively expensive

@@ -11,14 +11,29 @@
 #include "fontsettings.h"
 
 
-GenericStringsModel::GenericStringsModel(QWidget* parent, BinaryViewRef data) : QAbstractItemModel(parent)
+GenericStringsModel::GenericStringsModel(QWidget* parent, BinaryViewRef data) : QAbstractItemModel(parent), BinaryDataNotification(StringUpdates)
 {
 	m_data = data;
 	m_totalCols = 3;
 	m_sortCol = 0;
 	m_sortOrder = Qt::AscendingOrder;
-	m_allEntries = data->GetStrings();
-	m_entries = m_allEntries;
+
+	m_updateTimer = new QTimer(this);
+	m_updateTimer->setInterval(500);
+	connect(m_updateTimer, &QTimer::timeout, this, &GenericStringsModel::updateModel);
+	connect(this, &GenericStringsModel::updateTimerOnUIThread, this, [=, this]() {
+		updateTimer(m_needsUpdate);
+	}, Qt::QueuedConnection);
+
+	m_data->RegisterNotification(this);
+
+	updateModel();
+}
+
+
+GenericStringsModel::~GenericStringsModel()
+{
+	m_data->UnregisterNotification(this);
 }
 
 
@@ -168,19 +183,116 @@ void GenericStringsModel::sort(int col, Qt::SortOrder order)
 }
 
 
-void GenericStringsModel::setFilter(const std::string& filterText)
+void GenericStringsModel::applyFilter()
 {
-	beginResetModel();
 	m_entries.clear();
 	for (auto& entry : m_allEntries)
 	{
 		auto s = stringRefToQString(entry).toStdString();
-		
-		if (FilteredView::match(s, filterText))
+
+		if (FilteredView::match(s, m_filter))
 			m_entries.push_back(entry);
 	}
 	performSort(m_sortCol, m_sortOrder);
+}
+
+
+void GenericStringsModel::setFilter(const std::string& filterText)
+{
+	m_filter = filterText;
+	beginResetModel();
+	applyFilter();
 	endResetModel();
+}
+
+
+void GenericStringsModel::updateModel()
+{
+	if (!m_needsUpdate)
+		return;
+
+	setNeedsUpdate(false);
+	beginResetModel();
+	m_allEntries = m_data->GetStrings();
+	applyFilter();
+	endResetModel();
+}
+
+
+void GenericStringsModel::setNeedsUpdate(bool needed)
+{
+	if (m_needsUpdate.exchange(needed) == needed)
+		return;
+
+	updateTimer(needed);
+}
+
+
+void GenericStringsModel::updateTimer(bool needsUpdate)
+{
+	if (needsUpdate && !m_updateTimer->isActive())
+		m_updateTimer->start();
+	if (!needsUpdate && m_updateTimer->isActive())
+		m_updateTimer->stop();
+}
+
+
+void GenericStringsModel::pauseUpdates()
+{
+	m_updatesPaused = true;
+	m_dirtyWhilePaused = false;
+	setNeedsUpdate(false);
+}
+
+
+void GenericStringsModel::resumeUpdates()
+{
+	m_updatesPaused = false;
+	// Only refresh if we got notifications while paused
+	if (m_dirtyWhilePaused.exchange(false))
+		setNeedsUpdate(true);
+}
+
+
+void GenericStringsModel::onBinaryViewNotification()
+{
+	if (m_updatesPaused)
+	{
+		// Track that updates occurred while hidden
+		m_dirtyWhilePaused = true;
+		return;
+	}
+
+	// This can be called from any thread so we cannot directly
+	// update the timer. Emitting a signal is relatively expensive
+	// given how frequently we receive notifications, so we only
+	// emit a signal if we didn't already need an update.
+	if (!m_needsUpdate.exchange(true))
+		emit updateTimerOnUIThread();
+}
+
+
+void GenericStringsModel::OnStringFound(BinaryNinja::BinaryView* view, BNStringType type, uint64_t offset, size_t len)
+{
+	onBinaryViewNotification();
+}
+
+
+void GenericStringsModel::OnStringRemoved(BinaryNinja::BinaryView* view, BNStringType type, uint64_t offset, size_t len)
+{
+	onBinaryViewNotification();
+}
+
+
+void GenericStringsModel::OnDerivedStringFound(BinaryNinja::BinaryView* view, const BinaryNinja::DerivedString& str)
+{
+	onBinaryViewNotification();
+}
+
+
+void GenericStringsModel::OnDerivedStringRemoved(BinaryNinja::BinaryView* view, const BinaryNinja::DerivedString& str)
+{
+	onBinaryViewNotification();
 }
 
 
@@ -359,6 +471,20 @@ void StringsTreeView::keyPressEvent(QKeyEvent* event)
 		return;
 	}
 	QTreeView::keyPressEvent(event);
+}
+
+
+void StringsTreeView::showEvent(QShowEvent* event)
+{
+	QTreeView::showEvent(event);
+	m_model->resumeUpdates();
+}
+
+
+void StringsTreeView::hideEvent(QHideEvent* event)
+{
+	QTreeView::hideEvent(event);
+	m_model->pauseUpdates();
 }
 
 

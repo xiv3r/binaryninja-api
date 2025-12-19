@@ -22,6 +22,8 @@ class GenericExportsModel : public QAbstractItemModel, public BinaryNinja::Binar
 	std::atomic<bool> m_updatesPaused = false;
 	// Read/written from arbitrary threads while processing notifications.
 	std::atomic<bool> m_needsUpdate = true;
+	// Tracks if notifications arrived while paused
+	std::atomic<bool> m_dirtyWhilePaused = false;
 
 	void performSort(int col, Qt::SortOrder order);
 	void updateModel();
