@@ -1256,9 +1256,9 @@ bool ObjCProcessor::ApplyMethodType(Class& cls, Method& method, bool isInstanceM
 		cls.associatedName.IsEmpty() ?
 			m_types.id :
 			Type::PointerType(m_data->GetAddressSize(), Type::NamedType(m_data, cls.associatedName)),
-		true, BinaryNinja::Variable()});
+		DefaultLocationSource, BinaryNinja::Variable()});
 
-	params.push_back({"sel", m_types.sel, true, BinaryNinja::Variable()});
+	params.push_back({"sel", m_types.sel, DefaultLocationSource, BinaryNinja::Variable()});
 
 	for (size_t i = 3; i < typeTokens.size(); i++)
 	{
@@ -1268,7 +1268,7 @@ bool ObjCProcessor::ApplyMethodType(Class& cls, Method& method, bool isInstanceM
 		else
 			name = "arg";
 
-		params.push_back({std::move(name), typeForQualifiedNameOrType(typeTokens[i]), true, BinaryNinja::Variable()});
+		params.push_back({std::move(name), typeForQualifiedNameOrType(typeTokens[i]), DefaultLocationSource, BinaryNinja::Variable()});
 	}
 
 	auto funcType = BinaryNinja::Type::FunctionType(retType, cc, params);

@@ -732,7 +732,7 @@ void Demangle::DemangleVariableList(vector<FunctionParameter>& paramList, Backre
 		}
 		vt.name = name.GetString();
 		vt.type = type.Finalize();
-		vt.defaultLocation = true;
+		vt.locationSource = DefaultLocationSource;
 
 		paramList.push_back(vt);
 		m_logger->LogDebug("Argument %zu: '%s' - '%s'\n", i, vt.type->GetString().c_str(), reader.GetRaw());
@@ -1607,7 +1607,7 @@ TypeBuilder Demangle::DemangleFunction(BNNameType classFunctionType, bool pointe
 		QualifiedName thisName = m_varName;
 		if (thisName.size() > 0)
 			thisName.erase(thisName.end() - 1);
-		params.push_back(FunctionParameter("this", Type::PointerType(m_arch, Type::NamedType(thisName, Type::VoidType())), true, {}));
+		params.push_back(FunctionParameter("this", Type::PointerType(m_arch, Type::NamedType(thisName, Type::VoidType())), DefaultLocationSource, {}));
 	}
 
 	DemangleVariableList(params, m_backrefList);

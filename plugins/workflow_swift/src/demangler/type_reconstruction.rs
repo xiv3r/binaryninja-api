@@ -1,6 +1,8 @@
 use binaryninja::architecture::{Architecture, CoreArchitecture};
 use binaryninja::rc::Ref;
-use binaryninja::types::{NamedTypeReference, NamedTypeReferenceClass, QualifiedName, Type};
+use binaryninja::types::{
+    NamedTypeReference, NamedTypeReferenceClass, QualifiedName, Type, ValueLocationSource,
+};
 use swift_demangler::{TypeKind, TypeRef};
 
 pub(crate) trait TypeRefExt {
@@ -57,7 +59,7 @@ impl TypeRefExt for TypeRef<'_> {
                         Some(binaryninja::types::FunctionParameter {
                             ty: ty.into(),
                             name,
-                            location: None,
+                            location: ValueLocationSource::Default,
                         })
                     })
                     .collect();

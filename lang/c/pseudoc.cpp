@@ -1816,6 +1816,32 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 		}();
 		break;
 
+	case HLIL_PASS_BY_REF:
+		[&]() {
+			const auto srcExpr = instr.GetSourceExpr<HLIL_PASS_BY_REF>();
+			if (srcExpr.operation == HLIL_ADDRESS_OF)
+			{
+				GetExprTextInternal(srcExpr.GetSourceExpr<HLIL_ADDRESS_OF>(), tokens, settings, precedence);
+			}
+			else
+			{
+				tokens.Append(OperationToken, "*");
+				GetExprTextInternal(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			}
+			if (statement)
+				tokens.AppendSemicolon();
+		}();
+		break;
+
+	case HLIL_RETURN_BY_REF:
+		[&]() {
+			const auto srcExpr = instr.GetSourceExpr<HLIL_RETURN_BY_REF>();
+			GetExprTextInternal(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			if (statement)
+				tokens.AppendSemicolon();
+		}();
+		break;
+
 	case HLIL_FCMP_E:
 		[&]() {
 			bool parens = precedence > EqualityOperatorPrecedence;

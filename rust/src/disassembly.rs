@@ -506,6 +506,7 @@ pub enum InstructionTextTokenKind {
         // TODO: Explain what this is
         hash: Option<u64>,
     },
+    ValueLocation,
     CodeSymbol {
         // Target address of the symbol
         value: u64,
@@ -700,6 +701,7 @@ impl InstructionTextTokenKind {
                     hash => Some(hash),
                 },
             },
+            BNInstructionTextTokenType::ValueLocationToken => Self::ValueLocation,
             BNInstructionTextTokenType::CodeSymbolToken => Self::CodeSymbol {
                 value: value.value,
                 size: value.size,
@@ -914,6 +916,9 @@ impl From<InstructionTextTokenKind> for BNInstructionTextTokenType {
                 BNInstructionTextTokenType::BaseStructureSeparatorToken
             }
             InstructionTextTokenKind::Brace { .. } => BNInstructionTextTokenType::BraceToken,
+            InstructionTextTokenKind::ValueLocation => {
+                BNInstructionTextTokenType::ValueLocationToken
+            }
             InstructionTextTokenKind::CodeSymbol { .. } => {
                 BNInstructionTextTokenType::CodeSymbolToken
             }

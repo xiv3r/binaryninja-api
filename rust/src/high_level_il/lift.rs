@@ -112,6 +112,8 @@ pub enum HighLevelILLiftedInstructionKind {
     ConstData(LiftedConstData),
     Deref(LiftedUnaryOp),
     AddressOf(LiftedUnaryOp),
+    PassByRef(LiftedUnaryOp),
+    ReturnByRef(LiftedUnaryOp),
     Neg(LiftedUnaryOp),
     Not(LiftedUnaryOp),
     Sx(LiftedUnaryOp),
@@ -240,6 +242,8 @@ impl HighLevelILLiftedInstruction {
             ConstData(_) => "ConstData",
             Deref(_) => "Deref",
             AddressOf(_) => "AddressOf",
+            PassByRef(_) => "PassByRef",
+            ReturnByRef(_) => "ReturnByRef",
             Neg(_) => "Neg",
             Not(_) => "Not",
             Sx(_) => "Sx",
@@ -360,10 +364,12 @@ impl HighLevelILLiftedInstruction {
                 "constant_data",
                 Operand::ConstantData(op.constant_data.clone()),
             )],
-            Deref(op) | AddressOf(op) | Neg(op) | Not(op) | Sx(op) | Zx(op) | LowPart(op)
-            | BoolToInt(op) | UnimplMem(op) | Fsqrt(op) | Fneg(op) | Fabs(op) | FloatToInt(op)
-            | IntToFloat(op) | FloatConv(op) | RoundToInt(op) | Floor(op) | Ceil(op)
-            | Ftrunc(op) => vec![("src", Operand::Expr(*op.src.clone()))],
+            Deref(op) | AddressOf(op) | PassByRef(op) | ReturnByRef(op) | Neg(op) | Not(op)
+            | Sx(op) | Zx(op) | LowPart(op) | BoolToInt(op) | UnimplMem(op) | Fsqrt(op)
+            | Fneg(op) | Fabs(op) | FloatToInt(op) | IntToFloat(op) | FloatConv(op)
+            | RoundToInt(op) | Floor(op) | Ceil(op) | Ftrunc(op) => {
+                vec![("src", Operand::Expr(*op.src.clone()))]
+            }
             DerefFieldSsa(op) => vec![
                 ("src", Operand::Expr(*op.src.clone())),
                 ("src_memory", Operand::Int(op.src_memory)),

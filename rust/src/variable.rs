@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use crate::architecture::{Architecture, CoreArchitecture, CoreRegister, RegisterId};
+use crate::architecture::{Architecture, CoreArchitecture, CoreRegister, Register, RegisterId};
 use crate::confidence::Conf;
 use crate::function::{Function, Location};
 use crate::rc::{CoreArrayProvider, CoreArrayProviderInner, Ref};
@@ -405,6 +405,30 @@ impl Variable {
         unsafe { BNFromVariableIdentifier(ident) }.into()
     }
 
+    pub fn from_register(reg: impl Register) -> Self {
+        Self {
+            ty: VariableSourceType::RegisterVariableSourceType,
+            index: 0,
+            storage: reg.id().0 as i64,
+        }
+    }
+
+    pub fn from_register_id(reg: RegisterId) -> Self {
+        Self {
+            ty: VariableSourceType::RegisterVariableSourceType,
+            index: 0,
+            storage: reg.0 as i64,
+        }
+    }
+
+    pub fn from_stack_offset(offset: i64) -> Self {
+        Self {
+            ty: VariableSourceType::StackVariableSourceType,
+            index: 0,
+            storage: offset,
+        }
+    }
+
     pub fn to_identifier(&self) -> u64 {
         let raw = BNVariable::from(*self);
         unsafe { BNToVariableIdentifier(&raw) }
@@ -417,6 +441,8 @@ impl Variable {
             }
             VariableSourceType::StackVariableSourceType => None,
             VariableSourceType::FlagVariableSourceType => None,
+            VariableSourceType::CompositeReturnValueSourceType => None,
+            VariableSourceType::CompositeParameterSourceType => None,
         }
     }
 }
@@ -674,6 +700,13 @@ pub enum PossibleValueSet {
     StackFrameOffset {
         value: i64,
     },
+    ResultPointer {
+        offset: i64,
+    },
+    ParameterPointer {
+        index: u64,
+        offset: i64,
+    },
     ReturnAddressValue,
     ImportedAddressValue {
         value: i64,
@@ -730,6 +763,13 @@ impl PossibleValueSet {
                 offset: value.offset,
             },
             RegisterValueType::StackFrameOffset => Self::StackFrameOffset { value: value.value },
+            RegisterValueType::ResultPointerValue => Self::ResultPointer {
+                offset: value.value,
+            },
+            RegisterValueType::ParameterPointerValue => Self::ParameterPointer {
+                index: value.value as u64,
+                offset: value.offset,
+            },
             RegisterValueType::ReturnAddressValue => Self::ReturnAddressValue,
             RegisterValueType::ImportedAddressValue => {
                 Self::ImportedAddressValue { value: value.value }
@@ -814,6 +854,13 @@ impl PossibleValueSet {
             }
             PossibleValueSet::StackFrameOffset { value } => {
                 raw.value = value;
+            }
+            PossibleValueSet::ResultPointer { offset } => {
+                raw.value = offset;
+            }
+            PossibleValueSet::ParameterPointer { index, offset } => {
+                raw.value = index as i64;
+                raw.offset = offset;
             }
             PossibleValueSet::ReturnAddressValue => {}
             PossibleValueSet::ImportedAddressValue { value } => {
@@ -910,6 +957,8 @@ impl PossibleValueSet {
                 RegisterValueType::ExternalPointerValue
             }
             PossibleValueSet::StackFrameOffset { .. } => RegisterValueType::StackFrameOffset,
+            PossibleValueSet::ResultPointer { .. } => RegisterValueType::ResultPointerValue,
+            PossibleValueSet::ParameterPointer { .. } => RegisterValueType::ParameterPointerValue,
             PossibleValueSet::ReturnAddressValue => RegisterValueType::ReturnAddressValue,
             PossibleValueSet::ImportedAddressValue { .. } => {
                 RegisterValueType::ImportedAddressValue

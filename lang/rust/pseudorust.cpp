@@ -1900,6 +1900,24 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 		}();
 		break;
 
+	case HLIL_PASS_BY_REF:
+		[&]() {
+			const auto srcExpr = instr.GetSourceExpr<HLIL_PASS_BY_REF>();
+			GetExprText(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			if (exprType != InnerExpression)
+				tokens.AppendSemicolon();
+		}();
+		break;
+
+	case HLIL_RETURN_BY_REF:
+		[&]() {
+			const auto srcExpr = instr.GetSourceExpr<HLIL_RETURN_BY_REF>();
+			GetExprText(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			if (exprType != InnerExpression)
+				tokens.AppendSemicolon();
+		}();
+		break;
+
 	case HLIL_FCMP_E:
 	case HLIL_CMP_E:
 		[&]() {

@@ -176,7 +176,11 @@ pub enum MediumLevelILLiftedInstructionKind {
     Ret(LiftedRet),
     Var(Var),
     VarOutput(VarOutput),
+    VarOutputField(VarOutputField),
+    StoreOutput(LiftedStoreOutput),
     AddressOf(Var),
+    PassByRef(LiftedUnaryOp),
+    ReturnByRef(LiftedUnaryOp),
     VarField(Field),
     AddressOfField(Field),
     VarSsa(VarSsa),
@@ -184,7 +188,11 @@ pub enum MediumLevelILLiftedInstructionKind {
     VarSsaField(VarSsaField),
     VarAliasedField(VarSsaField),
     VarOutputSsa(VarOutputSsa),
+    VarOutputSsaField(VarOutputSsaField),
+    VarOutputAliased(VarOutputAliased),
+    VarOutputAliasedField(VarOutputAliasedField),
     Trap(Trap),
+    BlockToExpand(LiftedBlockToExpand),
     // A placeholder for instructions that the Rust bindings do not yet support.
     // Distinct from `Unimpl` as that is a valid instruction.
     NotYetImplemented,
@@ -301,6 +309,8 @@ impl MediumLevelILLiftedInstruction {
             SeparateParamList(_) => "SeparateParamList",
             SharedParamSlot(_) => "SharedParamSlot",
             VarOutput(_) => "VarOutput",
+            VarOutputField(_) => "VarOutputField",
+            StoreOutput(_) => "StoreOutput",
             Neg(_) => "Neg",
             Not(_) => "Not",
             Sx(_) => "Sx",
@@ -325,6 +335,8 @@ impl MediumLevelILLiftedInstruction {
             Ret(_) => "Ret",
             Var(_) => "Var",
             AddressOf(_) => "AddressOf",
+            PassByRef(_) => "PassByRef",
+            ReturnByRef(_) => "ReturnByRef",
             VarField(_) => "VarField",
             AddressOfField(_) => "AddressOfField",
             VarSsa(_) => "VarSsa",
@@ -332,7 +344,11 @@ impl MediumLevelILLiftedInstruction {
             VarSsaField(_) => "VarSsaField",
             VarAliasedField(_) => "VarAliasedField",
             VarOutputSsa(_) => "VarOutputSsa",
+            VarOutputSsaField(_) => "VarOutputSsaField",
+            VarOutputAliased(_) => "VarOutputAliased",
+            VarOutputAliasedField(_) => "VarOutputAliasedField",
             Trap(_) => "Trap",
+            BlockToExpand(_) => "BlockToExpand",
         }
     }
 
@@ -549,6 +565,13 @@ impl MediumLevelILLiftedInstruction {
             SharedParamSlot(op) => vec![("params", Operand::ExprList(op.params.clone()))],
             Var(op) | AddressOf(op) => vec![("src", Operand::Var(op.src))],
             VarOutput(op) => vec![("dest", Operand::Var(op.dest))],
+            VarOutputField(op) => vec![
+                ("dest", Operand::Var(op.dest)),
+                ("offset", Operand::Int(op.offset)),
+            ],
+            StoreOutput(op) => vec![("dest", Operand::Expr(*op.dest.clone()))],
+            PassByRef(op) => vec![("src", Operand::Expr(*op.src.clone()))],
+            ReturnByRef(op) => vec![("src", Operand::Expr(*op.src.clone()))],
             VarField(op) | AddressOfField(op) => vec![
                 ("src", Operand::Var(op.src)),
                 ("offset", Operand::Int(op.offset)),
@@ -559,7 +582,22 @@ impl MediumLevelILLiftedInstruction {
                 ("offset", Operand::Int(op.offset)),
             ],
             VarOutputSsa(op) => vec![("dest", Operand::VarSsa(op.dest))],
+            VarOutputSsaField(op) => vec![
+                ("dest", Operand::VarSsa(op.dest)),
+                ("prev", Operand::VarSsa(op.prev)),
+                ("offset", Operand::Int(op.offset)),
+            ],
+            VarOutputAliased(op) => vec![
+                ("dest", Operand::VarSsa(op.dest)),
+                ("prev", Operand::VarSsa(op.prev)),
+            ],
+            VarOutputAliasedField(op) => vec![
+                ("dest", Operand::VarSsa(op.dest)),
+                ("prev", Operand::VarSsa(op.prev)),
+                ("offset", Operand::Int(op.offset)),
+            ],
             Trap(op) => vec![("vector", Operand::Int(op.vector))],
+            BlockToExpand(op) => vec![("exprs", Operand::ExprList(op.exprs.clone()))],
         }
     }
 }

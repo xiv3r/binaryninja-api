@@ -35,7 +35,7 @@ pub mod structure;
 use binaryninjacore_sys::*;
 
 use crate::{
-    architecture::Architecture,
+    architecture::{Architecture, Register, RegisterId},
     binary_view::BinaryView,
     calling_convention::CoreCallingConvention,
     rc::*,
@@ -449,12 +449,12 @@ impl TypeBuilder {
     // TODO: Deprecate this for a FunctionBuilder (along with the Type variant?)
     /// NOTE: This is likely to be deprecated and removed in favor of a function type builder, please
     /// use [`Type::function`] where possible.
-    pub fn function<'a, T: Into<Conf<&'a Type>>>(
-        return_type: T,
+    pub fn function<'a, T: Into<ReturnValue>>(
+        return_value: T,
         parameters: Vec<FunctionParameter>,
         variable_arguments: bool,
     ) -> Self {
-        let mut owned_raw_return_type = Conf::<&Type>::into_raw(return_type.into());
+        let mut owned_raw_return_value = ReturnValue::into_rust_raw(return_value.into());
         let mut variable_arguments = Conf::new(variable_arguments, MAX_CONFIDENCE).into();
         let mut can_return = Conf::new(true, MIN_CONFIDENCE).into();
         let mut pure = Conf::new(false, MIN_CONFIDENCE).into();
@@ -473,15 +473,9 @@ impl TypeBuilder {
         let reg_stack_adjust_regs = std::ptr::null_mut();
         let reg_stack_adjust_values = std::ptr::null_mut();
 
-        let mut return_regs: BNRegisterSetWithConfidence = BNRegisterSetWithConfidence {
-            regs: std::ptr::null_mut(),
-            count: 0,
-            confidence: 0,
-        };
-
         let result = unsafe {
             Self::from_raw(BNCreateFunctionTypeBuilder(
-                &mut owned_raw_return_type,
+                &mut owned_raw_return_value,
                 &mut raw_calling_convention,
                 raw_parameters.as_mut_ptr(),
                 raw_parameters.len(),
@@ -491,7 +485,6 @@ impl TypeBuilder {
                 reg_stack_adjust_regs,
                 reg_stack_adjust_values,
                 0,
-                &mut return_regs,
                 BNNameType::NoNameType,
                 &mut pure,
             ))
@@ -509,16 +502,16 @@ impl TypeBuilder {
     /// use [`Type::function_with_opts`] where possible.
     pub fn function_with_opts<
         'a,
-        T: Into<Conf<&'a Type>>,
+        T: Into<ReturnValue>,
         C: Into<Conf<Ref<CoreCallingConvention>>>,
     >(
-        return_type: T,
+        return_value: T,
         parameters: &[FunctionParameter],
         variable_arguments: bool,
         calling_convention: C,
         stack_adjust: Conf<i64>,
     ) -> Self {
-        let mut owned_raw_return_type = Conf::<&Type>::into_raw(return_type.into());
+        let mut owned_raw_return_value = ReturnValue::into_rust_raw(return_value.into());
         let mut variable_arguments = Conf::new(variable_arguments, MAX_CONFIDENCE).into();
         let mut can_return = Conf::new(true, MIN_CONFIDENCE).into();
         let mut pure = Conf::new(false, MIN_CONFIDENCE).into();
@@ -537,15 +530,9 @@ impl TypeBuilder {
         let reg_stack_adjust_regs = std::ptr::null_mut();
         let reg_stack_adjust_values = std::ptr::null_mut();
 
-        let mut return_regs: BNRegisterSetWithConfidence = BNRegisterSetWithConfidence {
-            regs: std::ptr::null_mut(),
-            count: 0,
-            confidence: 0,
-        };
-
         let result = unsafe {
             Self::from_raw(BNCreateFunctionTypeBuilder(
-                &mut owned_raw_return_type,
+                &mut owned_raw_return_value,
                 &mut owned_raw_calling_convention,
                 raw_parameters.as_mut_ptr(),
                 raw_parameters.len(),
@@ -555,7 +542,6 @@ impl TypeBuilder {
                 reg_stack_adjust_regs,
                 reg_stack_adjust_values,
                 0,
-                &mut return_regs,
                 BNNameType::NoNameType,
                 &mut pure,
             ))
@@ -943,12 +929,12 @@ impl Type {
     }
 
     // TODO: FunctionBuilder
-    pub fn function<'a, T: Into<Conf<&'a Type>>>(
-        return_type: T,
+    pub fn function<'a, T: Into<ReturnValue>>(
+        return_value: T,
         parameters: Vec<FunctionParameter>,
         variable_arguments: bool,
     ) -> Ref<Self> {
-        let mut owned_raw_return_type = Conf::<&Type>::into_raw(return_type.into());
+        let mut owned_raw_return_value = ReturnValue::into_rust_raw(return_value.into());
         let mut variable_arguments = Conf::new(variable_arguments, MAX_CONFIDENCE).into();
         let mut can_return = Conf::new(true, MIN_CONFIDENCE).into();
         let mut pure = Conf::new(false, MIN_CONFIDENCE).into();
@@ -967,15 +953,9 @@ impl Type {
         let reg_stack_adjust_regs = std::ptr::null_mut();
         let reg_stack_adjust_values = std::ptr::null_mut();
 
-        let mut return_regs: BNRegisterSetWithConfidence = BNRegisterSetWithConfidence {
-            regs: std::ptr::null_mut(),
-            count: 0,
-            confidence: 0,
-        };
-
         let result = unsafe {
             Self::ref_from_raw(BNCreateFunctionType(
-                &mut owned_raw_return_type,
+                &mut owned_raw_return_value,
                 &mut raw_calling_convention,
                 raw_parameters.as_mut_ptr(),
                 raw_parameters.len(),
@@ -985,12 +965,12 @@ impl Type {
                 reg_stack_adjust_regs,
                 reg_stack_adjust_values,
                 0,
-                &mut return_regs,
                 BNNameType::NoNameType,
                 &mut pure,
             ))
         };
 
+        ReturnValue::free_rust_raw(owned_raw_return_value);
         for raw_param in raw_parameters {
             FunctionParameter::free_raw(raw_param);
         }
@@ -1001,16 +981,16 @@ impl Type {
     // TODO: FunctionBuilder
     pub fn function_with_opts<
         'a,
-        T: Into<Conf<&'a Type>>,
+        T: Into<ReturnValue>,
         C: Into<Conf<Ref<CoreCallingConvention>>>,
     >(
-        return_type: T,
+        return_value: T,
         parameters: &[FunctionParameter],
         variable_arguments: bool,
         calling_convention: C,
         stack_adjust: Conf<i64>,
     ) -> Ref<Self> {
-        let mut owned_raw_return_type = Conf::<&Type>::into_raw(return_type.into());
+        let mut owned_raw_return_value = ReturnValue::into_rust_raw(return_value.into());
         let mut variable_arguments = Conf::new(variable_arguments, MAX_CONFIDENCE).into();
         let mut can_return = Conf::new(true, MIN_CONFIDENCE).into();
         let mut pure = Conf::new(false, MIN_CONFIDENCE).into();
@@ -1029,15 +1009,9 @@ impl Type {
         let reg_stack_adjust_regs = std::ptr::null_mut();
         let reg_stack_adjust_values = std::ptr::null_mut();
 
-        let mut return_regs: BNRegisterSetWithConfidence = BNRegisterSetWithConfidence {
-            regs: std::ptr::null_mut(),
-            count: 0,
-            confidence: 0,
-        };
-
         let result = unsafe {
             Self::ref_from_raw(BNCreateFunctionType(
-                &mut owned_raw_return_type,
+                &mut owned_raw_return_value,
                 &mut owned_raw_calling_convention,
                 raw_parameters.as_mut_ptr(),
                 raw_parameters.len(),
@@ -1047,12 +1021,12 @@ impl Type {
                 reg_stack_adjust_regs,
                 reg_stack_adjust_values,
                 0,
-                &mut return_regs,
                 BNNameType::NoNameType,
                 &mut pure,
             ))
         };
 
+        ReturnValue::free_rust_raw(owned_raw_return_value);
         for raw_param in raw_parameters {
             FunctionParameter::free_raw(raw_param);
         }
@@ -1109,6 +1083,10 @@ impl Type {
             unsafe { BnString::into_string(BNGenerateAutoDemangledTypeId(&mut raw_name)) };
         QualifiedName::free_raw(raw_name);
         type_id
+    }
+
+    pub fn deref_named_type_reference(&self, view: &BinaryView) -> Ref<Type> {
+        unsafe { Self::ref_from_raw(BNDerefNamedTypeReference(view.handle, self.handle)) }
     }
 }
 
@@ -1207,10 +1185,285 @@ unsafe impl CoreArrayProviderInner for Type {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ValueLocationComponent {
+    pub variable: Variable,
+    pub offset: i64,
+    pub size: Option<u64>,
+}
+
+impl ValueLocationComponent {
+    pub(crate) fn from_raw(value: &BNValueLocationComponent) -> Self {
+        let variable = Variable::from(&value.variable);
+        let size = if value.sizeValid {
+            Some(value.size)
+        } else {
+            None
+        };
+        Self {
+            variable,
+            offset: value.offset,
+            size,
+        }
+    }
+
+    pub(crate) fn into_raw(value: &Self) -> BNValueLocationComponent {
+        BNValueLocationComponent {
+            variable: value.variable.into(),
+            offset: value.offset,
+            sizeValid: value.size.is_some(),
+            size: value.size.unwrap_or(0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ValueLocation {
+    pub components: Vec<ValueLocationComponent>,
+    pub indirect: bool,
+    pub returned_pointer: Option<Variable>,
+}
+
+impl ValueLocation {
+    pub fn from_variable(var: Variable) -> Self {
+        Self {
+            components: vec![ValueLocationComponent {
+                variable: var,
+                offset: 0,
+                size: None,
+            }],
+            indirect: false,
+            returned_pointer: None,
+        }
+    }
+
+    pub fn from_register(reg: impl Register) -> Self {
+        Self::from_variable(Variable::from_register(reg))
+    }
+
+    pub fn from_register_id(reg: RegisterId) -> Self {
+        Self::from_variable(Variable::from_register_id(reg))
+    }
+
+    pub fn from_stack_offset(offset: i64) -> Self {
+        Self::from_variable(Variable::from_stack_offset(offset))
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.components.is_empty()
+    }
+
+    pub fn variable_for_return_value(&self) -> Option<Variable> {
+        let value_raw = Self::into_rust_raw(&self);
+        let mut var_raw = BNVariable::default();
+        let valid = unsafe { BNGetValueLocationVariableForReturnValue(&value_raw, &mut var_raw) };
+        Self::free_rust_raw(value_raw);
+        if valid {
+            Some(var_raw.into())
+        } else {
+            None
+        }
+    }
+
+    pub fn variable_for_parameter(&self, idx: usize) -> Option<Variable> {
+        let value_raw = Self::into_rust_raw(&self);
+        let mut var_raw = BNVariable::default();
+        let valid =
+            unsafe { BNGetValueLocationVariableForParameter(&value_raw, &mut var_raw, idx) };
+        Self::free_rust_raw(value_raw);
+        if valid {
+            Some(var_raw.into())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn from_raw(loc: &BNValueLocation) -> Self {
+        let components_raw: &[BNValueLocationComponent] =
+            unsafe { crate::ffi::slice_from_raw_parts(loc.components, loc.count) };
+        Self {
+            components: components_raw
+                .iter()
+                .map(|component| ValueLocationComponent::from_raw(component))
+                .collect(),
+            indirect: loc.indirect,
+            returned_pointer: if loc.returnedPointerValid {
+                Some(Variable::from(&loc.returnedPointer))
+            } else {
+                None
+            },
+        }
+    }
+
+    pub fn into_rust_raw(value: &Self) -> BNValueLocation {
+        let components: Box<[BNValueLocationComponent]> = value
+            .components
+            .iter()
+            .map(|component| ValueLocationComponent::into_raw(component))
+            .collect();
+        BNValueLocation {
+            count: components.len(),
+            components: Box::leak(components).as_mut_ptr(),
+            indirect: value.indirect,
+            returnedPointerValid: value.returned_pointer.is_some(),
+            returnedPointer: if let Some(ptr) = value.returned_pointer {
+                ptr.into()
+            } else {
+                Variable::new(VariableSourceType::RegisterVariableSourceType, 0, 0).into()
+            },
+        }
+    }
+
+    /// Free a RUST ALLOCATED possible value set. Do not use this with CORE ALLOCATED values.
+    pub fn free_rust_raw(value: BNValueLocation) {
+        let raw_components =
+            unsafe { std::slice::from_raw_parts_mut(value.components, value.count) };
+        let _ = unsafe { Box::from_raw(raw_components) };
+    }
+}
+
+impl Into<ValueLocation> for Variable {
+    fn into(self) -> ValueLocation {
+        ValueLocation {
+            components: vec![ValueLocationComponent {
+                variable: self,
+                offset: 0,
+                size: None,
+            }],
+            indirect: false,
+            returned_pointer: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ReturnValue {
+    pub ty: Conf<Ref<Type>>,
+    pub location: Option<Conf<ValueLocation>>,
+}
+
+impl ReturnValue {
+    pub(crate) fn from_raw(value: &BNReturnValue) -> Self {
+        Self {
+            ty: Conf::new(
+                unsafe { Type::from_raw(value.type_).to_owned() },
+                value.typeConfidence,
+            ),
+            location: match value.defaultLocation {
+                false => Some(Conf::new(
+                    ValueLocation::from_raw(&value.location),
+                    value.locationConfidence,
+                )),
+                true => None,
+            },
+        }
+    }
+
+    /// Take ownership over an "owned" **core allocated** value. Do not call this for a rust allocated value.
+    pub(crate) fn from_owned_core_raw(mut value: BNReturnValue) -> Self {
+        let owned = Self::from_raw(&value);
+        Self::free_core_raw(&mut value);
+        owned
+    }
+
+    pub(crate) fn into_rust_raw(value: Self) -> BNReturnValue {
+        BNReturnValue {
+            type_: unsafe { Ref::into_raw(value.ty.contents) }.handle,
+            typeConfidence: value.ty.confidence,
+            defaultLocation: value.location.is_none(),
+            location: ValueLocation::into_rust_raw(
+                value
+                    .location
+                    .as_ref()
+                    .map(|v| &v.contents)
+                    .unwrap_or(&ValueLocation {
+                        components: Vec::new(),
+                        indirect: false,
+                        returned_pointer: None,
+                    }),
+            ),
+            locationConfidence: value.location.as_ref().map(|v| v.confidence).unwrap_or(0),
+        }
+    }
+
+    /// Free a CORE ALLOCATED possible value set. Do not use this with [Self::into_rust_raw] values.
+    pub(crate) fn free_core_raw(value: &mut BNReturnValue) {
+        unsafe { BNFreeReturnValue(value) }
+    }
+
+    /// Free a RUST ALLOCATED possible value set. Do not use this with CORE ALLOCATED values.
+    pub(crate) fn free_rust_raw(value: BNReturnValue) {
+        let _ = unsafe { Type::ref_from_raw(value.type_) };
+        ValueLocation::free_rust_raw(value.location);
+    }
+}
+
+impl Into<ReturnValue> for Ref<Type> {
+    fn into(self) -> ReturnValue {
+        ReturnValue {
+            ty: self.into(),
+            location: None,
+        }
+    }
+}
+
+impl Into<ReturnValue> for &Ref<Type> {
+    fn into(self) -> ReturnValue {
+        ReturnValue {
+            ty: self.clone().into(),
+            location: None,
+        }
+    }
+}
+
+impl Into<ReturnValue> for &Type {
+    fn into(self) -> ReturnValue {
+        ReturnValue {
+            ty: self.to_owned().into(),
+            location: None,
+        }
+    }
+}
+
+impl Into<ReturnValue> for Conf<Ref<Type>> {
+    fn into(self) -> ReturnValue {
+        ReturnValue {
+            ty: self,
+            location: None,
+        }
+    }
+}
+
+impl Into<ReturnValue> for &Conf<Ref<Type>> {
+    fn into(self) -> ReturnValue {
+        ReturnValue {
+            ty: self.clone(),
+            location: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum ValueLocationSource {
+    Default,
+    PassByValue,
+    PassByReference,
+    Custom(ValueLocation),
+}
+
+impl From<Option<ValueLocation>> for ValueLocationSource {
+    fn from(loc: Option<ValueLocation>) -> Self {
+        match loc {
+            Some(loc) => ValueLocationSource::Custom(loc),
+            None => ValueLocationSource::Default,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct FunctionParameter {
     pub ty: Conf<Ref<Type>>,
     pub name: String,
-    pub location: Option<Variable>,
+    pub location: ValueLocationSource,
 }
 
 impl FunctionParameter {
@@ -1218,13 +1471,7 @@ impl FunctionParameter {
         // TODO: I copied this from the original `from_raw` function.
         // TODO: So this actually needs to be audited later.
         let name = if value.name.is_null() {
-            if value.location.type_ == VariableSourceType::RegisterVariableSourceType {
-                format!("reg_{}", value.location.storage)
-            } else if value.location.type_ == VariableSourceType::StackVariableSourceType {
-                format!("arg_{}", value.location.storage)
-            } else {
-                String::new()
-            }
+            String::new()
         } else {
             raw_to_string(value.name as *const _).unwrap()
         };
@@ -1235,9 +1482,17 @@ impl FunctionParameter {
                 value.typeConfidence,
             ),
             name,
-            location: match value.defaultLocation {
-                false => Some(Variable::from(value.location)),
-                true => None,
+            location: match value.locationSource {
+                BNValueLocationSource::DefaultLocationSource => ValueLocationSource::Default,
+                BNValueLocationSource::PassByValueLocationSource => {
+                    ValueLocationSource::PassByValue
+                }
+                BNValueLocationSource::PassByReferenceLocationSource => {
+                    ValueLocationSource::PassByReference
+                }
+                BNValueLocationSource::CustomLocationSource => {
+                    ValueLocationSource::Custom(ValueLocation::from_raw(&value.location))
+                }
             },
         }
     }
@@ -1255,21 +1510,42 @@ impl FunctionParameter {
             name: BnString::into_raw(bn_name),
             type_: unsafe { Ref::into_raw(value.ty.contents) }.handle,
             typeConfidence: value.ty.confidence,
-            defaultLocation: value.location.is_none(),
-            location: value.location.map(Into::into).unwrap_or_default(),
+            locationSource: match value.location {
+                ValueLocationSource::Default => BNValueLocationSource::DefaultLocationSource,
+                ValueLocationSource::PassByValue => {
+                    BNValueLocationSource::PassByValueLocationSource
+                }
+                ValueLocationSource::PassByReference => {
+                    BNValueLocationSource::PassByReferenceLocationSource
+                }
+                ValueLocationSource::Custom(_) => BNValueLocationSource::CustomLocationSource,
+            },
+            location: match &value.location {
+                ValueLocationSource::Custom(loc) => ValueLocation::into_rust_raw(loc),
+                _ => ValueLocation::into_rust_raw(&ValueLocation {
+                    components: Vec::new(),
+                    indirect: false,
+                    returned_pointer: None,
+                }),
+            },
         }
     }
 
     pub(crate) fn free_raw(value: BNFunctionParameter) {
         unsafe { BnString::free_raw(value.name) };
         let _ = unsafe { Type::ref_from_raw(value.type_) };
+        ValueLocation::free_rust_raw(value.location);
     }
 
-    pub fn new<T: Into<Conf<Ref<Type>>>>(ty: T, name: String, location: Option<Variable>) -> Self {
+    pub fn new<T: Into<Conf<Ref<Type>>>>(
+        ty: T,
+        name: String,
+        location: impl Into<ValueLocationSource>,
+    ) -> Self {
         Self {
             ty: ty.into(),
             name,
-            location,
+            location: location.into(),
         }
     }
 }

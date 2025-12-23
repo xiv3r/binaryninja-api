@@ -15,6 +15,7 @@
 //! Contains and provides information about different systems' calling conventions to analysis.
 
 use std::borrow::Borrow;
+use std::collections::BTreeMap;
 use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -25,10 +26,11 @@ use binaryninjacore_sys::*;
 use crate::architecture::{
     Architecture, ArchitectureExt, CoreArchitecture, CoreRegister, Register, RegisterId,
 };
-use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
+use crate::binary_view::BinaryView;
+use crate::ffi::slice_from_raw_parts;
+use crate::rc::{CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
 use crate::string::*;
-use crate::types::FunctionParameter;
-use crate::variable::Variable;
+use crate::types::{FunctionParameter, ReturnValue, ValueLocation};
 // TODO
 // force valid registers once Arch has _from_id methods
 // CallingConvention impl
@@ -465,6 +467,23 @@ where
         getParameterVariableForIncomingVariable: Some(cb_incoming_param_for_var::<C>),
 
         areArgumentRegistersUsedForVarArgs: Some(cb_are_argument_registers_used_for_var_args::<C>),
+
+        isReturnTypeRegisterCompatible: None,
+        getIndirectReturnValueLocation: None,
+        getReturnedIndirectReturnValuePointer: None,
+        isArgumentTypeRegisterCompatible: None,
+        isNonRegisterArgumentIndirect: None,
+        areStackArgumentsNaturallyAligned: None,
+
+        getCallLayout: None,
+        freeCallLayout: None,
+        getReturnValueLocation: None,
+        freeValueLocation: None,
+        getParameterLocations: None,
+        freeParameterLocations: None,
+        getStackAdjustmentForLocations: None,
+        getRegisterStackAdjustments: None,
+        freeRegisterStackAdjustments: None,
     };
 
     unsafe {
@@ -514,46 +533,63 @@ impl CoreCallingConvention {
         unsafe { BnString::into_string(BNGetCallingConventionName(self.handle)) }
     }
 
-    pub fn variables_for_parameters(
+    pub fn call_layout(
         &self,
+        view: &BinaryView,
+        return_value: impl Into<ReturnValue>,
         params: &[FunctionParameter],
         permitted_registers: Option<&[CoreRegister]>,
-    ) -> Vec<Variable> {
-        let mut count: usize = 0;
+    ) -> CallLayout {
+        let raw_return_value = ReturnValue::into_rust_raw(return_value.into());
         let raw_params: Vec<BNFunctionParameter> = params
             .iter()
             .cloned()
             .map(FunctionParameter::into_raw)
             .collect();
-        let raw_vars_ptr: *mut BNVariable = if let Some(permitted_args) = permitted_registers {
+        let raw_layout: BNCallLayout = if let Some(permitted_args) = permitted_registers {
             let permitted_regs = permitted_args.iter().map(|r| r.id().0).collect::<Vec<_>>();
 
             unsafe {
-                BNGetVariablesForParameters(
+                BNGetCallLayout(
                     self.handle,
+                    view.handle,
+                    &raw_return_value,
                     raw_params.as_ptr(),
                     raw_params.len(),
                     permitted_regs.as_ptr(),
                     permitted_regs.len(),
-                    &mut count,
                 )
             }
         } else {
             unsafe {
-                BNGetVariablesForParametersDefaultPermittedArgs(
+                BNGetCallLayoutDefaultPermittedArgs(
                     self.handle,
+                    view.handle,
+                    &raw_return_value,
                     raw_params.as_ptr(),
                     raw_params.len(),
-                    &mut count,
                 )
             }
         };
 
-        for raw_param in raw_params {
-            FunctionParameter::free_raw(raw_param);
-        }
+        ReturnValue::free_rust_raw(raw_return_value);
+        CallLayout::from_owned_core_raw(raw_layout)
+    }
 
-        unsafe { Array::<Variable>::new(raw_vars_ptr, count, ()) }.to_vec()
+    pub fn return_value_location(
+        &self,
+        view: &BinaryView,
+        return_value: impl Into<ReturnValue>,
+    ) -> ValueLocation {
+        let mut raw_return_value = ReturnValue::into_rust_raw(return_value.into());
+        let mut raw_location =
+            unsafe { BNGetReturnValueLocation(self.handle, view.handle, &mut raw_return_value) };
+        ReturnValue::free_rust_raw(raw_return_value);
+        let result = ValueLocation::from_raw(&raw_location);
+        unsafe {
+            BNFreeValueLocation(&mut raw_location);
+        }
+        result
     }
 }
 
@@ -1020,3 +1056,57 @@ impl<A: Architecture> CallingConvention for ConventionBuilder<A> {
 
 unsafe impl<A: Architecture> Send for ConventionBuilder<A> {}
 unsafe impl<A: Architecture> Sync for ConventionBuilder<A> {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallLayout {
+    pub parameters: Vec<ValueLocation>,
+    pub return_value: Option<ValueLocation>,
+    pub stack_adjustment: i64,
+    pub register_stack_adjustments: BTreeMap<RegisterId, i32>,
+}
+
+impl CallLayout {
+    pub(crate) fn from_raw(value: &BNCallLayout) -> Self {
+        let raw_params = unsafe { slice_from_raw_parts(value.parameters, value.parameterCount) };
+        let parameters = raw_params.iter().map(ValueLocation::from_raw).collect();
+        let return_value = if value.returnValueValid {
+            Some(ValueLocation::from_raw(&value.returnValue))
+        } else {
+            None
+        };
+        let raw_regs = unsafe {
+            slice_from_raw_parts(
+                value.registerStackAdjustmentRegisters,
+                value.registerStackAdjustmentCount,
+            )
+        };
+        let raw_amounts = unsafe {
+            slice_from_raw_parts(
+                value.registerStackAdjustmentAmounts,
+                value.registerStackAdjustmentCount,
+            )
+        };
+        let mut register_stack_adjustments = BTreeMap::new();
+        for i in 0..value.registerStackAdjustmentCount {
+            register_stack_adjustments.insert(RegisterId(raw_regs[i]), raw_amounts[i]);
+        }
+        Self {
+            parameters,
+            return_value,
+            stack_adjustment: value.stackAdjustment,
+            register_stack_adjustments,
+        }
+    }
+
+    /// Take ownership over an "owned" **core allocated** value. Do not call this for a rust allocated value.
+    pub(crate) fn from_owned_core_raw(mut value: BNCallLayout) -> Self {
+        let owned = Self::from_raw(&value);
+        Self::free_core_raw(&mut value);
+        owned
+    }
+
+    /// Free a CORE ALLOCATED value. Do not use this with [Self::into_rust_raw] values.
+    pub(crate) fn free_core_raw(value: &mut BNCallLayout) {
+        unsafe { BNFreeCallLayout(value) }
+    }
+}

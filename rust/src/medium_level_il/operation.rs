@@ -641,6 +641,23 @@ pub struct VarOutput {
     pub dest: Variable,
 }
 
+// VAR_OUTPUT_FIELD
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct VarOutputField {
+    pub dest: Variable,
+    pub offset: u64,
+}
+
+// STORE_OUTPUT
+#[derive(Debug, Copy, Clone)]
+pub struct StoreOutput {
+    pub dest: MediumLevelExpressionIndex,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct LiftedStoreOutput {
+    pub dest: Box<MediumLevelILLiftedInstruction>,
+}
+
 // VAR_FIELD, ADDRESS_OF_FIELD
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Field {
@@ -667,8 +684,42 @@ pub struct VarOutputSsa {
     pub dest: SSAVariable,
 }
 
+// VAR_OUTPUT_SSA_FIELD
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct VarOutputSsaField {
+    pub dest: SSAVariable,
+    pub prev: SSAVariable,
+    pub offset: u64,
+}
+
+// VAR_OUTPUT_ALIASED
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct VarOutputAliased {
+    pub dest: SSAVariable,
+    pub prev: SSAVariable,
+}
+
+// VAR_OUTPUT_ALIASED_FIELD
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct VarOutputAliasedField {
+    pub dest: SSAVariable,
+    pub prev: SSAVariable,
+    pub offset: u64,
+}
+
 // TRAP
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Trap {
     pub vector: u64,
+}
+
+// BLOCK_TO_EXPAND
+#[derive(Debug, Copy, Clone)]
+pub struct BlockToExpand {
+    pub first_operand: usize,
+    pub num_operands: usize,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct LiftedBlockToExpand {
+    pub exprs: Vec<MediumLevelILLiftedInstruction>,
 }

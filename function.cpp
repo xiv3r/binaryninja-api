@@ -41,6 +41,24 @@ Variable Variable::FromIdentifier(uint64_t id)
 }
 
 
+Variable Variable::Register(uint32_t reg)
+{
+	return Variable(RegisterVariableSourceType, reg);
+}
+
+
+Variable Variable::Flag(uint32_t flag)
+{
+	return Variable(FlagVariableSourceType, flag);
+}
+
+
+Variable Variable::StackOffset(int64_t offset)
+{
+	return Variable(StackVariableSourceType, offset);
+}
+
+
 RegisterValue::RegisterValue() : state(UndeterminedValue), value(0), offset(0), size(0) {}
 
 
@@ -62,6 +80,12 @@ bool RegisterValue::operator==(const RegisterValue& a) const
 
 	case StackFrameOffset:
 		 return (state == StackFrameOffset) && (a.value == value);
+
+	case ResultPointerValue:
+		return (state == ResultPointerValue) && (a.value == value);
+
+	case ParameterPointerValue:
+		return (state == ParameterPointerValue) && (a.value == value) && (a.offset == offset);
 
 	case UndeterminedValue:
 		return state == UndeterminedValue;
@@ -729,6 +753,30 @@ Confidence<Ref<Type>> Function::GetReturnType() const
 }
 
 
+ReturnValue Function::GetReturnValue() const
+{
+	BNReturnValue ret = BNGetFunctionReturnValue(m_object);
+	ReturnValue result = ReturnValue::FromAPIObject(&ret);
+	BNFreeReturnValue(&ret);
+	return result;
+}
+
+
+bool Function::IsReturnValueDefaultLocation() const
+{
+	return BNIsFunctionReturnValueDefaultLocation(m_object);
+}
+
+
+Confidence<ValueLocation> Function::GetReturnValueLocation() const
+{
+	auto location = BNGetFunctionReturnValueLocation(m_object);
+	Confidence<ValueLocation> result(ValueLocation::FromAPIObject(&location.location), location.confidence);
+	BNFreeValueLocation(&location.location);
+	return result;
+}
+
+
 Confidence<vector<uint32_t>> Function::GetReturnRegisters() const
 {
 	BNRegisterSetWithConfidence regs = BNGetFunctionReturnRegisters(m_object);
@@ -759,6 +807,19 @@ Confidence<vector<Variable>> Function::GetParameterVariables() const
 		varList.emplace_back(vars.vars[i].type, vars.vars[i].index, vars.vars[i].storage);
 	Confidence<vector<Variable>> result(varList, vars.confidence);
 	BNFreeParameterVariables(&vars);
+	return result;
+}
+
+
+Confidence<vector<ValueLocation>> Function::GetParameterLocations() const
+{
+	BNValueLocationListWithConfidence locations = BNGetFunctionParameterLocations(m_object);
+	vector<ValueLocation> locationList;
+	locationList.reserve(locations.count);
+	for (size_t i = 0; i < locations.count; i++)
+		locationList.push_back(ValueLocation::FromAPIObject(&locations.locations[i]));
+	Confidence<vector<ValueLocation>> result(locationList, locations.confidence);
+	BNFreeParameterLocations(&locations);
 	return result;
 }
 
@@ -817,16 +878,27 @@ void Function::SetAutoReturnType(const Confidence<Ref<Type>>& type)
 }
 
 
-void Function::SetAutoReturnRegisters(const Confidence<std::vector<uint32_t>>& returnRegs)
+void Function::SetAutoReturnValue(const ReturnValue& rv)
 {
-	BNRegisterSetWithConfidence regs;
-	regs.regs = new uint32_t[returnRegs.GetValue().size()];
-	regs.count = returnRegs.GetValue().size();
-	for (size_t i = 0; i < regs.count; i++)
-		regs.regs[i] = returnRegs.GetValue()[i];
-	regs.confidence = returnRegs.GetConfidence();
-	BNSetAutoFunctionReturnRegisters(m_object, &regs);
-	delete[] regs.regs;
+	BNReturnValue ret = rv.ToAPIObject();
+	BNSetAutoFunctionReturnValue(m_object, &ret);
+	ReturnValue::FreeAPIObject(&ret);
+}
+
+
+void Function::SetAutoIsReturnValueDefaultLocation(bool defaultLocation)
+{
+	BNSetAutoIsFunctionReturnValueDefaultLocation(m_object, defaultLocation);
+}
+
+
+void Function::SetAutoReturnValueLocation(const Confidence<ValueLocation>& location)
+{
+	BNValueLocationWithConfidence loc;
+	loc.location = location->ToAPIObject();
+	loc.confidence = location.GetConfidence();
+	BNSetAutoFunctionReturnValueLocation(m_object, &loc);
+	ValueLocation::FreeAPIObject(&loc.location);
 }
 
 
@@ -839,22 +911,21 @@ void Function::SetAutoCallingConvention(const Confidence<Ref<CallingConvention>>
 }
 
 
-void Function::SetAutoParameterVariables(const Confidence<vector<Variable>>& vars)
+void Function::SetAutoParameterLocations(const Confidence<std::vector<ValueLocation>>& locations)
 {
-	BNParameterVariablesWithConfidence varConf;
-	varConf.vars = new BNVariable[vars->size()];
-	varConf.count = vars->size();
+	BNValueLocationListWithConfidence varConf;
+	varConf.locations = new BNValueLocation[locations->size()];
+	varConf.count = locations->size();
 	size_t i = 0;
-	for (auto it = vars->begin(); it != vars->end(); ++it, ++i)
-	{
-		varConf.vars[i].type = it->type;
-		varConf.vars[i].index = it->index;
-		varConf.vars[i].storage = it->storage;
-	}
-	varConf.confidence = vars.GetConfidence();
+	for (auto it = locations->begin(); it != locations->end(); ++it, ++i)
+		varConf.locations[i] = it->ToAPIObject();
+	varConf.confidence = locations.GetConfidence();
 
-	BNSetAutoFunctionParameterVariables(m_object, &varConf);
-	delete[] varConf.vars;
+	BNSetAutoFunctionParameterLocations(m_object, &varConf);
+
+	for (i = 0; i < locations->size(); i++)
+		ValueLocation::FreeAPIObject(&varConf.locations[i]);
+	delete[] varConf.locations;
 }
 
 
@@ -946,16 +1017,27 @@ void Function::SetReturnType(const Confidence<Ref<Type>>& type)
 }
 
 
-void Function::SetReturnRegisters(const Confidence<std::vector<uint32_t>>& returnRegs)
+void Function::SetReturnValue(const ReturnValue& rv)
 {
-	BNRegisterSetWithConfidence regs;
-	regs.regs = new uint32_t[returnRegs.GetValue().size()];
-	regs.count = returnRegs.GetValue().size();
-	for (size_t i = 0; i < regs.count; i++)
-		regs.regs[i] = returnRegs.GetValue()[i];
-	regs.confidence = returnRegs.GetConfidence();
-	BNSetUserFunctionReturnRegisters(m_object, &regs);
-	delete[] regs.regs;
+	BNReturnValue ret = rv.ToAPIObject();
+	BNSetUserFunctionReturnValue(m_object, &ret);
+	ReturnValue::FreeAPIObject(&ret);
+}
+
+
+void Function::SetIsReturnValueDefaultLocation(bool defaultLocation)
+{
+	BNSetUserIsFunctionReturnValueDefaultLocation(m_object, defaultLocation);
+}
+
+
+void Function::SetReturnValueLocation(const Confidence<ValueLocation>& location)
+{
+	BNValueLocationWithConfidence loc;
+	loc.location = location->ToAPIObject();
+	loc.confidence = location.GetConfidence();
+	BNSetUserFunctionReturnValueLocation(m_object, &loc);
+	ValueLocation::FreeAPIObject(&loc.location);
 }
 
 
@@ -968,22 +1050,21 @@ void Function::SetCallingConvention(const Confidence<Ref<CallingConvention>>& co
 }
 
 
-void Function::SetParameterVariables(const Confidence<vector<Variable>>& vars)
+void Function::SetParameterLocations(const Confidence<std::vector<ValueLocation>>& locations)
 {
-	BNParameterVariablesWithConfidence varConf;
-	varConf.vars = new BNVariable[vars->size()];
-	varConf.count = vars->size();
+	BNValueLocationListWithConfidence varConf;
+	varConf.locations = new BNValueLocation[locations->size()];
+	varConf.count = locations->size();
 	size_t i = 0;
-	for (auto it = vars->begin(); it != vars->end(); ++it, ++i)
-	{
-		varConf.vars[i].type = it->type;
-		varConf.vars[i].index = it->index;
-		varConf.vars[i].storage = it->storage;
-	}
-	varConf.confidence = vars.GetConfidence();
+	for (auto it = locations->begin(); it != locations->end(); ++it, ++i)
+		varConf.locations[i] = it->ToAPIObject();
+	varConf.confidence = locations.GetConfidence();
 
-	BNSetUserFunctionParameterVariables(m_object, &varConf);
-	delete[] varConf.vars;
+	BNSetUserFunctionParameterLocations(m_object, &varConf);
+
+	for (i = 0; i < locations->size(); i++)
+		ValueLocation::FreeAPIObject(&varConf.locations[i]);
+	delete[] varConf.locations;
 }
 
 

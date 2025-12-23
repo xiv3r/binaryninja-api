@@ -401,7 +401,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		result = core.BNGetPlatformDefaultCallingConvention(self.handle)
 		if result is None:
 			return None
-		return callingconvention.CallingConvention(handle=result)
+		return callingconvention.CoreCallingConvention(handle=result)
 
 	@default_calling_convention.setter
 	def default_calling_convention(self, value):
@@ -415,7 +415,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		result = core.BNGetPlatformCdeclCallingConvention(self.handle)
 		if result is None:
 			return None
-		return callingconvention.CallingConvention(handle=result)
+		return callingconvention.CoreCallingConvention(handle=result)
 
 	@cdecl_calling_convention.setter
 	def cdecl_calling_convention(self, value):
@@ -432,7 +432,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		result = core.BNGetPlatformStdcallCallingConvention(self.handle)
 		if result is None:
 			return None
-		return callingconvention.CallingConvention(handle=result)
+		return callingconvention.CoreCallingConvention(handle=result)
 
 	@stdcall_calling_convention.setter
 	def stdcall_calling_convention(self, value):
@@ -449,7 +449,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		result = core.BNGetPlatformFastcallCallingConvention(self.handle)
 		if result is None:
 			return None
-		return callingconvention.CallingConvention(handle=result)
+		return callingconvention.CoreCallingConvention(handle=result)
 
 	@fastcall_calling_convention.setter
 	def fastcall_calling_convention(self, value):
@@ -466,7 +466,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		result = core.BNGetPlatformSystemCallConvention(self.handle)
 		if result is None:
 			return None
-		return callingconvention.CallingConvention(handle=result)
+		return callingconvention.CoreCallingConvention(handle=result)
 
 	@system_call_convention.setter
 	def system_call_convention(self, value):
@@ -488,7 +488,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		assert cc is not None, "core.BNGetPlatformCallingConventions returned None"
 		result = []
 		for i in range(0, count.value):
-			result.append(callingconvention.CallingConvention(handle=core.BNNewCallingConventionReference(cc[i])))
+			result.append(callingconvention.CoreCallingConvention(handle=core.BNNewCallingConventionReference(cc[i])))
 		core.BNFreeCallingConventionList(cc, count.value)
 		return result
 

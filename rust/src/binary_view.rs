@@ -51,8 +51,9 @@ use crate::string::*;
 use crate::symbol::{Symbol, SymbolType};
 use crate::tags::{Tag, TagReference, TagType};
 use crate::types::{
-    NamedTypeReference, QualifiedName, QualifiedNameAndType, QualifiedNameTypeAndId, Type,
-    TypeArchive, TypeArchiveId, TypeContainer, TypeLibrary,
+    FunctionParameter, NamedTypeReference, QualifiedName, QualifiedNameAndType,
+    QualifiedNameTypeAndId, ReturnValue, Type, TypeArchive, TypeArchiveId, TypeContainer,
+    TypeLibrary,
 };
 use crate::variable::DataVariable;
 use crate::workflow::Workflow;
@@ -2963,6 +2964,36 @@ impl BinaryView {
         }
         let path_str = unsafe { BnString::into_string(result) };
         Some(PathBuf::from(path_str))
+    }
+
+    pub fn deref_return_value_named_type_references(
+        &self,
+        return_value: &ReturnValue,
+    ) -> ReturnValue {
+        ReturnValue {
+            ty: Conf::new(
+                return_value.ty.contents.deref_named_type_reference(self),
+                return_value.ty.confidence,
+            ),
+            location: return_value.location.clone(),
+        }
+    }
+
+    pub fn deref_parameter_named_type_references(
+        &self,
+        params: &[FunctionParameter],
+    ) -> Vec<FunctionParameter> {
+        params
+            .iter()
+            .map(|param| FunctionParameter {
+                ty: Conf::new(
+                    param.ty.contents.deref_named_type_reference(self),
+                    param.ty.confidence,
+                ),
+                name: param.name.clone(),
+                location: param.location.clone(),
+            })
+            .collect()
     }
 }
 

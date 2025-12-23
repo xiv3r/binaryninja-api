@@ -27,6 +27,7 @@ import binaryninja
 from . import _binaryninjacore as core
 from . import databuffer
 from . import decorators
+from . import types
 from .enums import RegisterValueType, VariableSourceType, DeadStoreElimination, FunctionGraphType, BuiltinType
 
 FunctionOrILFunction = Union["binaryninja.function.Function", "binaryninja.lowlevelil.LowLevelILFunction",
@@ -111,6 +112,10 @@ class RegisterValue:
 			return ConstantPointerRegisterValue(reg_value.value, confidence=confidence)
 		elif reg_value.state == RegisterValueType.StackFrameOffset:
 			return StackFrameOffsetRegisterValue(reg_value.value, confidence=confidence)
+		elif reg_value.state == RegisterValueType.ResultPointerValue:
+			return ResultPointerRegisterValue(reg_value.value, confidence=confidence)
+		elif reg_value.state == RegisterValueType.ParameterPointerValue:
+			return ParameterPointerRegisterValue(reg_value.value, reg_value.offset, confidence=confidence)
 		elif reg_value.state == RegisterValueType.ImportedAddressValue:
 			return ImportedAddressRegisterValue(reg_value.value, confidence=confidence)
 		elif reg_value.state == RegisterValueType.UndeterminedValue:
@@ -194,6 +199,23 @@ class StackFrameOffsetRegisterValue(RegisterValue):
 
 	def __repr__(self):
 		return f"<stack frame offset {self.value:#x}>"
+
+
+@dataclass(frozen=True, eq=False)
+class ResultPointerRegisterValue(RegisterValue):
+	offset: int = 0
+	type: RegisterValueType = RegisterValueType.ResultPointerValue
+
+	def __repr__(self):
+		return f"<result ptr offset {self.value:#x}>"
+
+@dataclass(frozen=True, eq=False)
+class ParameterPointerRegisterValue(RegisterValue):
+	offset: int = 0
+	type: RegisterValueType = RegisterValueType.ParameterPointerValue
+
+	def __repr__(self):
+		return f"<parameter {self.value} ptr offset {self.offset:#x}>"
 
 
 @dataclass(frozen=True, eq=False)
@@ -287,6 +309,11 @@ class PossibleValueSet:
 			self._value = value.value
 		elif value.state == RegisterValueType.StackFrameOffset:
 			self._offset = value.value
+		elif value.state == RegisterValueType.ResultPointerValue:
+			self._offset = value.value
+		elif value.state == RegisterValueType.ParameterPointerValue:
+			self._value = value.value
+			self._offset = value.offset
 		elif value.state & RegisterValueType.ConstantDataValue == RegisterValueType.ConstantDataValue:
 			self._value = value.value
 			self._size = value.size
@@ -334,6 +361,10 @@ class PossibleValueSet:
 			return f"<const ptr {self.value:#x}>"
 		if self._type == RegisterValueType.StackFrameOffset:
 			return f"<stack frame offset {self._offset:#x}>"
+		if self._type == RegisterValueType.ResultPointerValue:
+			return f"<result ptr offset {self._offset:#x}>"
+		if self._type == RegisterValueType.ParameterPointerValue:
+			return f"<parameter {self._value} ptr offset {self._offset:#x}>"
 		if self._type == RegisterValueType.ConstantDataZeroExtendValue:
 			return f"<const data {{zx.{self._size}({self.value:#x})}}>"
 		if self._type == RegisterValueType.ConstantDataSignExtendValue:
@@ -364,7 +395,7 @@ class PossibleValueSet:
 		if not isinstance(other, int):
 			return NotImplemented
 		#Initial implementation only checks numbers, no set logic
-		if self.type == RegisterValueType.StackFrameOffset:
+		if self.type in [RegisterValueType.StackFrameOffset, RegisterValueType.ResultPointerValue, RegisterValueType.ParameterPointerValue]:
 			return NotImplemented
 		if self.type in [RegisterValueType.SignedRangeValue, RegisterValueType.UnsignedRangeValue]:
 			for rng in self.ranges:
@@ -395,6 +426,10 @@ class PossibleValueSet:
 			return self.value == other.value
 		elif self.type == RegisterValueType.StackFrameOffset:
 			return self.offset == other.offset
+		elif self.type == RegisterValueType.ResultPointerValue:
+			return self.offset == other.offset
+		elif self.type == RegisterValueType.ParameterPointerValue:
+			return self.value == other.value and self.offset == other.offset
 		elif self.type & RegisterValueType.ConstantDataValue == RegisterValueType.ConstantDataValue:
 			return self.value == other.value and self._size == other._size
 		elif self.type in [RegisterValueType.SignedRangeValue, RegisterValueType.UnsignedRangeValue]:
@@ -422,6 +457,11 @@ class PossibleValueSet:
 		elif self.type == RegisterValueType.ConstantPointerValue:
 			result.value = self.value
 		elif self.type == RegisterValueType.StackFrameOffset:
+			result.offset = self.offset
+		elif self.type == RegisterValueType.ResultPointerValue:
+			result.value = self.offset
+		elif self.type == RegisterValueType.ParameterPointerValue:
+			result.value = self.value
 			result.offset = self.offset
 		elif self.type & RegisterValueType.ConstantDataValue == RegisterValueType.ConstantDataValue:
 			result.value = self.value
@@ -555,6 +595,39 @@ class PossibleValueSet:
 		"""
 		result = PossibleValueSet()
 		result._type = RegisterValueType.StackFrameOffset
+		result._offset = offset
+		return result
+
+	@staticmethod
+	def result_pointer(offset: int) -> 'PossibleValueSet':
+		"""
+		Create a PossibleValueSet object for a pointer to the return value when the return value
+		is stored at an unknown location in memory. This is typically used for calling conventions
+		that pass in a pointer to the storage location for the return value.
+
+		:param int offset: Integer value of the offset
+		:rtype: PossibleValueSet
+		"""
+		result = PossibleValueSet()
+		result._type = RegisterValueType.ResultPointerValue
+		result._value = offset
+		return result
+
+	@staticmethod
+	def parameter_pointer(idx: int, offset: int) -> 'PossibleValueSet':
+		"""
+		Create a PossibleValueSet object for a pointer to a parameter when the parameter is
+		stored at an unknown location in memory. This is typically used for calling conventions
+		that pass in a pointer to the storage location for parameters (usually larger than
+		can be held in a register).
+
+		:param int idx: Index of the parameter
+		:param int offset: Integer value of the offset
+		:rtype: PossibleValueSet
+		"""
+		result = PossibleValueSet()
+		result._type = RegisterValueType.ParameterPointerValue
+		result._value = idx
 		result._offset = offset
 		return result
 
@@ -846,6 +919,18 @@ class CoreVariable:
 		var = core.BNFromVariableIdentifier(identifier)
 		return cls(var.type, var.index, var.storage)
 
+	@classmethod
+	def reg(cls, reg: int):
+		return cls(VariableSourceType.RegisterVariableSourceType, 0, int(reg))
+
+	@classmethod
+	def flag(cls, flag: int):
+		return cls(VariableSourceType.FlagVariableSourceType, 0, int(flag))
+
+	@classmethod
+	def stack_offset(cls, offset: int):
+		return cls(VariableSourceType.StackVariableSourceType, 0, int(offset))
+
 
 @dataclass(frozen=True, order=True)
 class VariableNameAndType(CoreVariable):
@@ -870,6 +955,110 @@ class VariableNameAndType(CoreVariable):
 	@classmethod
 	def from_core_variable(cls, var, name, type):
 		return cls(var.type, var.index, var.storage, name, type)
+
+
+class ArchitectureVariable(CoreVariable):
+	"""
+	``class ArchitectureVariable`` is a wrapper around :py:meth:`CoreVariable` that
+	is bound to an architecture (for register/flag naming) but not a function. This
+	is typically used in calling conventions for specifying value locations. Calling
+	conventions can be used outside functions to resolve type information, so only
+	an architecture is required.
+	"""
+	def __init__(
+		self, arch: 'binaryninja.architecture.Architecture', source_type: VariableSourceType, index: int,
+		storage: int
+	):
+		super(ArchitectureVariable, self).__init__(int(source_type), index, storage)
+		self._arch = arch
+
+	@property
+	def arch(self) -> 'binaryninja.architecture.Architecture':
+		return self._arch
+
+	@classmethod
+	def reg(cls, arch: 'binaryninja.architecture.Architecture', reg: Union[str, int]):
+		if isinstance(reg, str):
+			if reg not in arch.regs:
+				raise ValueError(f"Invalid register name: {reg}")
+			reg = arch.regs[reg].index
+		return cls(arch, VariableSourceType.RegisterVariableSourceType, 0, int(reg))
+
+	@classmethod
+	def flag(cls, arch: 'binaryninja.architecture.Architecture', flag: Union[str, int]):
+		if isinstance(flag, str):
+			flag = arch.get_flag_by_name(flag)
+		return cls(arch, VariableSourceType.FlagVariableSourceType, 0, int(flag))
+
+	@classmethod
+	def stack_offset(cls, arch: 'binaryninja.architecture.Architecture', offset: int):
+		return cls(arch, VariableSourceType.StackVariableSourceType, 0, int(offset))
+
+	@property
+	def name(self) -> str:
+		if self.source_type == VariableSourceType.RegisterVariableSourceType:
+			return str(self._arch.get_reg_name(binaryninja.architecture.RegisterIndex(self.storage)))
+		if self.source_type == VariableSourceType.FlagVariableSourceType:
+			return str(self._arch.get_flag_name(binaryninja.architecture.FlagIndex(self.storage)))
+		return hex(self.storage)
+
+	@classmethod
+	def from_core_variable(cls, arch: 'binaryninja.architecture.Architecture', var: CoreVariable):
+		return cls(arch, var.source_type, var.index, var.storage)
+
+	@classmethod
+	def from_BNVariable(cls, arch: 'binaryninja.architecture.Architecture', var: core.BNVariable):
+		return cls(arch, var.type, var.index, var.storage)
+
+	@classmethod
+	def from_identifier(cls, arch: 'binaryninja.architecture.Architecture', identifier: int):
+		var = core.BNFromVariableIdentifier(identifier)
+		return cls(arch, VariableSourceType(var.type), var.index, var.storage)
+
+	def _sort_key(self):
+		if self._arch is None:
+			arch_key = ""
+		else:
+			arch_key = self._arch.name
+		return arch_key, self._source_type, self.index, self.storage
+
+	def __repr__(self):
+		if self.source_type == VariableSourceType.StackVariableSourceType:
+			return f"<var @ stack offset {self.storage:#x}>"
+		return f"<var @ {self.name}>"
+
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return NotImplemented
+		return super().__eq__(other) and (self._arch == other._arch)
+
+	def __ne__(self, other):
+		if not isinstance(other, self.__class__):
+			return NotImplemented
+		return not (self == other)
+
+	def __lt__(self, other):
+		if not isinstance(other, self.__class__):
+			return NotImplemented
+		return self._sort_key() < other._sort_key()
+
+	def __gt__(self, other):
+		if not isinstance(other, self.__class__):
+			return NotImplemented
+		return self._sort_key() > other._sort_key()
+
+	def __le__(self, other):
+		if not isinstance(other, self.__class__):
+			return NotImplemented
+		return self._sort_key() <= other._sort_key()
+
+	def __ge__(self, other):
+		if not isinstance(other, self.__class__):
+			return NotImplemented
+		return self._sort_key() >= other._sort_key()
+
+	def __hash__(self):
+		return hash((self._arch, super().__hash__()))
 
 
 class Variable(CoreVariable):
@@ -1141,6 +1330,53 @@ class ParameterVariables:
 	@property
 	def vars(self) -> List['Variable']:
 		return self._vars
+
+	@property
+	def confidence(self) -> int:
+		return self._confidence
+
+	@property
+	def function(self) -> Optional['binaryninja.function.Function']:
+		return self._func
+
+
+@decorators.passive
+class ParameterLocations:
+	def __init__(
+		self, location_list: List['types.ValueLocation'], confidence: int = core.max_confidence,
+		func: Optional['binaryninja.function.Function'] = None
+	):
+		self._locations = location_list
+		self._confidence = confidence
+		self._func = func
+
+	def __repr__(self):
+		return f"<ParameterLocations: {str(self._locations)}>"
+
+	def __len__(self):
+		return len(self._vars)
+
+	def __iter__(self) -> Generator['types.ValueLocation', None, None]:
+		for location in self._locations:
+			yield location
+
+	def __eq__(self, other) -> bool:
+		return (self._locations, self._confidence, self._func) == (other._locations, other._confidence, other._func)
+
+	def __getitem__(self, idx) -> 'types.ValueLocation':
+		return self._locations[idx]
+
+	def __setitem__(self, idx: int, value: 'types.ValueLocation'):
+		self._locations[idx] = value
+		if self._func is not None:
+			self._func.parameter_locations = self
+
+	def with_confidence(self, confidence: int) -> 'ParameterLocations':
+		return ParameterLocations(list(self._locations), confidence, self._func)
+
+	@property
+	def locations(self) -> List['types.ValueLocation']:
+		return self._locations
 
 	@property
 	def confidence(self) -> int:

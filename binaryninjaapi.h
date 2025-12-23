@@ -5520,6 +5520,8 @@ namespace BinaryNinja {
 	class TypeArchive;
 	class MemoryMap;
 	struct HighLevelILInstruction;
+	struct FunctionParameter;
+	struct ReturnValue;
 
 	class QueryMetadataException : public ExceptionWithStackTrace
 	{
@@ -8253,6 +8255,9 @@ namespace BinaryNinja {
 		void SetUserGlobalPointerValue(const Confidence<RegisterValue>& value);
 
 		std::optional<std::pair<std::string, BNStringType>> StringifyUnicodeData(Architecture* arch, const DataBuffer& buffer, bool nullTerminates = true, bool allowShortStrings = false);
+
+		std::vector<FunctionParameter> DerefParameterNamedTypeRefs(const std::vector<FunctionParameter>& params);
+		ReturnValue DerefReturnValueNamedTypeRefs(const ReturnValue& returnValue);
 	};
 
 	/*! MemoryMap provides access to the system-level memory map describing how a BinaryView is loaded into memory.
@@ -10591,6 +10596,10 @@ namespace BinaryNinja {
 
 		uint64_t ToIdentifier() const;
 		static Variable FromIdentifier(uint64_t id);
+
+		static Variable Register(uint32_t reg);
+		static Variable Flag(uint32_t flag);
+		static Variable StackOffset(int64_t offset);
 	};
 
 	struct VariableReferenceSource
@@ -10599,21 +10608,105 @@ namespace BinaryNinja {
 		ILReferenceSource source;
 	};
 
+	struct ValueLocationComponent
+	{
+		Variable variable;
+		int64_t offset = 0;
+		std::optional<uint64_t> size;
+
+		ValueLocationComponent() = default;
+		ValueLocationComponent(Variable var, int64_t ofs = 0, std::optional<uint64_t> sz = std::nullopt) :
+			variable(var), offset(ofs), size(sz)
+		{}
+
+		ValueLocationComponent RemapVariables(const std::function<Variable(Variable)>& remap) const;
+
+		bool operator==(const ValueLocationComponent& component) const;
+		bool operator!=(const ValueLocationComponent& component) const;
+
+		static ValueLocationComponent FromAPIObject(const BNValueLocationComponent* loc);
+		BNValueLocationComponent ToAPIObject() const;
+
+		std::string ToString(Architecture* arch) const;
+	};
+
+	struct ValueLocation
+	{
+		std::vector<ValueLocationComponent> components;
+		bool indirect = false;
+		std::optional<Variable> returnedPointer;
+
+		ValueLocation() {}
+		ValueLocation(Variable var, bool indir = false, std::optional<Variable> retPtr = std::nullopt) :
+			components {var}, indirect(indir), returnedPointer(retPtr)
+		{}
+		ValueLocation(const std::vector<ValueLocationComponent>& components, bool indir = false,
+			std::optional<Variable> retPtr = std::nullopt) :
+			components(components), indirect(indir), returnedPointer(retPtr)
+		{}
+		ValueLocation(std::vector<ValueLocationComponent>&& components, bool indir = false,
+			std::optional<Variable> retPtr = std::nullopt) :
+			components(std::move(components)), indirect(indir), returnedPointer(retPtr)
+		{}
+
+		std::optional<Variable> GetVariableForReturnValue() const;
+		std::optional<Variable> GetVariableForParameter(size_t idx) const;
+		ValueLocation RemapVariables(const std::function<Variable(Variable)>& remap) const;
+		void ForEachVariable(const std::function<void(Variable var, bool indirect)>& func) const;
+		bool ContainsVariable(Variable var) const;
+		bool IsValid() const { return !components.empty(); }
+
+		bool operator==(const ValueLocation& loc) const;
+		bool operator!=(const ValueLocation& loc) const;
+
+		static ValueLocation FromAPIObject(const BNValueLocation* loc);
+		BNValueLocation ToAPIObject() const;
+		static void FreeAPIObject(BNValueLocation* loc);
+
+		static std::optional<ValueLocation> Parse(const std::string& str, Architecture* arch, std::string& error);
+		std::string ToString(Architecture* arch) const;
+	};
+
 	struct FunctionParameter
 	{
 		std::string name;
 		Confidence<Ref<Type>> type;
-		bool defaultLocation;
-		Variable location;
+		BNValueLocationSource locationSource;
+		ValueLocation location;
 
 		FunctionParameter() = default;
-		FunctionParameter(const std::string& name, Confidence<Ref<Type>> type): name(name), type(type), defaultLocation(true)
+		FunctionParameter(const std::string& name, Confidence<Ref<Type>> type): name(name), type(type), locationSource(DefaultLocationSource)
 		{}
 
-		FunctionParameter(const std::string& name, const Confidence<Ref<Type>>& type, bool defaultLocation,
-		    const Variable& location):
-		    name(name), type(type), defaultLocation(defaultLocation), location(location)
+		FunctionParameter(const std::string& name, const Confidence<Ref<Type>>& type, BNValueLocationSource source,
+		    const ValueLocation& location) :
+		    name(name), type(type), locationSource(source), location(location)
 		{}
+
+		static FunctionParameter FromAPIObject(const BNFunctionParameter* param);
+		BNFunctionParameter ToAPIObject() const;
+		static void FreeAPIObject(BNFunctionParameter* param);
+	};
+
+	struct ReturnValue
+	{
+		Confidence<Ref<Type>> type;
+		bool defaultLocation = true;
+		Confidence<ValueLocation> location;
+
+		ReturnValue(Type* ty) : type(ty) {}
+		ReturnValue(Ref<Type> ty) : type(ty) {}
+		ReturnValue(const Confidence<Ref<Type>>& ty) : type(ty) {}
+		ReturnValue(const Confidence<Ref<Type>>& ty, bool defaultLoc, const Confidence<ValueLocation>& loc) :
+			type(ty), defaultLocation(defaultLoc), location(loc) {};
+		ReturnValue() = default;
+
+		bool operator==(const ReturnValue& nt) const;
+		bool operator!=(const ReturnValue& nt) const;
+
+		static ReturnValue FromAPIObject(const BNReturnValue* returnValue);
+		BNReturnValue ToAPIObject() const;
+		static void FreeAPIObject(BNReturnValue* returnValue);
 	};
 
 	class FieldResolutionInfo : public CoreRefCountObject<BNFieldResolutionInfo, BNNewFieldResolutionInfoReference, BNFreeFieldResolutionInfo>
@@ -10762,6 +10855,22 @@ namespace BinaryNinja {
 		    \return The child type
 		*/
 		Confidence<Ref<Type>> GetChildType() const;
+
+		/*! Get the return value type and location for this Type if one exists
+
+		    \return The return value type and location
+		*/
+		ReturnValue GetReturnValue() const;
+
+		/*! Whether the return value is in the default location
+		 */
+		bool IsReturnValueDefaultLocation() const;
+
+		/*! Get the return value location for this Type
+
+		    \return The return value location
+		*/
+		Confidence<ValueLocation> GetReturnValueLocation() const;
 
 		/*! For Function Types, get the calling convention
 
@@ -11012,14 +11121,14 @@ namespace BinaryNinja {
 		    auto functionType = Type::FunctionType(retType, cc, params);
 		    \endcode
 
-			\param returnValue Return value Type
+			\param returnValue Return value type and location
 			\param callingConvention Calling convention for the function
 			\param params list of FunctionParameter s
 			\param varArg Whether this function has variadic arguments, default false
 			\param stackAdjust Stack adjustment for this function, default 0
 			\return The created function types
 		*/
-		static Ref<Type> FunctionType(const Confidence<Ref<Type>>& returnValue,
+		static Ref<Type> FunctionType(const ReturnValue& returnValue,
 		    const Confidence<Ref<CallingConvention>>& callingConvention, const std::vector<FunctionParameter>& params,
 		    const Confidence<bool>& varArg = Confidence<bool>(false, 0),
 		    const Confidence<int64_t>& stackAdjust = Confidence<int64_t>(0, 0));
@@ -11040,23 +11149,21 @@ namespace BinaryNinja {
 		    auto functionType = Type::FunctionType(retType, cc, params);
 		    \endcode
 
-			\param returnValue Return value Type
+			\param returnValue Return value type and location
 			\param callingConvention Calling convention for the function
 			\param params list of FunctionParameters
 			\param varArg Whether this function has variadic arguments, default false
 			\param stackAdjust Stack adjustment for this function, default 0
-		 	\param regStackAdjust Register stack adjustmemt
-		 	\param returnRegs Return registers
+			\param regStackAdjust Register stack adjustmemt
 			\return The created function types
 		*/
-		static Ref<Type> FunctionType(const Confidence<Ref<Type>>& returnValue,
+		static Ref<Type> FunctionType(const ReturnValue& returnValue,
 		    const Confidence<Ref<CallingConvention>>& callingConvention,
 		    const std::vector<FunctionParameter>& params,
 		    const Confidence<bool>& hasVariableArguments,
 		    const Confidence<bool>& canReturn,
 		    const Confidence<int64_t>& stackAdjust,
 		    const std::map<uint32_t, Confidence<int32_t>>& regStackAdjust = std::map<uint32_t, Confidence<int32_t>>(),
-		    const Confidence<std::vector<uint32_t>>& returnRegs = Confidence<std::vector<uint32_t>>(std::vector<uint32_t>(), 0),
 		    BNNameType ft = NoNameType,
 		    const Confidence<bool>& pure = Confidence<bool>(false, 0));
 		static Ref<Type> VarArgsType();
@@ -11253,6 +11360,9 @@ namespace BinaryNinja {
 		void SetIntegerTypeDisplayType(BNIntegerDisplayType displayType);
 
 		Confidence<Ref<Type>> GetChildType() const;
+		ReturnValue GetReturnValue() const;
+		bool IsReturnValueDefaultLocation() const;
+		Confidence<ValueLocation> GetReturnValueLocation() const;
 		Confidence<Ref<CallingConvention>> GetCallingConvention() const;
 		BNCallingConventionName GetCallingConventionName() const;
 		std::vector<FunctionParameter> GetParameters() const;
@@ -11272,6 +11382,9 @@ namespace BinaryNinja {
 		TypeBuilder& SetConst(const Confidence<bool>& cnst);
 		TypeBuilder& SetVolatile(const Confidence<bool>& vltl);
 		TypeBuilder& SetChildType(const Confidence<Ref<Type>>& child);
+		TypeBuilder& SetReturnValue(const ReturnValue& rv);
+		TypeBuilder& SetIsReturnValueDefaultLocation(bool defaultLocation);
+		TypeBuilder& SetReturnValueLocation(const Confidence<ValueLocation>& location);
 		TypeBuilder& SetCallingConvention(const Confidence<Ref<CallingConvention>>& cc);
 		TypeBuilder& SetCallingConventionName(BNCallingConventionName cc);
 		TypeBuilder& SetSigned(const Confidence<bool>& vltl);
@@ -11367,18 +11480,17 @@ namespace BinaryNinja {
 			uint64_t originalFragmentOffsetBytes, size_t originalFragmentWidthBytes, BNEndianness endianness,
 			size_t fragmentStartBit, size_t fragmentWidthBits, size_t fragmentTruncatedStartBits, size_t wrapBit = 0);
 		static TypeBuilder ArrayType(const Confidence<Ref<Type>>& type, uint64_t elem);
-		static TypeBuilder FunctionType(const Confidence<Ref<Type>>& returnValue,
+		static TypeBuilder FunctionType(const ReturnValue& returnValue,
 		    const Confidence<Ref<CallingConvention>>& callingConvention, const std::vector<FunctionParameter>& params,
 		    const Confidence<bool>& varArg = Confidence<bool>(false, 0),
 		    const Confidence<int64_t>& stackAdjust = Confidence<int64_t>(0, 0));
-		static TypeBuilder FunctionType(const Confidence<Ref<Type>>& returnValue,
+		static TypeBuilder FunctionType(const ReturnValue& returnValue,
 		    const Confidence<Ref<CallingConvention>>& callingConvention,
 		    const std::vector<FunctionParameter>& params,
 		    const Confidence<bool>& hasVariableArguments,
 		    const Confidence<bool>& canReturn,
 		    const Confidence<int64_t>& stackAdjust,
 		    const std::map<uint32_t, Confidence<int32_t>>& regStackAdjust = std::map<uint32_t, Confidence<int32_t>>(),
-		    const Confidence<std::vector<uint32_t>>& returnRegs = Confidence<std::vector<uint32_t>>(std::vector<uint32_t>(), 0),
 		    BNNameType ft = NoNameType,
 		    const Confidence<bool>& pure = Confidence<bool>(false, 0));
 		static TypeBuilder VarArgsType();
@@ -13276,9 +13388,13 @@ namespace BinaryNinja {
 
 		Ref<Type> GetType() const;
 		Confidence<Ref<Type>> GetReturnType() const;
+		ReturnValue GetReturnValue() const;
+		bool IsReturnValueDefaultLocation() const;
+		Confidence<ValueLocation> GetReturnValueLocation() const;
 		Confidence<std::vector<uint32_t>> GetReturnRegisters() const;
 		Confidence<Ref<CallingConvention>> GetCallingConvention() const;
 		Confidence<std::vector<Variable>> GetParameterVariables() const;
+		Confidence<std::vector<ValueLocation>> GetParameterLocations() const;
 		Confidence<bool> HasVariableArguments() const;
 		Confidence<int64_t> GetStackAdjustment() const;
 		std::map<uint32_t, Confidence<int32_t>> GetRegisterStackAdjustments() const;
@@ -13286,9 +13402,11 @@ namespace BinaryNinja {
 
 		void SetAutoType(Type* type);
 		void SetAutoReturnType(const Confidence<Ref<Type>>& type);
-		void SetAutoReturnRegisters(const Confidence<std::vector<uint32_t>>& returnRegs);
+		void SetAutoReturnValue(const ReturnValue& rv);
+		void SetAutoIsReturnValueDefaultLocation(bool defaultLocation);
+		void SetAutoReturnValueLocation(const Confidence<ValueLocation>& location);
 		void SetAutoCallingConvention(const Confidence<Ref<CallingConvention>>& convention);
-		void SetAutoParameterVariables(const Confidence<std::vector<Variable>>& vars);
+		void SetAutoParameterLocations(const Confidence<std::vector<ValueLocation>>& locations);
 		void SetAutoHasVariableArguments(const Confidence<bool>& varArgs);
 		void SetAutoCanReturn(const Confidence<bool>& returns);
 		void SetAutoPure(const Confidence<bool>& pure);
@@ -13298,9 +13416,11 @@ namespace BinaryNinja {
 
 		void SetUserType(Type* type);
 		void SetReturnType(const Confidence<Ref<Type>>& type);
-		void SetReturnRegisters(const Confidence<std::vector<uint32_t>>& returnRegs);
+		void SetReturnValue(const ReturnValue& rv);
+		void SetIsReturnValueDefaultLocation(bool defaultLocation);
+		void SetReturnValueLocation(const Confidence<ValueLocation>& location);
 		void SetCallingConvention(const Confidence<Ref<CallingConvention>>& convention);
-		void SetParameterVariables(const Confidence<std::vector<Variable>>& vars);
+		void SetParameterLocations(const Confidence<std::vector<ValueLocation>>& locations);
 		void SetHasVariableArguments(const Confidence<bool>& varArgs);
 		void SetCanReturn(const Confidence<bool>& returns);
 		void SetPure(const Confidence<bool>& pure);
@@ -15696,8 +15816,16 @@ namespace BinaryNinja {
 		ExprId VarSplitSSA(size_t size, const SSAVariable& high, const SSAVariable& low,
 		    const ILSourceLocation& loc = ILSourceLocation());
 		ExprId VarOutputSSA(size_t size, const SSAVariable& dest, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId VarOutputSSAField(size_t size, const Variable& dest, size_t newVersion, size_t prevVersion,
+			uint64_t offset, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId VarOutputAliased(size_t size, const Variable& dest, size_t newMemVersion, size_t prevMemVersion,
+			const ILSourceLocation& loc = ILSourceLocation());
+		ExprId VarOutputAliasedField(size_t size, const Variable& dest, size_t newMemVersion, size_t prevMemVersion,
+			uint64_t offset, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId AddressOf(const Variable& var, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId AddressOfField(const Variable& var, uint64_t offset, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId PassByRef(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId ReturnByRef(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId Const(size_t size, uint64_t val, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ConstPointer(size_t size, uint64_t val, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ExternPointer(
@@ -15783,6 +15911,9 @@ namespace BinaryNinja {
 		ExprId SeparateParamList(const std::vector<ExprId>& params, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId SharedParamSlot(const std::vector<ExprId>& params, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId VarOutput(size_t size, const Variable& var, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId VarOutputField(size_t size, const Variable& dest, uint64_t offset,
+			const ILSourceLocation& loc = ILSourceLocation());
+		ExprId StoreOutput(size_t size, ExprId dest, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId Return(const std::vector<ExprId>& sources, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId NoReturn(const ILSourceLocation& loc = ILSourceLocation());
 		ExprId CompareEqual(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
@@ -15849,6 +15980,7 @@ namespace BinaryNinja {
 		    size_t size, ExprId a, ExprId b, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId FloatCompareOrdered(size_t size, ExprId a, ExprId b, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId FloatCompareUnordered(size_t size, ExprId a, ExprId b, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId BlockToExpand(const std::vector<ExprId>& sources, const ILSourceLocation& loc = ILSourceLocation());
 
 		ExprId Goto(BNMediumLevelILLabel& label, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId If(ExprId operand, BNMediumLevelILLabel& t, BNMediumLevelILLabel& f,
@@ -16093,6 +16225,8 @@ namespace BinaryNinja {
 		ExprId DerefFieldSSA(size_t size, ExprId src, size_t srcMemVersion, uint64_t offset, size_t memberIndex,
 		    const ILSourceLocation& loc = ILSourceLocation());
 		ExprId AddressOf(ExprId src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId PassByRef(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId ReturnByRef(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId Const(size_t size, uint64_t val, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ConstPointer(size_t size, uint64_t val, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ExternPointer(
@@ -17795,7 +17929,22 @@ namespace BinaryNinja {
 	};
 
 	/*!
-		\ingroup callingconvention
+	    \ingroup callingconvention
+	*/
+	struct CallLayout
+	{
+		std::vector<ValueLocation> parameters;
+		std::optional<ValueLocation> returnValue;
+		int64_t stackAdjustment = 0;
+		std::map<uint32_t, int32_t> registerStackAdjustments;
+
+		static CallLayout FromAPIObject(BNCallLayout* layout);
+		BNCallLayout ToAPIObject() const;
+		static void FreeAPIObject(BNCallLayout* layout);
+	};
+
+	/*!
+	    \ingroup callingconvention
 	*/
 	class CallingConvention :
 	    public CoreRefCountObject<BNCallingConvention, BNNewCallingConventionReference, BNFreeCallingConvention>
@@ -17835,7 +17984,32 @@ namespace BinaryNinja {
 		static void GetParameterVariableForIncomingVariableCallback(
 		    void* ctxt, const BNVariable* var, BNFunction* func, BNVariable* result);
 
-	  public:
+		static bool IsReturnTypeRegisterCompatibleCallback(void* ctxt, BNBinaryView* view, BNType* type);
+		static void GetIndirectReturnValueLocationCallback(void* ctxt, BNVariable* outVar);
+		static bool GetReturnedIndirectReturnValuePointerCallback(void* ctxt, BNVariable* outVar);
+
+		static bool IsArgumentTypeRegisterCompatibleCallback(void* ctxt, BNBinaryView* view, BNType* type);
+		static bool IsNonRegisterArgumentIndirectCallback(void* ctxt, BNBinaryView* view, BNType* type);
+		static bool AreStackArgumentsNaturallyAlignedCallback(void* ctxt);
+
+		static void GetCallLayoutCallback(void* ctxt, BNBinaryView* view, BNReturnValue* returnValue,
+			BNFunctionParameter* params, size_t paramCount, bool hasPermittedRegs, uint32_t* permittedRegs,
+			size_t permittedRegCount, BNCallLayout* result);
+		static void FreeCallLayoutCallback(void* ctxt, BNCallLayout* layout);
+		static void GetReturnValueLocationCallback(
+			void* ctxt, BNBinaryView* view, BNReturnValue* returnValue, BNValueLocation* outLocation);
+		static void FreeValueLocationCallback(void* ctxt, BNValueLocation* location);
+		static BNValueLocation* GetParameterLocationsCallback(void* ctxt, BNBinaryView* view,
+			BNValueLocation* returnValue, BNFunctionParameter* params, size_t paramCount, bool hasPermittedRegs,
+			uint32_t* permittedRegs, size_t permittedRegCount, size_t* outLocationCount);
+		static void FreeParameterLocationsCallback(void* ctxt, BNValueLocation* locations, size_t count);
+		static int64_t GetStackAdjustmentForLocationsCallback(void* ctxt, BNBinaryView* view,
+			BNValueLocation* returnValue, BNValueLocation* locations, BNType** types, size_t paramCount);
+		static size_t GetRegisterStackAdjustmentsCallback(void* ctxt, BNBinaryView* view, BNValueLocation* returnValue,
+			BNValueLocation* params, size_t paramCount, uint32_t** outRegs, int32_t** outAdjust);
+		static void FreeRegisterStackAdjustmentsCallback(void* ctxt, uint32_t* regs, int32_t* adjust, size_t count);
+
+	public:
 		Ref<Architecture> GetArchitecture() const;
 		std::string GetName() const;
 
@@ -17876,6 +18050,42 @@ namespace BinaryNinja {
 
 		virtual Variable GetIncomingVariableForParameterVariable(const Variable& var, Function* func);
 		virtual Variable GetParameterVariableForIncomingVariable(const Variable& var, Function* func);
+
+		virtual bool IsReturnTypeRegisterCompatible(BinaryView* view, Type* type);
+		bool DefaultIsReturnTypeRegisterCompatible(Type* type);
+		virtual Variable GetIndirectReturnValueLocation();
+		Variable GetDefaultIndirectReturnValueLocation();
+		virtual std::optional<Variable> GetReturnedIndirectReturnValuePointer();
+
+		virtual bool IsArgumentTypeRegisterCompatible(BinaryView* view, Type* type);
+		bool DefaultIsArgumentTypeRegisterCompatible(Type* type);
+		virtual bool IsNonRegisterArgumentIndirect(BinaryView* view, Type* type);
+		virtual bool AreStackArgumentsNaturallyAligned();
+
+		virtual CallLayout GetCallLayout(BinaryView* view, const ReturnValue& returnValue,
+			const std::vector<FunctionParameter>& params,
+			const std::optional<std::set<uint32_t>>& permittedRegs = std::nullopt);
+		virtual ValueLocation GetReturnValueLocation(BinaryView* view, const ReturnValue& returnValue);
+		virtual std::vector<ValueLocation> GetParameterLocations(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<FunctionParameter>& params,
+			const std::optional<std::set<uint32_t>>& permittedRegs = std::nullopt);
+		virtual int64_t GetStackAdjustmentForLocations(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<ValueLocation>& locations,
+			const std::vector<Ref<Type>>& types);
+		virtual std::map<uint32_t, int32_t> GetRegisterStackAdjustments(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<ValueLocation>& params);
+
+		CallLayout GetDefaultCallLayout(BinaryView* view, const ReturnValue& returnValue,
+			const std::vector<FunctionParameter>& params,
+			const std::optional<std::set<uint32_t>>& permittedRegs = std::nullopt);
+		ValueLocation GetDefaultReturnValueLocation(BinaryView* view, const ReturnValue& returnValue);
+		std::vector<ValueLocation> GetDefaultParameterLocations(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<FunctionParameter>& params,
+			const std::optional<std::set<uint32_t>>& permittedRegs = std::nullopt);
+		int64_t GetDefaultStackAdjustmentForLocations(const std::optional<ValueLocation>& returnValue,
+			const std::vector<ValueLocation>& locations, const std::vector<Ref<Type>>& types);
+		std::map<uint32_t, int32_t> GetDefaultRegisterStackAdjustments(
+			const std::optional<ValueLocation>& returnValue, const std::vector<ValueLocation>& params);
 	};
 
 	/*!
@@ -17910,6 +18120,27 @@ namespace BinaryNinja {
 
 		virtual Variable GetIncomingVariableForParameterVariable(const Variable& var, Function* func) override;
 		virtual Variable GetParameterVariableForIncomingVariable(const Variable& var, Function* func) override;
+
+		virtual bool IsReturnTypeRegisterCompatible(BinaryView* view, Type* type) override;
+		virtual Variable GetIndirectReturnValueLocation() override;
+		virtual std::optional<Variable> GetReturnedIndirectReturnValuePointer() override;
+
+		virtual bool IsArgumentTypeRegisterCompatible(BinaryView* view, Type* type) override;
+		virtual bool IsNonRegisterArgumentIndirect(BinaryView* view, Type* type) override;
+		virtual bool AreStackArgumentsNaturallyAligned() override;
+
+		virtual CallLayout GetCallLayout(BinaryView* view, const ReturnValue& returnValue,
+			const std::vector<FunctionParameter>& params,
+			const std::optional<std::set<uint32_t>>& permittedRegs = std::nullopt) override;
+		virtual ValueLocation GetReturnValueLocation(BinaryView* view, const ReturnValue& returnValue) override;
+		virtual std::vector<ValueLocation> GetParameterLocations(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<FunctionParameter>& params,
+			const std::optional<std::set<uint32_t>>& permittedRegs = std::nullopt) override;
+		virtual int64_t GetStackAdjustmentForLocations(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<ValueLocation>& locations,
+			const std::vector<Ref<Type>>& types) override;
+		virtual std::map<uint32_t, int32_t> GetRegisterStackAdjustments(BinaryView* view,
+			const std::optional<ValueLocation>& returnValue, const std::vector<ValueLocation>& params) override;
 	};
 
 	/*!

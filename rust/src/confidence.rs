@@ -3,11 +3,11 @@
 use crate::architecture::{Architecture, CoreArchitecture};
 use crate::calling_convention::CoreCallingConvention;
 use crate::rc::{Ref, RefCountable};
-use crate::types::Type;
+use crate::types::{Type, ValueLocation};
 use binaryninjacore_sys::{
     BNBoolWithConfidence, BNCallingConventionWithConfidence, BNGetCallingConventionArchitecture,
     BNInlineDuringAnalysis, BNInlineDuringAnalysisWithConfidence, BNOffsetWithConfidence,
-    BNTypeWithConfidence,
+    BNTypeWithConfidence, BNValueLocation, BNValueLocationWithConfidence,
 };
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
@@ -222,6 +222,19 @@ impl Conf<Ref<Type>> {
 
     pub(crate) fn free_raw(value: BNTypeWithConfidence) {
         let _ = unsafe { Type::ref_from_raw(value.type_) };
+    }
+}
+
+impl Conf<ValueLocation> {
+    pub(crate) fn into_rust_raw(value: Self) -> BNValueLocationWithConfidence {
+        BNValueLocationWithConfidence {
+            location: ValueLocation::into_rust_raw(&value.contents),
+            confidence: value.confidence,
+        }
+    }
+
+    pub(crate) fn free_rust_raw(value: BNValueLocationWithConfidence) {
+        ValueLocation::free_rust_raw(value.location);
     }
 }
 

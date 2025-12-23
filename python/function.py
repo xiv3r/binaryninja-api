@@ -29,7 +29,7 @@ from . import _binaryninjacore as core
 from .enums import (
 	AnalysisSkipReason, FunctionGraphType, SymbolType, SymbolBinding, InstructionTextTokenType, HighlightStandardColor,
 	HighlightColorStyle, DisassemblyOption, IntegerDisplayType, FunctionAnalysisSkipOverride, FunctionUpdateType,
-	BuiltinType, ExprFolding, EarlyReturn, SwitchRecovery
+	BuiltinType, ExprFolding, EarlyReturn, SwitchRecovery, VariableSourceType
 )
 
 from . import associateddatastore  # Required in the main scope due to being an argument for _FunctionAssociatedDataStore
@@ -1361,8 +1361,49 @@ class Function:
 		core.BNSetUserFunctionReturnType(self.handle, type_conf)
 
 	@property
+	def return_value(self) -> 'types.ReturnValue':
+		"""Return type and location"""
+		ret = core.BNGetFunctionReturnValue(self.handle)
+		result = types.ReturnValue._from_core_struct(ret, self.arch)
+		core.BNFreeReturnValue(ret)
+		return result
+
+	@return_value.setter
+	def return_value(self, value: 'types.ReturnValue') -> None:  # type: ignore
+		ret = value._to_core_struct()
+		core.BNSetUserFunctionReturnValue(self.handle, ret)
+
+	@property
+	def return_value_location(self) -> Optional['types.ValueLocationWithConfidence']:
+		"""
+		The location of the return value, or None if there isn't a return value. If the return value has been
+		specified to be placed in the default location, this will return the default location.
+		"""
+		location = core.BNGetFunctionReturnValueLocation(self.handle)
+		if location.location.count == 0:
+			result = None
+		else:
+			result = types.ValueLocation._from_core_struct(location.location, self.arch).with_confidence(location.confidence)
+		core.BNFreeValueLocation(location.location)
+		return result
+
+	@return_value_location.setter
+	def return_value_location(self, value: 'types.OptionalLocation'):
+		struct = core.BNValueLocationWithConfidence()
+		location = types.ValueLocationWithConfidence.from_optional_location(value)
+		if location is None:
+			struct.location.count = 0
+			struct.confidence = 0
+		else:
+			struct.location = location.location._to_core_struct()
+			struct.confidence = location.confidence
+		core.BNSetUserIsFunctionReturnValueDefaultLocation(self.handle, value is None)
+		if value is not None:
+			core.BNSetUserFunctionReturnValueLocation(self.handle, struct)
+
+	@property
 	def return_regs(self) -> 'types.RegisterSet':
-		"""Registers that are used for the return value"""
+		"""Registers that are used for the return value (read-only)"""
 		result = core.BNGetFunctionReturnRegisters(self.handle)
 		assert result is not None, "core.BNGetFunctionReturnRegisters returned None"
 		try:
@@ -1373,26 +1414,13 @@ class Function:
 		finally:
 			core.BNFreeRegisterSet(result)
 
-	@return_regs.setter
-	def return_regs(self, value: Union['types.RegisterSet', List['architecture.RegisterType']]) -> None:  # type: ignore
-		regs = core.BNRegisterSetWithConfidence()
-		regs.regs = (ctypes.c_uint * len(value))()
-		regs.count = len(value)
-		for i in range(0, len(value)):
-			regs.regs[i] = self.arch.get_reg_index(value[i])
-		if isinstance(value, types.RegisterSet):
-			regs.confidence = value.confidence
-		else:
-			regs.confidence = core.max_confidence
-		core.BNSetUserFunctionReturnRegisters(self.handle, regs)
-
 	@property
 	def calling_convention(self) -> Optional['callingconvention.CallingConvention']:
 		"""Calling convention used by the function"""
 		result = core.BNGetFunctionCallingConvention(self.handle)
 		if not result.convention:
 			return None
-		return callingconvention.CallingConvention(None, handle=result.convention, confidence=result.confidence)
+		return callingconvention.CoreCallingConvention(handle=result.convention, confidence=result.confidence)
 
 	@calling_convention.setter
 	def calling_convention(self, value: Optional['callingconvention.CallingConvention']) -> None:
@@ -1424,20 +1452,60 @@ class Function:
 			var_list = []
 		else:
 			var_list = list(value)
-		var_conf = core.BNParameterVariablesWithConfidence()
-		var_conf.vars = (core.BNVariable * len(var_list))()
-		var_conf.count = len(var_list)
-		for i in range(0, len(var_list)):
-			var_conf.vars[i].type = var_list[i].source_type
-			var_conf.vars[i].index = var_list[i].index
-			var_conf.vars[i].storage = var_list[i].storage
+		locations = []
+		for i in range(len(var_list)):
+			if (var_list[i].source_type != VariableSourceType.RegisterVariableSourceType and
+					var_list[i].source_type != VariableSourceType.StackVariableSourceType and
+					var_list[i].source_type != VariableSourceType.FlagVariableSourceType):
+				raise ValueError(f"Parameter {i} is a composite variable. Use parameter_locations instead.")
+			locations.append(types.ValueLocation([types.ValueLocationComponent(var_list[i])]))
 		if value is None:
-			var_conf.confidence = 0
-		elif isinstance(value, types.RegisterSet):
-			var_conf.confidence = value.confidence
+			conf = 0
+		elif isinstance(value, variable.ParameterVariables):
+			conf = value.confidence
 		else:
-			var_conf.confidence = core.max_confidence
-		core.BNSetUserFunctionParameterVariables(self.handle, var_conf)
+			conf = core.max_confidence
+		self.parameter_locations = variable.ParameterLocations(locations, conf, self)
+
+	@property
+	def parameter_locations(self) -> 'variable.ParameterLocations':
+		"""List of locations for the incoming function parameters"""
+		result = core.BNGetFunctionParameterLocations(self.handle)
+		location_list = []
+		for i in range(0, result.count):
+			location_list.append(types.ValueLocation._from_core_struct(result.locations[i], self.arch))
+		confidence = result.confidence
+		core.BNFreeParameterLocations(result)
+		return variable.ParameterLocations(location_list, confidence, self)
+
+	@parameter_locations.setter
+	def parameter_locations(
+		self, value: Optional[Union[List[Union['types.ValueLocation', 'variable.CoreVariable']],
+			'variable.CoreVariable', 'variable.ParameterLocations']]
+	) -> None:  # type: ignore
+		if value is None:
+			location_list = []
+		elif isinstance(value, variable.CoreVariable):
+			location_list = [value]
+		elif isinstance(value, variable.ParameterLocations):
+			location_list = value.locations
+		else:
+			location_list = list(value)
+		location_conf = core.BNValueLocationListWithConfidence()
+		location_conf.locations = (core.BNValueLocation * len(location_list))()
+		location_conf.count = len(location_list)
+		for i in range(0, len(location_list)):
+			if isinstance(location_list[i], types.ValueLocation):
+				location_conf.locations[i] = location_list[i]._to_core_struct()
+			else:
+				location_conf.locations[i] = types.ValueLocation([types.ValueLocationComponent(location_list[i])])._to_core_struct()
+		if value is None:
+			location_conf.confidence = 0
+		elif isinstance(value, variable.ParameterLocations):
+			location_conf.confidence = value.confidence
+		else:
+			location_conf.confidence = core.max_confidence
+		core.BNSetUserFunctionParameterLocations(self.handle, location_conf)
 
 	@property
 	def has_variable_arguments(self) -> 'types.BoolWithConfidence':
@@ -2477,18 +2545,18 @@ class Function:
 			type_conf.confidence = value.confidence
 		core.BNSetAutoFunctionReturnType(self.handle, type_conf)
 
-	def set_auto_return_regs(self, value: Union['types.RegisterSet', List['architecture.RegisterType']]) -> None:
-		regs = core.BNRegisterSetWithConfidence()
-		regs.regs = (ctypes.c_uint * len(value))()
-		regs.count = len(value)
-
-		for i in range(0, len(value)):
-			regs.regs[i] = self.arch.get_reg_index(value[i])
-		if isinstance(value, types.RegisterSet):
-			regs.confidence = value.confidence
+	def set_auto_return_value_location(self, value: 'types.OptionalLocation'):
+		struct = core.BNValueLocationWithConfidence()
+		location = types.ValueLocationWithConfidence.from_optional_location(value)
+		if location is None:
+			struct.location.count = 0
+			struct.confidence = 0
 		else:
-			regs.confidence = core.max_confidence
-		core.BNSetAutoFunctionReturnRegisters(self.handle, regs)
+			struct.location = location.location._to_core_struct()
+			struct.confidence = location.confidence
+		core.BNSetAutoIsFunctionReturnValueDefaultLocation(self.handle, value is None)
+		if value is not None:
+			core.BNSetAutoFunctionReturnValueLocation(self.handle, struct)
 
 	def set_auto_calling_convention(self, value: 'callingconvention.CallingConvention') -> None:
 		conv_conf = core.BNCallingConventionWithConfidence()
@@ -2501,30 +2569,58 @@ class Function:
 		core.BNSetAutoFunctionCallingConvention(self.handle, conv_conf)
 
 	def set_auto_parameter_vars(
-	    self, value: Optional[Union[List['variable.Variable'], 'variable.Variable', 'variable.ParameterVariables']]
+		self, value: Optional[Union[List['variable.CoreVariable'], 'variable.CoreVariable', 'variable.ParameterVariables']]
 	) -> None:
 		if value is None:
 			var_list = []
-		elif isinstance(value, variable.Variable):
+		elif isinstance(value, variable.CoreVariable):
 			var_list = [value]
 		elif isinstance(value, variable.ParameterVariables):
 			var_list = value.vars
 		else:
 			var_list = list(value)
-		var_conf = core.BNParameterVariablesWithConfidence()
-		var_conf.vars = (core.BNVariable * len(var_list))()
-		var_conf.count = len(var_list)
-		for i in range(0, len(var_list)):
-			var_conf.vars[i].type = var_list[i].source_type
-			var_conf.vars[i].index = var_list[i].index
-			var_conf.vars[i].storage = var_list[i].storage
+		locations = []
+		for i in range(len(var_list)):
+			if (var_list[i].source_type != VariableSourceType.RegisterVariableSourceType and
+					var_list[i].source_type != VariableSourceType.StackVariableSourceType and
+					var_list[i].source_type != VariableSourceType.FlagVariableSourceType):
+				raise ValueError(f"Parameter {i} is a composite variable. Use set_auto_parameter_locations instead.")
+			locations.append(types.ValueLocation([types.ValueLocationComponent(var_list[i])]))
 		if value is None:
-			var_conf.confidence = 0
+			conf = 0
 		elif isinstance(value, variable.ParameterVariables):
-			var_conf.confidence = value.confidence
+			conf = value.confidence
 		else:
-			var_conf.confidence = core.max_confidence
-		core.BNSetAutoFunctionParameterVariables(self.handle, var_conf)
+			conf = core.max_confidence
+		self.set_auto_parameter_locations(variable.ParameterLocations(locations, conf, self))
+
+	def set_auto_parameter_locations(
+	    self, value: Optional[Union[List[Union['variable.CoreVariable', 'types.ValueLocation']],
+			'variable.CoreVariable', 'types.ValueLocation', 'variable.ParameterLocations']]
+	) -> None:
+		if value is None:
+			location_list = []
+		elif isinstance(value, variable.CoreVariable):
+			location_list = [value]
+		elif isinstance(value, variable.ParameterLocations):
+			location_list = value.locations
+		else:
+			location_list = list(value)
+		location_conf = core.BNValueLocationListWithConfidence()
+		location_conf.locations = (core.BNValueLocation * len(location_list))()
+		location_conf.count = len(location_list)
+		for i in range(0, len(location_list)):
+			if isinstance(location_list[i], types.ValueLocation):
+				location_conf.locations[i] = location_list[i]._to_core_struct()
+			else:
+				location_conf.locations[i] = types.ValueLocation([types.ValueLocationComponent(location_list[i])])._to_core_struct()
+		if value is None:
+			location_conf.confidence = 0
+		elif isinstance(value, variable.ParameterVariables):
+			location_conf.confidence = value.confidence
+		else:
+			location_conf.confidence = core.max_confidence
+		core.BNSetAutoFunctionParameterLocations(self.handle, location_conf)
 
 	def set_auto_has_variable_arguments(self, value: Union[bool, 'types.BoolWithConfidence']) -> None:
 		bc = core.BNBoolWithConfidence()

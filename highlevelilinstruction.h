@@ -1498,6 +1498,12 @@ namespace BinaryNinja
 	template <>
 	struct HighLevelILInstructionAccessor<HLIL_FTRUNC> : public HighLevelILOneOperandInstruction
 	{};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_PASS_BY_REF> : public HighLevelILOneOperandInstruction
+	{};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_RETURN_BY_REF> : public HighLevelILOneOperandInstruction
+	{};
 
 #undef _STD_VECTOR
 #undef _STD_SET

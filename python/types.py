@@ -28,7 +28,7 @@ import uuid
 from . import _binaryninjacore as core
 from .enums import (
 	InlineDuringAnalysis, StructureVariant, SymbolType, SymbolBinding, TypeClass, NamedTypeReferenceClass,
-	ReferenceType, VariableSourceType,
+	ReferenceType, VariableSourceType, ValueLocationSource,
 	TypeReferenceType, MemberAccess, MemberScope, TypeDefinitionLineType,
 	TokenEscapingType,
 	NameType, PointerSuffix, PointerBaseType,
@@ -39,6 +39,7 @@ from . import function as _function
 from . import variable
 from . import architecture
 from . import binaryview
+from . import function
 from . import platform as _platform
 from . import typecontainer
 from . import typelibrary
@@ -51,11 +52,13 @@ ParamsType = Union[List['Type'], List['FunctionParameter'], List[Tuple[str, 'Typ
 MembersType = Union[List['StructureMember'], List['Type'], List[Tuple['Type', str]]]
 EnumMembersType = Union[List[Tuple[str, int]], List[str], List['EnumerationMember']]
 SomeType = Union['TypeBuilder', 'Type']
+ReturnValueOrType = Union['TypeBuilder', 'Type', 'ReturnValue']
 TypeContainerType = Union['binaryview.BinaryView', 'typelibrary.TypeLibrary']
 NameSpaceType = Optional[Union[str, List[str], 'NameSpace']]
 TypeParserResult = typeparser.TypeParserResult
 BasicTypeParserResult = typeparser.BasicTypeParserResult
 ResolveMemberCallback = Callable[['NamedTypeReferenceType', 'StructureType', int, int, int, 'StructureMember'], None]
+OptionalLocation = Optional[Union['ValueLocation', 'ValueLocationWithConfidence', 'variable.CoreVariable']]
 # The following are needed to prevent the type checker from getting
 # confused as we have member functions in `Type` named the same thing
 _int = int
@@ -437,22 +440,229 @@ class Symbol(CoreSymbol):
 
 
 @dataclass
+class ValueLocationComponent:
+	var: 'variable.CoreVariable'
+	offset: int = 0
+	size: Optional[int] = None
+
+	@staticmethod
+	def _from_core_struct(struct: core.BNValueLocationComponent, arch: Optional['architecture.Architecture'] = None):
+		if arch is None:
+			var = variable.CoreVariable.from_BNVariable(struct.variable)
+		else:
+			var = variable.ArchitectureVariable.from_BNVariable(arch, struct.variable)
+		offset = struct.offset
+		size = None
+		if struct.sizeValid:
+			size = struct.size
+		return ValueLocationComponent(var, offset, size)
+
+	def _to_core_struct(self) -> core.BNValueLocationComponent:
+		struct = core.BNValueLocationComponent()
+		struct.variable = self.var.to_BNVariable()
+		struct.offset = self.offset
+		struct.sizeValid = self.size is not None
+		if self.size is not None:
+			struct.size = self.size
+		return struct
+
+	def to_string(self, arch: Optional['architecture.Architecture']):
+		if arch is None:
+			if isinstance(self.var, variable.ArchitectureVariable):
+				arch = self.var.arch
+			elif isinstance(self.var, variable.Variable):
+				arch = self.var.function.arch
+		if arch is None:
+			return f"{repr(self.var)} offset {hex(self.offset)} size {repr(self.size)}"
+		struct = self._to_core_struct()
+		return core.BNValueLocationComponentToString(struct, arch.handle)
+
+	def __str__(self):
+		return self.to_string(None)
+
+	def __repr__(self):
+		return f"<component {self.to_string(None)}>"
+
+
+@dataclass
+class ValueLocation:
+	components: List['ValueLocationComponent']
+	indirect: bool = False
+	returned_pointer: Optional['variable.CoreVariable'] = None
+
+	@staticmethod
+	def _from_core_struct(struct: core.BNValueLocation, arch: Optional['architecture.Architecture'] = None):
+		components = []
+		for i in range(struct.count):
+			components.append(ValueLocationComponent._from_core_struct(struct.components[i], arch))
+		indirect = struct.indirect
+		returned_pointer = None
+		if struct.returnedPointerValid:
+			if arch is None:
+				returned_pointer = variable.CoreVariable.from_BNVariable(struct.returnedPointer)
+			else:
+				returned_pointer = variable.ArchitectureVariable.from_BNVariable(arch, struct.returnedPointer)
+		return ValueLocation(components, indirect, returned_pointer)
+
+	def _to_core_struct(self) -> core.BNValueLocation:
+		struct = core.BNValueLocation()
+		struct.count = len(self.components)
+		components = (core.BNValueLocationComponent * len(self.components))()
+		for i in range(len(self.components)):
+			components[i] = self.components[i]._to_core_struct()
+		struct.components = components
+		struct.indirect = self.indirect
+		struct.returnedPointerValid = self.returned_pointer is not None
+		if self.returned_pointer is not None:
+			struct.returnedPointer = self.returned_pointer.to_BNVariable()
+		return struct
+
+	def with_confidence(self, confidence: int) -> 'ValueLocationWithConfidence':
+		return ValueLocationWithConfidence(self, confidence)
+
+	def variable_for_parameter(self, idx: int) -> Optional['variable.CoreVariable']:
+		struct = self._to_core_struct()
+		var = core.BNVariable()
+		if core.BNGetValueLocationVariableForParameter(struct, var, idx):
+			return variable.CoreVariable.from_BNVariable(var)
+		return None
+
+	@staticmethod
+	def parse(string: str, arch: 'architecture.Architecture') -> 'ValueLocation':
+		struct = core.BNValueLocation()
+		error = ctypes.c_char_p()
+		if not core.BNParseValueLocation(string, arch.handle, struct, error):
+			assert error.value is not None, "core.BNParseValueLocation returned 'error' set to None"
+			error_str = error.value.decode("utf-8")
+			core.free_string(error)
+			raise SyntaxError(error_str)
+		result = ValueLocation._from_core_struct(struct, arch)
+		core.BNFreeValueLocation(struct)
+		return result
+
+	def to_string(self, arch: Optional['architecture.Architecture']):
+		if arch is None:
+			for component in self.components:
+				if isinstance(component.var, variable.ArchitectureVariable):
+					arch = component.var.arch
+					break
+				if isinstance(component.var, variable.Variable):
+					arch = component.var.function.arch
+					break
+		if arch is None:
+			if self.indirect:
+				indirect = " indirect"
+			else:
+				indirect = ""
+			if self.returned_pointer is None:
+				ret_ptr = ""
+			else:
+				ret_ptr = f" returned ptr {repr(self.returned_pointer)}"
+			return f"{repr(self.components)}{indirect}{ret_ptr}"
+		struct = self._to_core_struct()
+		return core.BNValueLocationToString(struct, arch.handle)
+
+	def __str__(self):
+		return self.to_string(None)
+
+	def __repr__(self):
+		return f"<value location {self.to_string(None)}>"
+
+
+@dataclass
+class ValueLocationWithConfidence:
+	location: 'ValueLocation'
+	confidence: int = core.max_confidence
+
+	@staticmethod
+	def from_optional_location(location: OptionalLocation) -> Optional['ValueLocationWithConfidence']:
+		if isinstance(location, ValueLocation):
+			return location.with_confidence(core.max_confidence)
+		elif isinstance(location, ValueLocationWithConfidence):
+			return location
+		elif location is not None:
+			return ValueLocation([ValueLocationComponent(location)]).with_confidence(core.max_confidence)
+		return None
+
+	def __repr__(self):
+		return f"<value location {self.location.to_string(None)} confidence {self.confidence}>"
+
+
+@dataclass
+class ReturnValue:
+	type: SomeType
+	location: Optional['ValueLocationWithConfidence']
+
+	def __init__(self, ty: SomeType, location: OptionalLocation = None):
+		self.type = ty.immutable_copy()
+		self.location = ValueLocationWithConfidence.from_optional_location(location)
+
+	@staticmethod
+	def _from_core_struct(struct: core.BNReturnValue, arch: Optional['architecture.Architecture'] = None):
+		ty = Type.from_core_struct(struct.type).with_confidence(struct.typeConfidence)
+		if struct.defaultLocation:
+			location = None
+		else:
+			location = ValueLocation._from_core_struct(struct.location, arch).with_confidence(struct.locationConfidence)
+		return ReturnValue(ty, location)
+
+	def _to_core_struct(self) -> core.BNReturnValue:
+		struct = core.BNReturnValue()
+		ic = self.type.immutable_copy()
+		struct.type = ic.handle
+		struct.typeConfidence = ic.confidence
+		struct.defaultLocation = self.location is None
+		if self.location is None:
+			struct.location.count = 0
+			struct.locationConfidence = 0
+		else:
+			struct.location = self.location.location._to_core_struct()
+			struct.locationConfidence = self.location.confidence
+		return struct
+
+
+@dataclass
 class FunctionParameter:
 	type: SomeType
 	name: str = ""
-	location: Optional['variable.VariableNameAndType'] = None
+	location_source: ValueLocationSource = ValueLocationSource.DefaultLocationSource
+	location: Optional['ValueLocation'] = None
+
+	def __init__(self, type: SomeType, name: str = "", location: OptionalLocation = None, source: Optional['ValueLocationSource'] = None):
+		self.type = type
+		self.name = name
+		location = ValueLocationWithConfidence.from_optional_location(location)
+		if location is not None:
+			self.location = location.location
+			self.location_source = ValueLocationSource.CustomLocationSource
+		else:
+			self.location = None
+			self.location_source = ValueLocationSource.DefaultLocationSource
+		if source is not None:
+			self.location_source = source
 
 	def __repr__(self):
 		ic = self.type.immutable_copy()
-		if (self.location is not None) and (self.location.name != self.name):
-			return f"{ic.get_string_before_name()} {self.name}{ic.get_string_after_name()} @ {self.location.name}"
+		if (self.location is not None) and (str(self.location) != self.name):
+			return f"{ic.get_string_before_name()} {self.name}{ic.get_string_after_name()} @ {self.location}"
 		return f"{ic.get_string_before_name()} {self.name}{ic.get_string_after_name()}"
 
 	def immutable_copy(self) -> 'FunctionParameter':
-		return FunctionParameter(self.type.immutable_copy(), self.name, self.location)
+		return FunctionParameter(self.type.immutable_copy(), self.name, self.location, self.location_source)
 
 	def mutable_copy(self) -> 'FunctionParameter':
-		return FunctionParameter(self.type.mutable_copy(), self.name, self.location)
+		return FunctionParameter(self.type.mutable_copy(), self.name, self.location, self.location_source)
+
+	@staticmethod
+	def _from_core_struct(struct: 'core.BNFunctionParameter', arch: Optional['architecture.Architecture'] = None) -> 'FunctionParameter':
+		name = struct.name
+		ty = Type.from_core_struct(struct.type).with_confidence(struct.typeConfidence)
+		source = ValueLocationSource(struct.locationSource)
+		if source == ValueLocationSource.CustomLocationSource:
+			location = ValueLocation._from_core_struct(struct.location, arch)
+		else:
+			location = None
+		return FunctionParameter(ty, name, location, source)
 
 
 @dataclass(frozen=True)
@@ -760,7 +970,7 @@ class TypeBuilder:
 
 	@staticmethod
 	def function(
-	    ret: Optional[SomeType] = None, params: Optional[ParamsType] = None,
+		ret: Optional[ReturnValueOrType] = None, params: Optional[ParamsType] = None,
 	    calling_convention: Optional['callingconvention.CallingConvention'] = None,
 	    variable_arguments: Optional[BoolWithConfidenceType] = None,
 	    stack_adjust: Optional[OffsetWithConfidenceType] = None
@@ -1231,20 +1441,22 @@ class ArrayBuilder(TypeBuilder):
 class FunctionBuilder(TypeBuilder):
 	@classmethod
 	def create(
-	    cls, return_type: Optional[SomeType] = None,
+	    cls, return_type: Optional[ReturnValueOrType] = None,
 	    calling_convention: Optional['callingconvention.CallingConvention'] = None, params: Optional[ParamsType] = None,
 	    var_args: Optional[BoolWithConfidenceType] = None, stack_adjust: Optional[OffsetWithConfidenceType] = None,
 	    platform: Optional['_platform.Platform'] = None, confidence: int = core.max_confidence,
 	    can_return: Optional[BoolWithConfidence] = None, reg_stack_adjust: Optional[Dict['architecture.RegisterName', OffsetWithConfidenceType]] = None,
-	    return_regs: Optional[Union['RegisterSet', List['architecture.RegisterType']]] = None,
 	    name_type: 'NameType' = NameType.NoNameType,
 	    pure: Optional[BoolWithConfidence] = None
 	) -> 'FunctionBuilder':
 		param_buf, type_list = FunctionBuilder._to_core_struct(params)
 		if return_type is None:
-			ret_conf = Type.void()
+			ret = ReturnValue(Type.void())
+		elif isinstance(return_type, ReturnValue):
+			ret = return_type
 		else:
-			ret_conf = return_type.immutable_copy()
+			ret = ReturnValue(return_type)
+		ret_conf = ret._to_core_struct()
 
 		conv_conf = core.BNCallingConventionWithConfidence()
 		if calling_convention is None:
@@ -1263,18 +1475,6 @@ class FunctionBuilder(TypeBuilder):
 			reg_stack_adjust_regs[i] = reg
 			reg_stack_adjust_values[i].value = adjust.value
 			reg_stack_adjust_values[i].confidence = adjust.confidence
-
-		return_regs_set = core.BNRegisterSetWithConfidence()
-		if return_regs is None or platform is None:
-			return_regs_set.count = 0
-			return_regs_set.confidence = 0
-		else:
-			return_regs_set.count = len(return_regs)
-			return_regs_set.confidence = 255
-			return_regs_set.regs = (ctypes.c_uint32 * len(return_regs))()
-
-			for i, reg in enumerate(return_regs):
-				return_regs_set[i] = platform.arch.get_reg_index(reg)
 
 		if var_args is None:
 			vararg_conf = BoolWithConfidence.get_core_struct(False, 0)
@@ -1298,9 +1498,9 @@ class FunctionBuilder(TypeBuilder):
 		if params is None:
 			params = []
 		handle = core.BNCreateFunctionTypeBuilder(
-		    ret_conf._to_core_struct(), conv_conf, param_buf, len(params), vararg_conf, can_return_conf, stack_adjust_conf,
+		    ret_conf, conv_conf, param_buf, len(params), vararg_conf, can_return_conf, stack_adjust_conf,
 		    reg_stack_adjust_regs, reg_stack_adjust_values, len(reg_stack_adjust),
-		    return_regs_set, name_type, pure_conf
+			name_type, pure_conf
 		)
 		assert handle is not None, "BNCreateFunctionTypeBuilder returned None"
 		return cls(handle, platform, confidence)
@@ -1317,6 +1517,31 @@ class FunctionBuilder(TypeBuilder):
 	def return_value(self, value: SomeType) -> None:
 		self.child = value
 
+	@property
+	def return_value_location(self) -> Optional[ValueLocationWithConfidence]:
+		location = core.BNGetTypeBuilderReturnValueLocation(self._handle)
+		if self.platform is None:
+			arch = None
+		else:
+			arch = self.platform.arch
+		result = ValueLocation._from_core_struct(location.location, arch).with_confidence(location.confidence)
+		core.BNFreeValueLocation(location.location)
+		return result
+
+	@return_value_location.setter
+	def return_value_location(self, value: OptionalLocation):
+		struct = core.BNValueLocationWithConfidence()
+		location = ValueLocationWithConfidence.from_optional_location(value)
+		if location is None:
+			struct.location.count = 0
+			struct.confidence = 0
+		else:
+			struct.location = location.location._to_core_struct()
+			struct.confidence = location.confidence
+		core.BNTypeBuilderSetIsReturnValueDefaultLocation(self._handle, value is None)
+		if value is not None:
+			core.BNTypeBuilderSetReturnValueLocation(self._handle, struct)
+
 	def append(self, type: Union[SomeType, FunctionParameter], name: str = ""):
 		if isinstance(type, FunctionParameter):
 			self.parameters = [*self.parameters, type]
@@ -1326,7 +1551,7 @@ class FunctionBuilder(TypeBuilder):
 	@property
 	def calling_convention(self) -> 'callingconvention.CallingConvention':
 		cc = core.BNGetTypeBuilderCallingConvention(self._handle)
-		return callingconvention.CallingConvention(handle=core.BNNewCallingConventionReference(cc.convention))
+		return callingconvention.CoreCallingConvention(handle=core.BNNewCallingConventionReference(cc.convention))
 
 	@property
 	def can_return(self) -> BoolWithConfidence:
@@ -1366,24 +1591,21 @@ class FunctionBuilder(TypeBuilder):
 		count = ctypes.c_ulonglong()
 		params = core.BNGetTypeBuilderParameters(self._handle, count)
 		assert params is not None, "core.BNGetTypeBuilderParameters returned None"
+		if self.platform is None:
+			arch = None
+		else:
+			arch = self.platform.arch
 		result = []
 		for i in range(0, count.value):
 			param_type = Type.create(
 			    core.BNNewTypeReference(params[i].type), platform=self.platform, confidence=params[i].typeConfidence
 			)
-			if params[i].defaultLocation:
-				param_location = None
+			source = ValueLocationSource(params[i].locationSource)
+			if source == ValueLocationSource.CustomLocationSource:
+				param_location = ValueLocation._from_core_struct(params[i].location, arch)
 			else:
-				name = params[i].name
-				if (params[i].location.type
-				    == VariableSourceType.RegisterVariableSourceType) and (self.platform is not None):
-					name = self.platform.arch.get_reg_name(params[i].location.storage)
-				elif params[i].location.type == VariableSourceType.StackVariableSourceType:
-					name = "arg_%x" % params[i].location.storage
-				param_location = variable.VariableNameAndType(
-				    params[i].location.type, params[i].location.index, params[i].location.storage, name, param_type
-				)
-			result.append(FunctionParameter(param_type, params[i].name, param_location))
+				param_location = None
+			result.append(FunctionParameter(param_type, params[i].name, param_location, source))
 		core.BNFreeTypeParameterList(params, count.value)
 		return result
 
@@ -1411,7 +1633,8 @@ class FunctionBuilder(TypeBuilder):
 				core_param.name = ""
 				core_param.type = param.handle
 				core_param.typeConfidence = param.confidence
-				core_param.defaultLocation = True
+				core_param.locationSource = int(ValueLocationSource.DefaultLocationSource)
+				core_param.location.count = 0
 			elif isinstance(param, FunctionParameter):
 				assert param.type is not None, "Attempting to construct function parameter without properly constructed type"
 				param_type = param.type.immutable_copy()
@@ -1419,13 +1642,16 @@ class FunctionBuilder(TypeBuilder):
 				core_param.name = param.name
 				core_param.type = param_type.handle
 				core_param.typeConfidence = param_type.confidence
+				core_param.locationSource = int(param.location_source)
 				if param.location is None:
-					core_param.defaultLocation = True
+					core_param.location.count = 0
 				else:
-					core_param.defaultLocation = False
-					core_param.location.type = param.location.source_type
-					core_param.location.index = param.location.index
-					core_param.location.storage = param.location.storage
+					if isinstance(param.location, ValueLocation):
+						core_param.location = param.location._to_core_struct()
+					elif isinstance(param.location, variable.CoreVariable):
+						core_param.location = ValueLocation([ValueLocationComponent(param.location)])._to_core_struct()
+					else:
+						raise ValueError(f"Conversion from unsupported parameter location type {type(param.location)}")
 			elif isinstance(param, tuple):
 				name, _type = param
 				if not isinstance(name, str) or not isinstance(_type, (Type, TypeBuilder)):
@@ -1435,7 +1661,8 @@ class FunctionBuilder(TypeBuilder):
 				core_param.name = name
 				core_param.type = _type.handle
 				core_param.typeConfidence = _type.confidence
-				core_param.defaultLocation = True
+				core_param.locationSource = int(ValueLocationSource.DefaultLocationSource)
+				core_param.location.count = 0
 			else:
 				raise ValueError(f"Conversion from unsupported function parameter type {type(param)}")
 		return param_buf, type_list
@@ -2556,7 +2783,7 @@ class Type:
 
 	@staticmethod
 	def function(
-	    ret: Optional['Type'] = None, params: Optional[ParamsType] = None,
+	    ret: Optional[Union['Type', 'ReturnValue']] = None, params: Optional[ParamsType] = None,
 	    calling_convention: Optional['callingconvention.CallingConvention'] = None,
 	    variable_arguments: BoolWithConfidenceType = False,
 	    stack_adjust: OffsetWithConfidence = OffsetWithConfidence(0)
@@ -3227,18 +3454,19 @@ class ArrayType(Type):
 class FunctionType(Type):
 	@classmethod
 	def create(
-	    cls, ret: Optional[Type] = None, params: Optional[ParamsType] = None,
+	    cls, ret: Optional[Union[Type, ReturnValue]] = None, params: Optional[ParamsType] = None,
 	    calling_convention: Optional['callingconvention.CallingConvention'] = None,
 	    variable_arguments: BoolWithConfidenceType = BoolWithConfidence(False),
 	    stack_adjust: OffsetWithConfidence = OffsetWithConfidence(0), platform: Optional['_platform.Platform'] = None,
 	    confidence: int = core.max_confidence,
 	    can_return: Union[BoolWithConfidence, bool] = True, reg_stack_adjust: Optional[Dict['architecture.RegisterName', OffsetWithConfidenceType]] = None,
-	    return_regs: Optional[Union['RegisterSet', List['architecture.RegisterType']]] = None,
 	    name_type: 'NameType' = NameType.NoNameType,
 	    pure: Union[BoolWithConfidence, bool] = False
 	) -> 'FunctionType':
 		if ret is None:
-			ret = VoidType.create()
+			ret = ReturnValue(VoidType.create())
+		elif not isinstance(ret, ReturnValue):
+			ret = ReturnValue(ret)
 		if params is None:
 			params = []
 		param_buf, type_list = FunctionBuilder._to_core_struct(params)
@@ -3272,18 +3500,6 @@ class FunctionType(Type):
 			reg_stack_adjust_values[i].value = adjust.value
 			reg_stack_adjust_values[i].confidence = adjust.confidence
 
-		return_regs_set = core.BNRegisterSetWithConfidence()
-		if return_regs is None or platform is None:
-			return_regs_set.count = 0
-			return_regs_set.confidence = 0
-		else:
-			return_regs_set.count = len(return_regs)
-			return_regs_set.confidence = 255
-			return_regs_set.regs = (ctypes.c_uint32 * len(return_regs))()
-
-			for i, reg in enumerate(return_regs):
-				return_regs_set[i] = platform.arch.get_reg_index(reg)
-
 		_can_return = BoolWithConfidence.get_core_struct(can_return)
 		_pure = BoolWithConfidence.get_core_struct(pure)
 		if params is None:
@@ -3291,7 +3507,7 @@ class FunctionType(Type):
 		func_type = core.BNCreateFunctionType(
 			ret_conf, conv_conf, param_buf, len(params), _variable_arguments, _can_return, _stack_adjust,
 			reg_stack_adjust_regs, reg_stack_adjust_values, len(reg_stack_adjust),
-			return_regs_set, name_type, _pure
+			name_type, _pure
 		)
 
 		assert func_type is not None, f"core.BNCreateFunctionType returned None {ret_conf} {conv_conf} {param_buf} {_variable_arguments} {_stack_adjust}"
@@ -3312,12 +3528,26 @@ class FunctionType(Type):
 		return Type.create(result.type, platform=self._platform, confidence=result.confidence)
 
 	@property
+	def return_value_location(self) -> Optional[ValueLocationWithConfidence]:
+		"""Return value location (read-only)"""
+		if core.BNIsTypeReturnValueDefaultLocation(self._handle):
+			return None
+		location = core.BNGetTypeReturnValueLocation(self._handle)
+		if self._platform is None:
+			arch = None
+		else:
+			arch = self._platform.arch
+		result = ValueLocation._from_core_struct(location.location, arch).with_confidence(location.confidence)
+		core.BNFreeValueLocation(location.location)
+		return result
+
+	@property
 	def calling_convention(self) -> Optional[callingconvention.CallingConvention]:
 		"""Calling convention (read-only)"""
 		result = core.BNGetTypeCallingConvention(self._handle)
 		if not result.convention:
 			return None
-		return callingconvention.CallingConvention(None, handle=result.convention, confidence=result.confidence)
+		return callingconvention.CoreCallingConvention(handle=result.convention, confidence=result.confidence)
 
 	@property
 	def parameters(self) -> List[FunctionParameter]:
@@ -3325,24 +3555,21 @@ class FunctionType(Type):
 		count = ctypes.c_ulonglong()
 		params = core.BNGetTypeParameters(self._handle, count)
 		assert params is not None, "core.BNGetTypeParameters returned None"
+		if self._platform is None:
+			arch = None
+		else:
+			arch = self._platform.arch
 		result = []
 		for i in range(0, count.value):
 			param_type = Type.create(
 			    core.BNNewTypeReference(params[i].type), platform=self._platform, confidence=params[i].typeConfidence
 			)
-			if params[i].defaultLocation:
-				param_location = None
+			source = ValueLocationSource(params[i].locationSource)
+			if source == ValueLocationSource.CustomLocationSource:
+				param_location = ValueLocation._from_core_struct(params[i].location, arch)
 			else:
-				name = params[i].name
-				if (params[i].location.type
-				    == VariableSourceType.RegisterVariableSourceType) and (self._platform is not None):
-					name = self._platform.arch.get_reg_name(params[i].location.storage)
-				elif params[i].location.type == VariableSourceType.StackVariableSourceType:
-					name = "arg_%x" % params[i].location.storage
-				param_location = variable.VariableNameAndType(
-				    params[i].location.type, params[i].location.index, params[i].location.storage, name, param_type
-				)
-			result.append(FunctionParameter(param_type, params[i].name, param_location))
+				param_location = None
+			result.append(FunctionParameter(param_type, params[i].name, param_location, source))
 		core.BNFreeTypeParameterList(params, count.value)
 		return result
 
@@ -3352,21 +3579,18 @@ class FunctionType(Type):
 		count = ctypes.c_ulonglong()
 		params = core.BNGetTypeParameters(self._handle, count)
 		assert params is not None, "core.BNGetTypeParameters returned None"
+		if self._platform is None:
+			arch = None
+		else:
+			arch = self._platform.arch
 		result = []
 		for i in range(0, count.value):
 			param_type = Type.create(
 				core.BNNewTypeReference(params[i].type), platform=self._platform, confidence=params[i].typeConfidence
 			)
-			name = params[i].name
-			if (params[i].location.type
-				== VariableSourceType.RegisterVariableSourceType) and (self._platform is not None):
-				name = self._platform.arch.get_reg_name(params[i].location.storage)
-			elif params[i].location.type == VariableSourceType.StackVariableSourceType:
-				name = "arg_%x" % params[i].location.storage
-			param_location = variable.VariableNameAndType(
-				params[i].location.type, params[i].location.index, params[i].location.storage, name, param_type
-			)
-			result.append(FunctionParameter(param_type, params[i].name, param_location))
+			source = ValueLocationSource(params[i].locationSource)
+			param_location = ValueLocation._from_core_struct(params[i].location, arch)
+			result.append(FunctionParameter(param_type, params[i].name, param_location, source))
 		core.BNFreeTypeParameterList(params, count.value)
 		return result
 

@@ -654,8 +654,21 @@ impl MediumLevelILInstruction {
             MLIL_VAR_OUTPUT => Op::VarOutput(VarOutput {
                 dest: get_var(op.operands[0]),
             }),
+            MLIL_VAR_OUTPUT_FIELD => Op::VarOutputField(VarOutputField {
+                dest: get_var(op.operands[0]),
+                offset: op.operands[1],
+            }),
+            MLIL_STORE_OUTPUT => Op::StoreOutput(StoreOutput {
+                dest: MediumLevelExpressionIndex::from(op.operands[0]),
+            }),
             MLIL_ADDRESS_OF => Op::AddressOf(Var {
                 src: get_var(op.operands[0]),
+            }),
+            MLIL_PASS_BY_REF => Op::PassByRef(UnaryOp {
+                src: MediumLevelExpressionIndex::from(op.operands[0] as usize),
+            }),
+            MLIL_RETURN_BY_REF => Op::ReturnByRef(UnaryOp {
+                src: MediumLevelExpressionIndex::from(op.operands[0] as usize),
             }),
             MLIL_VAR_FIELD => Op::VarField(Field {
                 src: get_var(op.operands[0]),
@@ -682,8 +695,26 @@ impl MediumLevelILInstruction {
             MLIL_VAR_OUTPUT_SSA => Op::VarOutputSsa(VarOutputSsa {
                 dest: get_var_ssa(op.operands[0], op.operands[1] as usize),
             }),
+            MLIL_VAR_OUTPUT_SSA_FIELD => Op::VarOutputSsaField(VarOutputSsaField {
+                dest: get_var_ssa(op.operands[0], op.operands[1] as usize),
+                prev: get_var_ssa(op.operands[0], op.operands[2] as usize),
+                offset: op.operands[3],
+            }),
+            MLIL_VAR_OUTPUT_ALIASED => Op::VarOutputAliased(VarOutputAliased {
+                dest: get_var_ssa(op.operands[0], op.operands[1] as usize),
+                prev: get_var_ssa(op.operands[0], op.operands[2] as usize),
+            }),
+            MLIL_VAR_OUTPUT_ALIASED_FIELD => Op::VarOutputAliasedField(VarOutputAliasedField {
+                dest: get_var_ssa(op.operands[0], op.operands[1] as usize),
+                prev: get_var_ssa(op.operands[0], op.operands[2] as usize),
+                offset: op.operands[3],
+            }),
             MLIL_TRAP => Op::Trap(Trap {
                 vector: op.operands[0],
+            }),
+            MLIL_BLOCK_TO_EXPAND => Op::BlockToExpand(BlockToExpand {
+                num_operands: op.operands[0] as usize,
+                first_operand: op.operands[1] as usize,
             }),
         };
 
@@ -1121,7 +1152,13 @@ impl MediumLevelILInstruction {
             }),
             Var(op) => Lifted::Var(op),
             VarOutput(op) => Lifted::VarOutput(op),
+            VarOutputField(op) => Lifted::VarOutputField(op),
+            StoreOutput(op) => Lifted::StoreOutput(LiftedStoreOutput {
+                dest: self.lift_operand(op.dest),
+            }),
             AddressOf(op) => Lifted::AddressOf(op),
+            PassByRef(op) => Lifted::PassByRef(self.lift_unary_op(op)),
+            ReturnByRef(op) => Lifted::ReturnByRef(self.lift_unary_op(op)),
             VarField(op) => Lifted::VarField(op),
             AddressOfField(op) => Lifted::AddressOfField(op),
             VarSsa(op) => Lifted::VarSsa(op),
@@ -1129,7 +1166,17 @@ impl MediumLevelILInstruction {
             VarSsaField(op) => Lifted::VarSsaField(op),
             VarAliasedField(op) => Lifted::VarAliasedField(op),
             VarOutputSsa(op) => Lifted::VarOutputSsa(op),
+            VarOutputSsaField(op) => Lifted::VarOutputSsaField(op),
+            VarOutputAliased(op) => Lifted::VarOutputAliased(op),
+            VarOutputAliasedField(op) => Lifted::VarOutputAliasedField(op),
             Trap(op) => Lifted::Trap(op),
+            BlockToExpand(_op) => Lifted::BlockToExpand(LiftedBlockToExpand {
+                exprs: self
+                    .get_expr_list(0)
+                    .iter()
+                    .map(|expr| expr.lift())
+                    .collect(),
+            }),
         };
 
         MediumLevelILLiftedInstruction {
@@ -1823,6 +1870,8 @@ pub enum MediumLevelILInstructionKind {
     SeparateParamList(SeparateParamList),
     SharedParamSlot(SharedParamSlot),
     VarOutput(VarOutput),
+    VarOutputField(VarOutputField),
+    StoreOutput(StoreOutput),
     Neg(UnaryOp),
     Not(UnaryOp),
     Sx(UnaryOp),
@@ -1847,6 +1896,8 @@ pub enum MediumLevelILInstructionKind {
     Ret(Ret),
     Var(Var),
     AddressOf(Var),
+    PassByRef(UnaryOp),
+    ReturnByRef(UnaryOp),
     VarField(Field),
     AddressOfField(Field),
     VarSsa(VarSsa),
@@ -1854,7 +1905,11 @@ pub enum MediumLevelILInstructionKind {
     VarSsaField(VarSsaField),
     VarAliasedField(VarSsaField),
     VarOutputSsa(VarOutputSsa),
+    VarOutputSsaField(VarOutputSsaField),
+    VarOutputAliased(VarOutputAliased),
+    VarOutputAliasedField(VarOutputAliasedField),
     Trap(Trap),
+    BlockToExpand(BlockToExpand),
     // A placeholder for instructions that the Rust bindings do not yet support.
     // Distinct from `Unimpl` as that is a valid instruction.
     NotYetImplemented,

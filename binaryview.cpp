@@ -5847,6 +5847,26 @@ Ref<Relocation> BinaryView::GetNextRelocation(uint64_t addr, uint64_t maxAddr)
 }
 
 
+vector<FunctionParameter> BinaryView::DerefParameterNamedTypeRefs(const vector<FunctionParameter>& params)
+{
+	vector<FunctionParameter> result;
+	result.reserve(params.size());
+	for (auto& i : params)
+		result.emplace_back(i.name, i.type->DerefNamedTypeReference(this)->WithConfidence(i.type.GetConfidence()),
+			i.locationSource, i.location);
+	return result;
+}
+
+
+ReturnValue BinaryView::DerefReturnValueNamedTypeRefs(const ReturnValue& returnValue)
+{
+	ReturnValue result = returnValue;
+	if (result.type.GetValue())
+		result.type.SetValue(result.type->DerefNamedTypeReference(this));
+	return result;
+}
+
+
 Relocation::Relocation(BNRelocation* reloc)
 {
 	m_object = reloc;

@@ -31,6 +31,19 @@ pub(crate) fn time_from_bn(timestamp: u64) -> SystemTime {
     UNIX_EPOCH + m
 }
 
+pub(crate) unsafe fn slice_from_raw_parts<'a, T>(data: *const T, len: usize) -> &'a [T] {
+    if len == 0 {
+        // C can and will pass null pointers for data in the case of zero length arrays.
+        // According to the documentation of std::slice::from_raw_parts, data must be
+        // non-null and properly aligned. To avoid creating unsound slices, return an
+        // empty slice directly on any zero-length array, avoiding the unsound call
+        // to std::slice::from_raw_parts.
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(data, len) }
+    }
+}
+
 #[macro_export]
 macro_rules! ffi_span {
     ($name:expr, $bv:expr) => {{

@@ -534,6 +534,272 @@ BaseStructure::BaseStructure(Type* _type, uint64_t _offset)
 }
 
 
+ValueLocationComponent ValueLocationComponent::RemapVariables(const std::function<Variable(Variable)>& remap) const
+{
+	return {remap(variable), offset, size};
+}
+
+
+bool ValueLocationComponent::operator==(const ValueLocationComponent& component) const
+{
+	return variable == component.variable && offset == component.offset && size == component.size;
+}
+
+
+bool ValueLocationComponent::operator!=(const ValueLocationComponent& component) const
+{
+	return !(*this == component);
+}
+
+
+ValueLocationComponent ValueLocationComponent::FromAPIObject(const BNValueLocationComponent* loc)
+{
+	return {Variable(loc->variable.type, loc->variable.index, loc->variable.storage), loc->offset,
+		loc->sizeValid ? std::optional<uint64_t>(loc->size) : std::nullopt};
+}
+
+
+BNValueLocationComponent ValueLocationComponent::ToAPIObject() const
+{
+	BNValueLocationComponent result;
+	result.variable.type = variable.type;
+	result.variable.index = variable.index;
+	result.variable.storage = variable.storage;
+	result.offset = offset;
+	result.sizeValid = size.has_value();
+	result.size = size.value_or(0);
+	return result;
+}
+
+
+std::string ValueLocationComponent::ToString(Architecture* arch) const
+{
+	auto componentRaw = ToAPIObject();
+	char* str = BNValueLocationComponentToString(&componentRaw, arch->GetObject());
+	string result = str;
+	BNFreeString(str);
+	return result;
+}
+
+
+std::optional<Variable> ValueLocation::GetVariableForReturnValue() const
+{
+	BNValueLocation loc = ToAPIObject();
+	BNVariable var;
+	bool valid = BNGetValueLocationVariableForReturnValue(&loc, &var);
+	FreeAPIObject(&loc);
+	if (valid)
+		return var;
+	return std::nullopt;
+}
+
+
+std::optional<Variable> ValueLocation::GetVariableForParameter(size_t idx) const
+{
+	BNValueLocation loc = ToAPIObject();
+	BNVariable var;
+	bool valid = BNGetValueLocationVariableForParameter(&loc, &var, idx);
+	FreeAPIObject(&loc);
+	if (valid)
+		return var;
+	return std::nullopt;
+}
+
+
+ValueLocation ValueLocation::RemapVariables(const std::function<Variable(Variable)>& remap) const
+{
+	vector<ValueLocationComponent> result;
+	result.reserve(components.size());
+	for (auto& i : components)
+		result.push_back(i.RemapVariables(remap));
+	if (returnedPointer.has_value())
+		return {result, indirect, remap(returnedPointer.value())};
+	return {result, indirect};
+}
+
+
+void ValueLocation::ForEachVariable(const std::function<void(Variable var, bool indirect)>& func) const
+{
+	for (auto& i : components)
+		func(i.variable, indirect);
+}
+
+
+bool ValueLocation::ContainsVariable(Variable var) const
+{
+	for (auto& i : components)
+		if (i.variable == var)
+			return true;
+	return false;
+}
+
+
+bool ValueLocation::operator==(const ValueLocation& loc) const
+{
+	return components == loc.components && indirect == loc.indirect
+		&& (!indirect || returnedPointer == loc.returnedPointer);
+}
+
+
+bool ValueLocation::operator!=(const ValueLocation& loc) const
+{
+	return !(*this == loc);
+}
+
+
+ValueLocation ValueLocation::FromAPIObject(const BNValueLocation* loc)
+{
+	ValueLocation result;
+	result.components.reserve(loc->count);
+	for (size_t i = 0; i < loc->count; i++)
+		result.components.push_back(ValueLocationComponent::FromAPIObject(&loc->components[i]));
+	result.indirect = loc->indirect;
+	if (loc->returnedPointerValid)
+	{
+		result.returnedPointer =
+			Variable(loc->returnedPointer.type, loc->returnedPointer.index, loc->returnedPointer.storage);
+	}
+	return result;
+}
+
+
+BNValueLocation ValueLocation::ToAPIObject() const
+{
+	BNValueLocation result;
+	result.count = components.size();
+	result.components = new BNValueLocationComponent[components.size()];
+	for (size_t i = 0; i < components.size(); i++)
+		result.components[i] = components[i].ToAPIObject();
+	result.indirect = indirect;
+	result.returnedPointerValid = returnedPointer.has_value();
+	if (returnedPointer.has_value())
+	{
+		result.returnedPointer.type = returnedPointer->type;
+		result.returnedPointer.index = returnedPointer->index;
+		result.returnedPointer.storage = returnedPointer->storage;
+	}
+	else
+	{
+		result.returnedPointer.type = RegisterVariableSourceType;
+		result.returnedPointer.index = 0;
+		result.returnedPointer.storage = 0;
+	}
+	return result;
+}
+
+
+void ValueLocation::FreeAPIObject(BNValueLocation* loc)
+{
+	delete[] loc->components;
+}
+
+
+std::optional<ValueLocation> ValueLocation::Parse(const std::string& str, Architecture* arch, std::string& error)
+{
+	BNValueLocation locationRaw;
+	char* errorRaw;
+	if (BNParseValueLocation(str.c_str(), arch->GetObject(), &locationRaw, &errorRaw))
+	{
+		auto location = FromAPIObject(&locationRaw);
+		BNFreeValueLocation(&locationRaw);
+		return location;
+	}
+
+	error = errorRaw;
+	BNFreeString(errorRaw);
+	return std::nullopt;
+}
+
+
+std::string ValueLocation::ToString(Architecture* arch) const
+{
+	auto locationRaw = ToAPIObject();
+	char* str = BNValueLocationToString(&locationRaw, arch->GetObject());
+	FreeAPIObject(&locationRaw);
+	string result = str;
+	BNFreeString(str);
+	return result;
+}
+
+
+bool ReturnValue::operator==(const ReturnValue& nt) const
+{
+	if (type != nt.type)
+		return false;
+	if (defaultLocation != nt.defaultLocation)
+		return false;
+	if (defaultLocation)
+		return true;
+	return location == nt.location;
+}
+
+
+bool ReturnValue::operator!=(const ReturnValue& nt) const
+{
+	return !((*this) == nt);
+}
+
+
+ReturnValue ReturnValue::FromAPIObject(const BNReturnValue* returnValue)
+{
+	ReturnValue result;
+	result.type = Confidence<Ref<Type>>(
+		returnValue->type ? new Type(BNNewTypeReference(returnValue->type)) : nullptr, returnValue->typeConfidence);
+	result.defaultLocation = returnValue->defaultLocation;
+	result.location = Confidence<ValueLocation>(
+		ValueLocation::FromAPIObject(&returnValue->location), returnValue->locationConfidence);
+	return result;
+}
+
+
+BNReturnValue ReturnValue::ToAPIObject() const
+{
+	BNReturnValue result;
+	result.type = type.GetValue() ? type.GetValue()->GetObject() : nullptr;
+	result.typeConfidence = type.GetConfidence();
+	result.defaultLocation = defaultLocation;
+	result.location = location->ToAPIObject();
+	result.locationConfidence = location.GetConfidence();
+	return result;
+}
+
+
+void ReturnValue::FreeAPIObject(BNReturnValue* returnValue)
+{
+	ValueLocation::FreeAPIObject(&returnValue->location);
+}
+
+
+FunctionParameter FunctionParameter::FromAPIObject(const BNFunctionParameter* param)
+{
+	FunctionParameter result;
+	result.name = param->name;
+	result.type =
+		Confidence<Ref<Type>>(param->type ? new Type(BNNewTypeReference(param->type)) : nullptr, param->typeConfidence);
+	result.locationSource = param->locationSource;
+	result.location = ValueLocation::FromAPIObject(&param->location);
+	return result;
+}
+
+
+BNFunctionParameter FunctionParameter::ToAPIObject() const
+{
+	BNFunctionParameter result;
+	result.name = (char*)name.c_str();
+	result.type = type->GetObject();
+	result.typeConfidence = type.GetConfidence();
+	result.locationSource = locationSource;
+	result.location = location.ToAPIObject();
+	return result;
+}
+
+
+void FunctionParameter::FreeAPIObject(BNFunctionParameter* param)
+{
+	ValueLocation::FreeAPIObject(&param->location);
+}
+
+
 Type::Type(BNType* type)
 {
 	m_object = type;
@@ -599,6 +865,30 @@ Confidence<Ref<Type>> Type::GetChildType() const
 }
 
 
+ReturnValue Type::GetReturnValue() const
+{
+	BNReturnValue ret = BNGetTypeReturnValue(m_object);
+	ReturnValue result = ReturnValue::FromAPIObject(&ret);
+	BNFreeReturnValue(&ret);
+	return result;
+}
+
+
+bool Type::IsReturnValueDefaultLocation() const
+{
+	return BNIsTypeReturnValueDefaultLocation(m_object);
+}
+
+
+Confidence<ValueLocation> Type::GetReturnValueLocation() const
+{
+	BNValueLocationWithConfidence location = BNGetTypeReturnValueLocation(m_object);
+	Confidence<ValueLocation> result(ValueLocation::FromAPIObject(&location.location), location.confidence);
+	BNFreeValueLocation(&location.location);
+	return result;
+}
+
+
 Confidence<Ref<CallingConvention>> Type::GetCallingConvention() const
 {
 	BNCallingConventionWithConfidence cc = BNGetTypeCallingConvention(m_object);
@@ -622,16 +912,7 @@ vector<FunctionParameter> Type::GetParameters() const
 	vector<FunctionParameter> result;
 	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
-	{
-		FunctionParameter param;
-		param.name = types[i].name;
-		param.type = Confidence<Ref<Type>>(new Type(BNNewTypeReference(types[i].type)), types[i].typeConfidence);
-		param.defaultLocation = types[i].defaultLocation;
-		param.location.type = types[i].location.type;
-		param.location.index = types[i].location.index;
-		param.location.storage = types[i].location.storage;
-		result.push_back(param);
-	}
+		result.push_back(FunctionParameter::FromAPIObject(&types[i]));
 
 	BNFreeTypeParameterList(types, count);
 	return result;
@@ -1067,13 +1348,11 @@ Ref<Type> Type::ArrayType(const Confidence<Ref<Type>>& type, uint64_t elem)
 }
 
 
-Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
-    const Confidence<Ref<CallingConvention>>& callingConvention, const std::vector<FunctionParameter>& params,
-    const Confidence<bool>& varArg, const Confidence<int64_t>& stackAdjust)
+Ref<Type> Type::FunctionType(const ReturnValue& returnValue,
+	const Confidence<Ref<CallingConvention>>& callingConvention, const std::vector<FunctionParameter>& params,
+	const Confidence<bool>& varArg, const Confidence<int64_t>& stackAdjust)
 {
-	BNTypeWithConfidence returnValueConf;
-	returnValueConf.type = returnValue->GetObject();
-	returnValueConf.confidence = returnValue.GetConfidence();
+	BNReturnValue ret = returnValue.ToAPIObject();
 
 	BNCallingConventionWithConfidence callingConventionConf;
 	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
@@ -1081,15 +1360,7 @@ Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
 
 	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];
 	for (size_t i = 0; i < params.size(); i++)
-	{
-		paramArray[i].name = (char*)params[i].name.c_str();
-		paramArray[i].type = params[i].type->GetObject();
-		paramArray[i].typeConfidence = params[i].type.GetConfidence();
-		paramArray[i].defaultLocation = params[i].defaultLocation;
-		paramArray[i].location.type = params[i].location.type;
-		paramArray[i].location.index = params[i].location.index;
-		paramArray[i].location.storage = params[i].location.storage;
-	}
+		paramArray[i] = params[i].ToAPIObject();
 
 	BNBoolWithConfidence varArgConf;
 	varArgConf.value = varArg.GetValue();
@@ -1103,37 +1374,33 @@ Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
 	stackAdjustConf.value = stackAdjust.GetValue();
 	stackAdjustConf.confidence = stackAdjust.GetConfidence();
 
-	BNRegisterSetWithConfidence returnRegsConf;
-	returnRegsConf.regs = nullptr;
-	returnRegsConf.count = 0;
-	returnRegsConf.confidence = 0;
-
 	BNBoolWithConfidence pureConf;
 	pureConf.value = false;
 	pureConf.confidence = 0;
 
 	Type* type = new Type(BNCreateFunctionType(
-	    &returnValueConf, &callingConventionConf, paramArray, params.size(), &varArgConf,
-	    &canReturnConf, &stackAdjustConf, nullptr, nullptr, 0, &returnRegsConf, NoNameType, &pureConf));
+		&ret, &callingConventionConf, paramArray, params.size(), &varArgConf,
+		&canReturnConf, &stackAdjustConf, nullptr, nullptr, 0, NoNameType, &pureConf));
+
+	ReturnValue::FreeAPIObject(&ret);
+	for (size_t i = 0; i < params.size(); i++)
+		FunctionParameter::FreeAPIObject(&paramArray[i]);
 	delete[] paramArray;
 	return type;
 }
 
 
-Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
+Ref<Type> Type::FunctionType(const ReturnValue& returnValue,
     const Confidence<Ref<CallingConvention>>& callingConvention,
     const std::vector<FunctionParameter>& params,
     const Confidence<bool>& hasVariableArguments,
     const Confidence<bool>& canReturn,
     const Confidence<int64_t>& stackAdjust,
     const std::map<uint32_t, Confidence<int32_t>>& regStackAdjust,
-    const Confidence<std::vector<uint32_t>>& returnRegs,
     BNNameType ft,
     const Confidence<bool>& pure)
 {
-	BNTypeWithConfidence returnValueConf;
-	returnValueConf.type = returnValue->GetObject();
-	returnValueConf.confidence = returnValue.GetConfidence();
+	BNReturnValue ret = returnValue.ToAPIObject();
 
 	BNCallingConventionWithConfidence callingConventionConf;
 	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
@@ -1141,15 +1408,7 @@ Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
 
 	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];
 	for (size_t i = 0; i < params.size(); i++)
-	{
-		paramArray[i].name = (char*)params[i].name.c_str();
-		paramArray[i].type = params[i].type->GetObject();
-		paramArray[i].typeConfidence = params[i].type.GetConfidence();
-		paramArray[i].defaultLocation = params[i].defaultLocation;
-		paramArray[i].location.type = params[i].location.type;
-		paramArray[i].location.index = params[i].location.index;
-		paramArray[i].location.storage = params[i].location.storage;
-	}
+		paramArray[i] = params[i].ToAPIObject();
 
 	BNBoolWithConfidence varArgConf;
 	varArgConf.value = hasVariableArguments.GetValue();
@@ -1174,21 +1433,18 @@ Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
 		i ++;
 	}
 
-	std::vector<uint32_t> returnRegsRegs = returnRegs.GetValue();
-
-	BNRegisterSetWithConfidence returnRegsConf;
-	returnRegsConf.regs = returnRegsRegs.data();
-	returnRegsConf.count = returnRegs->size();
-	returnRegsConf.confidence = returnRegs.GetConfidence();
-
 	BNBoolWithConfidence pureConf;
 	pureConf.value = pure.GetValue();
 	pureConf.confidence = pure.GetConfidence();
 
 	Type* type = new Type(BNCreateFunctionType(
-	    &returnValueConf, &callingConventionConf, paramArray, params.size(), &varArgConf,
+	    &ret, &callingConventionConf, paramArray, params.size(), &varArgConf,
 	    &canReturnConf, &stackAdjustConf, regStackAdjustRegs.data(),
-	    regStackAdjustValues.data(), regStackAdjust.size(), &returnRegsConf, NoNameType, &pureConf));
+	    regStackAdjustValues.data(), regStackAdjust.size(), NoNameType, &pureConf));
+
+	ReturnValue::FreeAPIObject(&ret);
+	for (i = 0; i < params.size(); i++)
+		FunctionParameter::FreeAPIObject(&paramArray[i]);
 	delete[] paramArray;
 	return type;
 }
@@ -1666,12 +1922,62 @@ Confidence<Ref<Type>> TypeBuilder::GetChildType() const
 }
 
 
+ReturnValue TypeBuilder::GetReturnValue() const
+{
+	BNReturnValue ret = BNGetTypeBuilderReturnValue(m_object);
+	ReturnValue result = ReturnValue::FromAPIObject(&ret);
+	BNFreeReturnValue(&ret);
+	return result;
+}
+
+
+bool TypeBuilder::IsReturnValueDefaultLocation() const
+{
+	return BNIsTypeBuilderReturnValueDefaultLocation(m_object);
+}
+
+
+Confidence<ValueLocation> TypeBuilder::GetReturnValueLocation() const
+{
+	BNValueLocationWithConfidence location = BNGetTypeBuilderReturnValueLocation(m_object);
+	Confidence<ValueLocation> result(ValueLocation::FromAPIObject(&location.location), location.confidence);
+	BNFreeValueLocation(&location.location);
+	return result;
+}
+
+
 TypeBuilder& TypeBuilder::SetChildType(const Confidence<Ref<Type>>& child)
 {
 	BNTypeWithConfidence childType;
 	childType.type = child->GetObject();
 	childType.confidence = child.GetConfidence();
 	BNTypeBuilderSetChildType(m_object, &childType);
+	return *this;
+}
+
+
+TypeBuilder& TypeBuilder::SetReturnValue(const ReturnValue& rv)
+{
+	BNReturnValue ret = rv.ToAPIObject();
+	BNTypeBuilderSetReturnValue(m_object, &ret);
+	ReturnValue::FreeAPIObject(&ret);
+	return *this;
+}
+
+
+TypeBuilder& TypeBuilder::SetIsReturnValueDefaultLocation(bool defaultLocation)
+{
+	BNTypeBuilderSetIsReturnValueDefaultLocation(m_object, defaultLocation);
+	return *this;
+}
+
+
+TypeBuilder& TypeBuilder::SetReturnValueLocation(const Confidence<ValueLocation>& location)
+{
+	BNValueLocationWithConfidence loc;
+	loc.location = location->ToAPIObject();
+	loc.confidence = location.GetConfidence();
+	BNTypeBuilderSetReturnValueLocation(m_object, &loc);
 	return *this;
 }
 
@@ -1716,16 +2022,7 @@ vector<FunctionParameter> TypeBuilder::GetParameters() const
 	vector<FunctionParameter> result;
 	result.reserve(count);
 	for (size_t i = 0; i < count; i++)
-	{
-		FunctionParameter param;
-		param.name = types[i].name;
-		param.type = Confidence<Ref<Type>>(new Type(BNNewTypeReference(types[i].type)), types[i].typeConfidence);
-		param.defaultLocation = types[i].defaultLocation;
-		param.location.type = types[i].location.type;
-		param.location.index = types[i].location.index;
-		param.location.storage = types[i].location.storage;
-		result.push_back(param);
-	}
+		result.push_back(FunctionParameter::FromAPIObject(&types[i]));
 
 	BNFreeTypeParameterList(types, count);
 	return result;
@@ -2099,26 +2396,25 @@ static BNFunctionParameter* GetParamArray(const std::vector<FunctionParameter>& 
 {
 	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];
 	for (size_t i = 0; i < params.size(); i++)
-	{
-		paramArray[i].name = (char*)params[i].name.c_str();
-		paramArray[i].type = params[i].type->GetObject();
-		paramArray[i].typeConfidence = params[i].type.GetConfidence();
-		paramArray[i].defaultLocation = params[i].defaultLocation;
-		paramArray[i].location.type = params[i].location.type;
-		paramArray[i].location.index = params[i].location.index;
-		paramArray[i].location.storage = params[i].location.storage;
-	}
+		paramArray[i] = params[i].ToAPIObject();
 	count = params.size();
 	return paramArray;
 }
 
-TypeBuilder TypeBuilder::FunctionType(const Confidence<Ref<Type>>& returnValue,
+
+static void FreeParamArray(BNFunctionParameter* params, size_t count)
+{
+	for (size_t i = 0; i < count; i++)
+		FunctionParameter::FreeAPIObject(&params[i]);
+	delete[] params;
+}
+
+
+TypeBuilder TypeBuilder::FunctionType(const ReturnValue& returnValue,
     const Confidence<Ref<CallingConvention>>& callingConvention, const std::vector<FunctionParameter>& params,
     const Confidence<bool>& varArg, const Confidence<int64_t>& stackAdjust)
 {
-	BNTypeWithConfidence returnValueConf;
-	returnValueConf.type = returnValue->GetObject();
-	returnValueConf.confidence = returnValue.GetConfidence();
+	BNReturnValue ret = returnValue.ToAPIObject();
 
 	BNCallingConventionWithConfidence callingConventionConf;
 	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
@@ -2139,53 +2435,36 @@ TypeBuilder TypeBuilder::FunctionType(const Confidence<Ref<Type>>& returnValue,
 	canReturnConf.value = true;
 	canReturnConf.confidence = 0;
 
-	BNRegisterSetWithConfidence returnRegsConf;
-	returnRegsConf.regs = nullptr;
-	returnRegsConf.count = 0;
-	returnRegsConf.confidence = 0;
-
 	BNBoolWithConfidence pureConf;
 	pureConf.value = false;
 	pureConf.confidence = 0;
 
-	TypeBuilder type(BNCreateFunctionTypeBuilder(
-		&returnValueConf, &callingConventionConf, paramArray, paramCount, &varArgConf,
-		&canReturnConf, &stackAdjustConf, nullptr, nullptr, 0, &returnRegsConf, NoNameType, &pureConf));
-	delete[] paramArray;
+	TypeBuilder type(BNCreateFunctionTypeBuilder(&ret, &callingConventionConf, paramArray, paramCount, &varArgConf,
+		&canReturnConf, &stackAdjustConf, nullptr, nullptr, 0, NoNameType, &pureConf));
+	ReturnValue::FreeAPIObject(&ret);
+	FreeParamArray(paramArray, paramCount);
 	return type;
 }
 
 
-TypeBuilder TypeBuilder::FunctionType(const Confidence<Ref<Type>>& returnValue,
+TypeBuilder TypeBuilder::FunctionType(const ReturnValue& returnValue,
 	const Confidence<Ref<CallingConvention>>& callingConvention,
 	const std::vector<FunctionParameter>& params,
 	const Confidence<bool>& hasVariableArguments,
 	const Confidence<bool>& canReturn,
 	const Confidence<int64_t>& stackAdjust,
 	const std::map<uint32_t, Confidence<int32_t>>& regStackAdjust,
-	const Confidence<std::vector<uint32_t>>& returnRegs,
 	BNNameType ft,
 	const Confidence<bool>& pure)
 {
-	BNTypeWithConfidence returnValueConf;
-	returnValueConf.type = returnValue->GetObject();
-	returnValueConf.confidence = returnValue.GetConfidence();
+	BNReturnValue ret = returnValue.ToAPIObject();
 
 	BNCallingConventionWithConfidence callingConventionConf;
 	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
 	callingConventionConf.confidence = callingConvention.GetConfidence();
 
-	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];
-	for (size_t i = 0; i < params.size(); i++)
-	{
-		paramArray[i].name = (char*)params[i].name.c_str();
-		paramArray[i].type = params[i].type->GetObject();
-		paramArray[i].typeConfidence = params[i].type.GetConfidence();
-		paramArray[i].defaultLocation = params[i].defaultLocation;
-		paramArray[i].location.type = params[i].location.type;
-		paramArray[i].location.index = params[i].location.index;
-		paramArray[i].location.storage = params[i].location.storage;
-	}
+	size_t paramCount = 0;
+	BNFunctionParameter* paramArray = GetParamArray(params, paramCount);
 
 	BNBoolWithConfidence varArgConf;
 	varArgConf.value = hasVariableArguments.GetValue();
@@ -2210,22 +2489,16 @@ TypeBuilder TypeBuilder::FunctionType(const Confidence<Ref<Type>>& returnValue,
 		i ++;
 	}
 
-	std::vector<uint32_t> returnRegsRegs = returnRegs.GetValue();
-
-	BNRegisterSetWithConfidence returnRegsConf;
-	returnRegsConf.regs = returnRegsRegs.data();
-	returnRegsConf.count = returnRegs->size();
-	returnRegsConf.confidence = returnRegs.GetConfidence();
-
 	BNBoolWithConfidence pureConf;
 	pureConf.value = pure.GetValue();
 	pureConf.confidence = pure.GetConfidence();
 
 	TypeBuilder type(BNCreateFunctionTypeBuilder(
-		&returnValueConf, &callingConventionConf, paramArray, params.size(), &varArgConf,
+		&ret, &callingConventionConf, paramArray, paramCount, &varArgConf,
 		&canReturnConf, &stackAdjustConf, regStackAdjustRegs.data(),
-		regStackAdjustValues.data(), regStackAdjust.size(), &returnRegsConf, NoNameType, &pureConf));
-	delete[] paramArray;
+		regStackAdjustValues.data(), regStackAdjust.size(), NoNameType, &pureConf));
+	ReturnValue::FreeAPIObject(&ret);
+	FreeParamArray(paramArray, paramCount);
 	return type;
 }
 

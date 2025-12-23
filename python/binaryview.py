@@ -11047,6 +11047,24 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		core.free_string(string)
 		return result, StringType(string_type.value)
 
+	def deref_parameter_named_type_references(self, params: List['_types.FunctionParameter']):
+		result = []
+		for param in params:
+			if param.type is None:
+				ty = None
+			else:
+				ty = param.type.deref_named_type_reference(self).with_confidence(param.type.confidence)
+			result.append(_types.FunctionParameter(ty, param.name, param.location, param.location_source))
+		return result
+
+	def deref_return_value_named_type_references(self, value: '_types.ReturnValue'):
+		if value.type is None:
+			ty = None
+		else:
+			ty = value.type.deref_named_type_reference(self).with_confidence(value.type.confidence)
+		return _types.ReturnValue(ty, value.location)
+
+
 class BinaryReader:
 	"""
 	``class BinaryReader`` is a convenience class for reading binary data.

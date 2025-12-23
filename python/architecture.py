@@ -1051,7 +1051,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		result = {}
 		try:
 			for i in range(0, count.value):
-				obj = callingconvention.CallingConvention(handle=core.BNNewCallingConventionReference(cc[i]))
+				obj = callingconvention.CoreCallingConvention(handle=core.BNNewCallingConventionReference(cc[i]))
 				result[obj.name] = obj
 		finally:
 			core.BNFreeCallingConventionList(cc, count.value)
@@ -2613,7 +2613,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		cc_handle = core.BNGetArchitectureDefaultCallingConvention(self.handle)
 		if cc_handle is None:
 			return None
-		return callingconvention.CallingConvention(handle=cc_handle)
+		return callingconvention.CoreCallingConvention(handle=cc_handle)
 
 	@default_calling_convention.setter
 	def default_calling_convention(self, cc: 'callingconvention.CallingConvention'):
@@ -2633,7 +2633,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		cc_handle = core.BNGetArchitectureCdeclCallingConvention(self.handle)
 		if cc_handle is None:
 			return None
-		return callingconvention.CallingConvention(handle=cc_handle)
+		return callingconvention.CoreCallingConvention(handle=cc_handle)
 
 	@cdecl_calling_convention.setter
 	def cdecl_calling_convention(self, cc: 'callingconvention.CallingConvention'):
@@ -2653,7 +2653,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		cc_handle = core.BNGetArchitectureStdcallCallingConvention(self.handle)
 		if cc_handle is None:
 			return None
-		return callingconvention.CallingConvention(handle=cc_handle)
+		return callingconvention.CoreCallingConvention(handle=cc_handle)
 
 	@stdcall_calling_convention.setter
 	def stdcall_calling_convention(self, cc: 'callingconvention.CallingConvention'):
@@ -2673,7 +2673,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		cc_handle = core.BNGetArchitectureFastcallCallingConvention(self.handle)
 		if cc_handle is None:
 			return None
-		return callingconvention.CallingConvention(handle=cc_handle)
+		return callingconvention.CoreCallingConvention(handle=cc_handle)
 
 	@fastcall_calling_convention.setter
 	def fastcall_calling_convention(self, cc: 'callingconvention.CallingConvention'):

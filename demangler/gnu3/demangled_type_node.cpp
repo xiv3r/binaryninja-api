@@ -502,7 +502,7 @@ Ref<Type> DemangledTypeNode::Finalize() const
 		for (auto& p : m_params)
 		{
 			Ref<Type> pType = p.type ? p.type->Finalize() : Ref<Type>(Type::VoidType());
-			finalParams.push_back({p.name, pType, true, Variable()});
+			finalParams.push_back({p.name, pType, DefaultLocationSource, Variable()});
 		}
 		TypeBuilder tb = TypeBuilder::FunctionType(retType->WithConfidence(m_returnTypeConfidence), nullptr, finalParams);
 		tb.SetConst(m_const);
