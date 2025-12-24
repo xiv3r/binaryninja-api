@@ -554,7 +554,7 @@ void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& instr,
 
 	const auto type = GetFieldType(srcExpr, false);
 	const auto fieldDisplayType = GetFieldDisplayType(type, fieldOffset, memberIndex, false);
-	if (fieldDisplayType == FieldDisplayOffset)
+	if (type && fieldDisplayType == FieldDisplayOffset)
 	{
 		if (!addrOf)
 			tokens.Append(OperationToken, "*");
@@ -656,7 +656,7 @@ void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& instr,
 			if (memberIndex != BN_INVALID_EXPR)
 				memberIndexHint = memberIndex;
 
-			if (type->GetStructure()->ResolveMemberOrBaseMember(
+			if (type && type->GetStructure()->ResolveMemberOrBaseMember(
 					GetFunction()->GetView(), fieldOffset, 0,
 					[&](NamedTypeReference*, Structure* s, size_t memberIndex, uint64_t structOffset,
 						uint64_t adjustedOffset, const StructureMember& member) {
