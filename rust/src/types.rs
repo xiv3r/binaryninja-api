@@ -149,6 +149,12 @@ impl TypeBuilder {
         self.set_child_type(ty)
     }
 
+    pub fn set_signed<T: Into<Conf<bool>>>(&self, value: T) -> &Self {
+        let mut bool_with_confidence = value.into().into();
+        unsafe { BNTypeBuilderSetSigned(self.handle, &mut bool_with_confidence) };
+        self
+    }
+
     // Readable properties
 
     pub fn type_class(&self) -> TypeClass {
