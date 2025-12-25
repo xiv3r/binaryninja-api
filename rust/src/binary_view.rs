@@ -1686,22 +1686,27 @@ pub trait BinaryViewExt: BinaryViewBase {
         unsafe { BNRemoveUserDataTag(self.as_ref().handle, addr, tag.handle) }
     }
 
-    fn address_comments(&self) -> BTreeMap<u64, String> {
-        let mut comment_count = 0;
-        let mut result = BTreeMap::new();
-        let addresses;
-        unsafe {
-            let addresses_raw =
-                BNGetGlobalCommentedAddresses(self.as_ref().handle, &mut comment_count);
-            addresses = std::slice::from_raw_parts(addresses_raw, comment_count);
-        }
+    /// Retrieves a list of comment addresses, the comments themselves can then be queried with
+    /// the function [`BinaryViewExt::comment_at`].
+    ///
+    /// If you would rather retrieve the contents of **all** comments at once you can do so with
+    /// the helper function [`BinaryViewExt::comments`].
+    fn comment_references(&self) -> Array<CommentReference> {
+        let mut count = 0;
+        let addresses_raw =
+            unsafe { BNGetGlobalCommentedAddresses(self.as_ref().handle, &mut count) };
+        unsafe { Array::new(addresses_raw, count, ()) }
+    }
 
-        for address in addresses {
-            if let Some(comment) = self.comment_at(*address) {
-                result.insert(*address, comment);
-            }
-        }
-        result
+    /// Retrieves a map of comment addresses to their contents.
+    ///
+    /// This is a helper function that eagerly reads the contents of all comments within the
+    /// view, use [`BinaryViewExt::comment_references`] instead if you do not wish to read all the comments.
+    fn comments(&self) -> BTreeMap<u64, String> {
+        self.comment_references()
+            .iter()
+            .filter_map(|cmt_ref| Some((cmt_ref.start, self.comment_at(cmt_ref.start)?)))
+            .collect()
     }
 
     fn comment_at(&self, addr: u64) -> Option<String> {
@@ -2707,6 +2712,33 @@ where
             Some(on_event::<Handler>),
             raw as *mut ::std::os::raw::c_void,
         );
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct CommentReference {
+    pub start: u64,
+}
+
+impl From<u64> for CommentReference {
+    fn from(start: u64) -> Self {
+        Self { start }
+    }
+}
+
+impl CoreArrayProvider for CommentReference {
+    type Raw = u64;
+    type Context = ();
+    type Wrapped<'a> = Self;
+}
+
+unsafe impl CoreArrayProviderInner for CommentReference {
+    unsafe fn free(raw: *mut Self::Raw, _count: usize, _context: &Self::Context) {
+        BNFreeAddressList(raw)
+    }
+
+    unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, _context: &'a Self::Context) -> Self::Wrapped<'a> {
+        Self::from(*raw)
     }
 }
 
