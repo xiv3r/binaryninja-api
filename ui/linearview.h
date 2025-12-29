@@ -414,7 +414,7 @@ private Q_SLOTS:
 	//! UTF-32 string, respectively.
 	//!
 	//! Returns the length of the string in bytes, NOT the number of characters.
-	size_t getStringLength(uint64_t startAddr, size_t charSize = 1);
+	size_t getStringLength(uint64_t startAddr, size_t charSize = 1, size_t minRequired = MAX_STRING_TYPE_LENGTH);
 
 	void setInstructionHighlight(BNHighlightColor color);
 	void setBlockHighlight(BNHighlightColor color);
