@@ -1,4 +1,5 @@
 #include "fileinfo.h"
+#include "entropy.h"
 #include "fontsettings.h"
 #include "theme.h"
 #include "copyablelabel.h"
@@ -129,7 +130,7 @@ void FileInfoWidget::addHashFields(BinaryViewRef view)
 	});
 }
 
-FileInfoWidget::FileInfoWidget(QWidget* parent, BinaryViewRef bv)
+FileInfoWidget::FileInfoWidget(QWidget* parent, BinaryViewRef bv, EntropyWidget* entropyWidget)
 {
 	this->m_layout = new QGridLayout();
 	this->m_layout->setContentsMargins(0, 0, 0, 0);
@@ -157,10 +158,33 @@ FileInfoWidget::FileInfoWidget(QWidget* parent, BinaryViewRef bv)
 	const auto fileSize = QString::number(view->GetLength(), 16).prepend("0x");
 	this->addCopyableField("Size: ", fileSize);
 
+	// Display entropy value from the entropy widget
+	if (entropyWidget)
+	{
+		auto& [row, column] = this->m_fieldPosition;
+		m_entropyLabel = new CopyableLabel("Calculating...", getThemeColor(AlphanumericHighlightColor));
+		m_entropyLabel->setFont(getMonospaceFont(this));
+		this->m_layout->addWidget(new QLabel("Entropy: "), row, column);
+		this->m_layout->addWidget(m_entropyLabel, row++, column + 1);
+
+		// Connect to entropy updates
+		connect(entropyWidget, &EntropyWidget::entropyUpdated, this, &FileInfoWidget::updateEntropy);
+	}
+
 	this->addHashFields(view);
 
 	const auto scaledWidth = UIContext::getScaledWindowSize(20, 20).width();
 	this->m_layout->setColumnMinimumWidth(FileInfoWidget::m_maxColumns * 3 - 1, scaledWidth);
 	this->m_layout->setColumnStretch(FileInfoWidget::m_maxColumns * 3 - 1, 1);
 	setLayout(this->m_layout);
+}
+
+
+void FileInfoWidget::updateEntropy(double avgEntropy)
+{
+	if (m_entropyLabel)
+	{
+		const auto entropyStr = QString::number(avgEntropy, 'f', 6);
+		m_entropyLabel->setText(entropyStr);
+	}
 }

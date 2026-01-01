@@ -27,13 +27,14 @@ TriageView::TriageView(QWidget* parent, BinaryViewRef data) : QScrollArea(parent
 
 	QGroupBox* entropyGroup = new QGroupBox("Entropy", container);
 	QVBoxLayout* entropyLayout = new QVBoxLayout();
-	entropyLayout->addWidget(new EntropyWidget(entropyGroup, this, m_data));
+	m_entropyWidget = new EntropyWidget(entropyGroup, this, m_data);
+	entropyLayout->addWidget(m_entropyWidget);
 	entropyGroup->setLayout(entropyLayout);
 	layout->addWidget(entropyGroup);
 
 	QGroupBox* fileInfoGroup = new QGroupBox("File Info", container);
 	QVBoxLayout* fileInfoLayout = new QVBoxLayout();
-	fileInfoLayout->addWidget(new FileInfoWidget(fileInfoGroup, m_data));
+	fileInfoLayout->addWidget(new FileInfoWidget(fileInfoGroup, m_data, m_entropyWidget));
 	fileInfoGroup->setLayout(fileInfoLayout);
 	layout->addWidget(fileInfoGroup);
 

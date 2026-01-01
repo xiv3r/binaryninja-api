@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QP
 from PySide6.QtCore import Qt
 from . import headers
 from . import entropy
+from . import file_info
 from . import imports
 from . import exports
 from . import sections
@@ -30,9 +31,16 @@ class TriageView(QScrollArea, View):
 
 		entropyGroup = QGroupBox("Entropy", container)
 		entropyLayout = QVBoxLayout()
-		entropyLayout.addWidget(entropy.EntropyWidget(entropyGroup, self, self.data))
+		self.entropyWidget = entropy.EntropyWidget(entropyGroup, self, self.data)
+		entropyLayout.addWidget(self.entropyWidget)
 		entropyGroup.setLayout(entropyLayout)
 		layout.addWidget(entropyGroup)
+
+		fileInfoGroup = QGroupBox("File Info", container)
+		fileInfoLayout = QVBoxLayout()
+		fileInfoLayout.addWidget(file_info.FileInfoWidget(fileInfoGroup, self.data, self.entropyWidget))
+		fileInfoGroup.setLayout(fileInfoLayout)
+		layout.addWidget(fileInfoGroup)
 
 		hdr = None
 		try:

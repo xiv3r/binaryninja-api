@@ -7,6 +7,7 @@
 
 
 class HeaderWidget;
+class EntropyWidget;
 
 class TriageView : public QScrollArea, public View
 {
@@ -16,6 +17,7 @@ class TriageView : public QScrollArea, public View
 	QPushButton* m_fullAnalysisButton = nullptr;
 	QSplitter* m_importExportSplitter = nullptr;
 	HeaderWidget* m_headerWidget = nullptr;
+	EntropyWidget* m_entropyWidget = nullptr;
 
   public:
 	TriageView(QWidget* parent, BinaryViewRef data);
