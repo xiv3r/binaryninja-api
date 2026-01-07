@@ -1,5 +1,7 @@
 #include "fetcher.h"
 
+#include <chrono>
+
 WarpFetcher::WarpFetcher()
 {
 	m_logger = new BinaryNinja::Logger("WARP Fetcher");

@@ -1,5 +1,7 @@
 #include "microsoft.h"
 
+#include <chrono>
+
 using namespace BinaryNinja;
 using namespace BinaryNinja::RTTI;
 using namespace BinaryNinja::RTTI::Microsoft;
