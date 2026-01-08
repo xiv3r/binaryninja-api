@@ -83,6 +83,18 @@ pub(crate) fn parse_variable<R: ReaderType>(
                 }
             }
         }
+        Ok(Operation::ImplicitValue { data }) => {
+            debug!(
+                "Unhandled operation type ImplicitValue with data length {} for variable",
+                data.len()
+            );
+        }
+        Ok(Operation::EntryValue { expression }) => {
+            debug!(
+                "Unhandled operation type EntryValue with expression length {} for variable",
+                expression.len()
+            );
+        }
         Ok(op) => {
             debug!("Unhandled operation type for variable: {:?}", op);
         }
