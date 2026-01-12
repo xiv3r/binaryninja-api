@@ -889,6 +889,18 @@ fn init_plugin() -> bool {
         }"#,
     );
 
+    settings.register_setting_json(
+        "pdb.features.passStructuresByValue",
+        r#"{
+            "title" : "Always Pass Structures By Value",
+            "type" : "boolean",
+            "default" : false,
+            "aliases" : [],
+            "description" : "Always pass structures by value even if they are implicitly passed by pointer in the calling convention (experimental). This more closely matches the original source code.",
+            "ignore" : []
+        }"#,
+    );
+
     true
 }
 

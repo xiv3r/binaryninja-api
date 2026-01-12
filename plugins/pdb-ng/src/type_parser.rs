@@ -19,15 +19,17 @@ use crate::struct_grouper::group_structure;
 use crate::PDBParserInstance;
 use anyhow::{anyhow, Result};
 use binaryninja::architecture::Architecture;
-use binaryninja::calling_convention::CoreCallingConvention;
+use binaryninja::calling_convention::{CallingConvention, CoreCallingConvention};
 use binaryninja::confidence::{Conf, MAX_CONFIDENCE};
 use binaryninja::platform::Platform;
 use binaryninja::rc::Ref;
 use binaryninja::types::{
     BaseStructure, EnumerationBuilder, EnumerationMember, FunctionParameter, MemberAccess,
-    MemberScope, NamedTypeReference, NamedTypeReferenceClass, StructureBuilder, StructureMember,
-    StructureType, Type, TypeBuilder, TypeClass,
+    MemberScope, NamedTypeReference, NamedTypeReferenceClass, ReturnValue, StructureBuilder,
+    StructureMember, StructureType, Type, TypeBuilder, TypeClass, ValueLocation,
+    ValueLocationComponent,
 };
+use binaryninja::variable::{Variable, VariableSourceType};
 use pdb::Error::UnimplementedTypeKind;
 use pdb::{
     ArgumentList, ArrayType, BaseClassType, BitfieldType, ClassKind, ClassType, EnumerateType,
@@ -1142,29 +1144,11 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
             }
         }
 
-        let mut fancy_return_type = return_type.clone();
+        let mut fancy_return_value = ReturnValue {
+            ty: Conf::new(return_type.clone(), MAX_CONFIDENCE),
+            location: None,
+        };
         let mut fancy_arguments = arguments.clone();
-
-        if data.attributes.cxx_return_udt()
-            || !self.can_fit_in_register(data.return_type, finder, true)
-        {
-            // Return UDT??
-            // This probably means the return value got pushed to the stack
-            fancy_return_type =
-                Type::pointer(&self.arch, &Conf::new(return_type.clone(), MAX_CONFIDENCE));
-            fancy_arguments.insert(
-                0,
-                FunctionParameter::new(
-                    Conf::new(fancy_return_type.clone(), MAX_CONFIDENCE),
-                    "__return".to_string(),
-                    None,
-                ),
-            );
-        }
-
-        if let Some(this_ptr) = &this_pointer_type {
-            self.insert_this_pointer(&mut fancy_arguments, this_ptr.clone())?;
-        }
 
         let convention = self
             .cv_call_t_to_calling_convention(data.attributes.calling_convention())
@@ -1179,6 +1163,37 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                 }
             });
 
+        if data.attributes.cxx_return_udt()
+            || !self.can_fit_in_register(data.return_type, finder, true)
+        {
+            // Return UDT??
+            // This probably means the return value got pushed to the stack
+            if self.settings.get_bool_with_opts(
+                "pdb.features.passStructuresByValue",
+                &mut self.settings_query_opts,
+            ) {
+                fancy_return_value.location =
+                    self.indirect_return_value_location(&convention, &fancy_return_value);
+            } else {
+                fancy_return_value.ty = Conf::new(
+                    Type::pointer(&self.arch, &return_type.clone()),
+                    MAX_CONFIDENCE,
+                );
+                fancy_arguments.insert(
+                    0,
+                    FunctionParameter::new(
+                        fancy_return_value.ty.clone(),
+                        "__return".to_string(),
+                        None,
+                    ),
+                );
+            }
+        }
+
+        if let Some(this_ptr) = &this_pointer_type {
+            self.insert_this_pointer(&mut fancy_arguments, this_ptr.clone())?;
+        }
+
         let func = Type::function_with_opts(
             &Conf::new(return_type, MAX_CONFIDENCE),
             arguments.as_slice(),
@@ -1188,7 +1203,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         );
 
         let fancy_func = Type::function_with_opts(
-            &Conf::new(fancy_return_type, MAX_CONFIDENCE),
+            fancy_return_value,
             fancy_arguments.as_slice(),
             is_varargs,
             convention,
@@ -1422,8 +1437,17 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
             }
         }
 
-        let mut fancy_return_type = return_type.clone();
+        let mut fancy_return_value = ReturnValue {
+            ty: return_type.clone(),
+            location: None,
+        };
         let mut fancy_arguments = arguments.clone();
+
+        let convention = self
+            .cv_call_t_to_calling_convention(data.attributes.calling_convention())
+            .map(|cc| Conf::new(cc, MAX_CONFIDENCE))
+            .unwrap_or(Conf::new(self.default_cc.clone(), 0));
+        self.log(|| format!("Convention: {:?}", convention));
 
         let mut return_stacky = data.attributes.cxx_return_udt();
         if let Some(return_type_index) = data.return_type {
@@ -1431,21 +1455,27 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         }
         if return_stacky {
             // Stack return via a pointer in the first parameter
-            fancy_return_type = Conf::new(
-                Type::pointer(&self.arch, &return_type.clone()),
-                MAX_CONFIDENCE,
-            );
-            fancy_arguments.insert(
-                0,
-                FunctionParameter::new(fancy_return_type.clone(), "__return".to_string(), None),
-            );
+            if self.settings.get_bool_with_opts(
+                "pdb.features.passStructuresByValue",
+                &mut self.settings_query_opts,
+            ) {
+                fancy_return_value.location =
+                    self.indirect_return_value_location(&convention, &fancy_return_value);
+            } else {
+                fancy_return_value.ty = Conf::new(
+                    Type::pointer(&self.arch, &return_type.clone()),
+                    MAX_CONFIDENCE,
+                );
+                fancy_arguments.insert(
+                    0,
+                    FunctionParameter::new(
+                        fancy_return_value.ty.clone(),
+                        "__return".to_string(),
+                        None,
+                    ),
+                );
+            }
         }
-
-        let convention = self
-            .cv_call_t_to_calling_convention(data.attributes.calling_convention())
-            .map(|cc| Conf::new(cc, MAX_CONFIDENCE))
-            .unwrap_or(Conf::new(self.default_cc.clone(), 0));
-        self.log(|| format!("Convention: {:?}", convention));
 
         let func = Type::function_with_opts(
             &return_type,
@@ -1456,7 +1486,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         );
 
         let fancy_func = Type::function_with_opts(
-            &fancy_return_type,
+            fancy_return_value,
             fancy_arguments.as_slice(),
             is_varargs,
             convention,
@@ -1814,8 +1844,13 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                 Some(ty) => {
                     // On x86_32, structures are stored on the stack directly
                     // On x64, they are put into pointers if they are not a int size
-                    // TODO: Ugly hack
-                    if self.arch.address_size() == 4 || Self::size_can_fit_in_register(ty.width()) {
+                    if self.arch.address_size() == 4
+                        || Self::size_can_fit_in_register(ty.width())
+                        || self.settings.get_bool_with_opts(
+                            "pdb.features.passStructuresByValue",
+                            &mut self.settings_query_opts,
+                        )
+                    {
                         args.push(FunctionParameter::new(
                             Conf::new(ty.clone(), MAX_CONFIDENCE),
                             "".to_string(),
@@ -2369,6 +2404,58 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                 true
             }
             _ => false,
+        }
+    }
+
+    /// Determines if there is a non-default location for an indirect return value and returns
+    /// the location if there is one.
+    fn indirect_return_value_location(
+        &self,
+        convention: &Conf<Ref<CoreCallingConvention>>,
+        return_value: &ReturnValue,
+    ) -> Option<Conf<ValueLocation>> {
+        // Non-POD data types are always returned as indirect values. The calling convention
+        // may not know this and try to place them in registers, so check the calling convention
+        // to see if it wants to pass indirectly.
+        // TODO: The structures themselves should have some kind of non-POD attribute so
+        // that the calling convention can determine this by default
+        let default_return_location = convention
+            .contents
+            .return_value_location(self.bv, return_value.clone());
+        if default_return_location.indirect {
+            None
+        } else {
+            let variable = if let Some(reg) = convention.contents.int_arg_registers().get(0) {
+                Variable::new(
+                    VariableSourceType::RegisterVariableSourceType,
+                    0,
+                    reg.0 as i64,
+                )
+            } else {
+                Variable::new(
+                    VariableSourceType::StackVariableSourceType,
+                    0,
+                    self.arch.address_size() as i64,
+                )
+            };
+            Some(Conf::new(
+                ValueLocation {
+                    components: vec![ValueLocationComponent {
+                        variable,
+                        offset: 0,
+                        size: Some(return_value.ty.contents.width()),
+                    }],
+                    indirect: true,
+                    returned_pointer: convention.contents.return_int_reg().map(|reg| {
+                        Variable::new(
+                            VariableSourceType::RegisterVariableSourceType,
+                            0,
+                            reg.0 as i64,
+                        )
+                    }),
+                },
+                MAX_CONFIDENCE,
+            ))
         }
     }
 }

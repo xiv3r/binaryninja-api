@@ -3827,6 +3827,23 @@ public:
 		}
 		return result;
 	}
+
+	bool IsReturnTypeRegisterCompatible(BinaryView*, Type* type) override
+	{
+		if (!type)
+			return false;
+		if (type->IsFloat())
+			return true;
+		if (type->GetWidth() == 0 || type->GetWidth() == 1 || type->GetWidth() == 2 || type->GetWidth() == 4
+			|| type->GetWidth() == 8)
+			return true;
+		return false;
+	}
+
+	std::optional<Variable> GetReturnedIndirectReturnValuePointer() override
+	{
+		return Variable::Register(XED_REG_EAX);
+	}
 };
 
 
@@ -4057,6 +4074,36 @@ public:
 	}
 
 	virtual bool IsStackReservedForArgumentRegisters() override
+	{
+		return true;
+	}
+
+	bool IsReturnTypeRegisterCompatible(BinaryView*, Type* type) override
+	{
+		if (!type)
+			return false;
+		if (type->IsFloat())
+			return true;
+		return type->GetWidth() == 0 || type->GetWidth() == 1 || type->GetWidth() == 2 || type->GetWidth() == 4
+			|| type->GetWidth() == 8;
+	}
+
+	std::optional<Variable> GetReturnedIndirectReturnValuePointer() override
+	{
+		return Variable::Register(XED_REG_RAX);
+	}
+
+	bool IsArgumentTypeRegisterCompatible(BinaryView*, Type* type) override
+	{
+		if (!type)
+			return false;
+		if (type->IsFloat())
+			return true;
+		return type->GetWidth() == 0 || type->GetWidth() == 1 || type->GetWidth() == 2 || type->GetWidth() == 4
+			|| type->GetWidth() == 8;
+	}
+
+	bool IsNonRegisterArgumentIndirect(BinaryView*, Type*) override
 	{
 		return true;
 	}
