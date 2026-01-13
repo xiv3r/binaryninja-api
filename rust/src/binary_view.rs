@@ -54,7 +54,7 @@ use crate::segment::{Segment, SegmentBuilder};
 use crate::settings::Settings;
 use crate::string::*;
 use crate::symbol::{Symbol, SymbolType};
-use crate::tags::{Tag, TagType};
+use crate::tags::{Tag, TagReference, TagType};
 use crate::types::{
     NamedTypeReference, QualifiedName, QualifiedNameAndType, QualifiedNameTypeAndId, Type,
     TypeArchive, TypeArchiveId, TypeContainer, TypeLibrary,
@@ -1643,6 +1643,34 @@ pub trait BinaryViewExt: BinaryViewBase {
                 return None;
             }
             Some(TagType::ref_from_raw(handle))
+        }
+    }
+
+    /// Get all tags in all scopes
+    fn tags_all_scopes(&self) -> Array<TagReference> {
+        let mut count = 0;
+        unsafe {
+            let tag_references = BNGetAllTagReferences(self.as_ref().handle, &mut count);
+            Array::new(tag_references, count, ())
+        }
+    }
+
+    /// Get all tag types present for the view
+    fn tag_types(&self) -> Array<TagType> {
+        let mut count = 0;
+        unsafe {
+            let tag_types_raw = BNGetTagTypes(self.as_ref().handle, &mut count);
+            Array::new(tag_types_raw, count, ())
+        }
+    }
+
+    // Get all tags of a specific type
+    fn tags_by_type(&self, tag_type: &TagType) -> Array<TagReference> {
+        let mut count = 0;
+        unsafe {
+            let tag_references =
+                BNGetAllTagReferencesOfType(self.as_ref().handle, tag_type.handle, &mut count);
+            Array::new(tag_references, count, ())
         }
     }
 

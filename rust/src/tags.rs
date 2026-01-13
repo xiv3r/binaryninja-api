@@ -128,7 +128,28 @@ pub struct TagType {
     pub(crate) handle: *mut BNTagType,
 }
 
+impl CoreArrayProvider for TagType {
+    type Raw = *mut BNTagType;
+    type Context = ();
+    type Wrapped<'a> = Guard<'a, Self>;
+}
+
+unsafe impl CoreArrayProviderInner for TagType {
+    unsafe fn free(raw: *mut Self::Raw, count: usize, _context: &Self::Context) {
+        BNFreeTagTypeList(raw, count)
+    }
+
+    unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, context: &'a Self::Context) -> Self::Wrapped<'a> {
+        Guard::new(Self::from_raw(*raw), context)
+    }
+}
+
 impl TagType {
+    pub(crate) unsafe fn from_raw(handle: *mut BNTagType) -> Self {
+        debug_assert!(!handle.is_null());
+        Self { handle }
+    }
+
     pub(crate) unsafe fn ref_from_raw(handle: *mut BNTagType) -> Ref<Self> {
         debug_assert!(!handle.is_null());
         Ref::new(Self { handle })
