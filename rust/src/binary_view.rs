@@ -1409,7 +1409,7 @@ pub trait BinaryViewExt: BinaryViewBase {
         }
     }
 
-    // List of functions containing `addr`
+    /// List of functions containing `addr`
     fn functions_containing(&self, addr: u64) -> Array<Function> {
         unsafe {
             let mut count = 0;
@@ -1664,7 +1664,7 @@ pub trait BinaryViewExt: BinaryViewBase {
         }
     }
 
-    // Get all tags of a specific type
+    /// Get all tag references of a specific type
     fn tags_by_type(&self, tag_type: &TagType) -> Array<TagReference> {
         let mut count = 0;
         unsafe {
