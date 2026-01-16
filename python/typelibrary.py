@@ -258,6 +258,7 @@ class TypeLibrary:
 		`get_metadata` retrieves a metadata value associated with the given key stored in the current BinaryView.
 
 		This method behaves like `dict.get()`:
+
 		- If the key exists, its metadata value is returned.
 		- If the key does not exist and `default` is not provided, `None` is returned.
 		- If the key does not exist and `default` is provided, `default` is returned.
