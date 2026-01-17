@@ -37,12 +37,79 @@ import sys
 from pathlib import Path
 
 
+def get_docstrings_from_file_regex(filepath, content):
+    """
+    Fallback docstring extraction using regex when AST parsing fails.
+    This handles files with Python 3.10+ syntax like match statements.
+    """
+    docstrings = []
+    lines = content.split('\n')
+
+    # Find triple-quoted strings that appear after def/class or at module level
+    in_docstring = False
+    docstring_lines = []
+    docstring_start = 0
+    quote_style = None
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        if not in_docstring:
+            # Check for start of a docstring (triple quotes)
+            for quote in ['"""', "'''"]:
+                if quote in stripped:
+                    # Check if it's the start of a docstring
+                    idx = stripped.find(quote)
+                    # Make sure it's not inside a comment or after code
+                    before = stripped[:idx].strip()
+                    if before == '' or before.endswith(':'):
+                        in_docstring = True
+                        quote_style = quote
+                        docstring_start = i + 1
+                        # Check if docstring ends on same line
+                        after_start = stripped[idx + 3:]
+                        if quote in after_start:
+                            # Single line docstring
+                            end_idx = after_start.find(quote)
+                            docstring_content = after_start[:end_idx]
+                            if docstring_content.strip():
+                                docstrings.append((docstring_start, docstring_content, 'Unknown'))
+                            in_docstring = False
+                            quote_style = None
+                        else:
+                            docstring_lines = [after_start]
+                        break
+        else:
+            # We're inside a docstring, look for the end
+            if quote_style in stripped:
+                # Found end of docstring
+                end_idx = line.find(quote_style)
+                docstring_lines.append(line[:end_idx])
+                full_docstring = '\n'.join(docstring_lines)
+                if full_docstring.strip():
+                    docstrings.append((docstring_start, full_docstring, 'Unknown'))
+                in_docstring = False
+                docstring_lines = []
+                quote_style = None
+            else:
+                docstring_lines.append(line)
+        i += 1
+
+    return docstrings
+
+
 def get_docstrings_from_file(filepath):
     """Extract all docstrings from a Python file with their line numbers."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
+    except Exception:
+        return []
 
+    # Try AST parsing first
+    try:
         tree = ast.parse(content, filename=str(filepath))
         docstrings = []
 
@@ -60,17 +127,20 @@ def get_docstrings_from_file(filepath):
                             # For functions/classes, it's the first statement
                             line_num = node.body[0].lineno if node.body else node.lineno
 
-                        docstrings.append((line_num, docstring, type(node).__name__))
+                        # Get the name of the function/class/module
+                        if isinstance(node, ast.Module):
+                            node_name = 'module'
+                        else:
+                            node_name = node.name
+                        docstrings.append((line_num, docstring, node_name))
                 except:
                     # Skip if we can't get the docstring
                     pass
 
         return docstrings
-    except Exception as e:
-        # Only show actual parse errors, not docstring extraction issues
-        if "parsing" in str(e).lower() or "syntax" in str(e).lower():
-            print(f"Error parsing {filepath}: {e}", file=sys.stderr)
-        return []
+    except SyntaxError:
+        # Fall back to regex-based extraction for files with newer Python syntax
+        return get_docstrings_from_file_regex(filepath, content)
 
 
 def check_docstring_formatting(docstring):
