@@ -279,13 +279,24 @@ def main():
     if args.paths:
         files_to_check = []
         for path_str in args.paths:
-            path = Path(path_str)
-            if path.is_dir():
-                files_to_check.extend(find_python_files(path))
-            elif path.is_file() and path.suffix == '.py':
-                files_to_check.append(path)
+            # Check if path contains glob characters
+            if any(c in path_str for c in '*?['):
+                matches = list(Path.cwd().glob(path_str))
+                if not matches:
+                    print(f"Warning: {path_str} did not match any files", file=sys.stderr)
+                for path in matches:
+                    if path.is_dir():
+                        files_to_check.extend(find_python_files(path))
+                    elif path.is_file() and path.suffix == '.py':
+                        files_to_check.append(path)
             else:
-                print(f"Warning: {path_str} is not a valid Python file or directory", file=sys.stderr)
+                path = Path(path_str)
+                if path.is_dir():
+                    files_to_check.extend(find_python_files(path))
+                elif path.is_file() and path.suffix == '.py':
+                    files_to_check.append(path)
+                else:
+                    print(f"Warning: {path_str} is not a valid Python file or directory", file=sys.stderr)
     else:
         # Default to checking the python directory relative to this script
         script_dir = Path(__file__).parent
