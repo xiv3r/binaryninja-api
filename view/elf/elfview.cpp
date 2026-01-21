@@ -3,6 +3,7 @@
 #include <cxxabi.h>
 #endif
 #include <inttypes.h>
+#include <cstring>
 #include "elfview.h"
 
 #define STRING_READ_CHUNK_SIZE 32
@@ -1470,6 +1471,20 @@ bool ElfView::Init()
 				{
 					if (relocInfo.type == IgnoredRelocation)
 						continue;
+
+					if ((relocInfo.symbolIndex == 0) && (m_arch && (m_arch->GetName() == "x86"))
+						&& (relocInfo.nativeType == R_386_IRELATIVE))
+					{
+						uint64_t addend = relocInfo.addend;
+						if (relocInfo.implicitAddend && (relocInfo.size > 0) && (relocInfo.size <= sizeof(addend)))
+							memcpy(&addend, relocInfo.relocationDataCache, relocInfo.size);
+						uint64_t target = addend;
+						if (imageBaseAdjustment != 0)
+							target += imageBaseAdjustment;
+						if (auto targetSymbol = GetSymbolByAddress(target); targetSymbol && !GetSymbolByAddress(relocInfo.address))
+							DefineElfSymbol(ImportAddressSymbol, targetSymbol->GetRawName(), relocInfo.address, true,
+								targetSymbol->GetBinding());
+					}
 
 					// Define absolute relocations with no symbol specified such as R_PPC_RELATIVE and R_ARM_IRELATIVE
 					// Define unhandled relocations in order to detect them and avoid creating functions at invalid target addresses

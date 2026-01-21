@@ -4150,6 +4150,14 @@ public:
 				reloc.truncateSize = 4;
 				reloc.implicitAddend = false;
 				break;
+			case R_386_IRELATIVE:
+				reloc.pcRelative = false;
+				reloc.baseRelative = false;
+				reloc.hasSign = false;
+				reloc.size = 4;
+				reloc.truncateSize = 4;
+				reloc.implicitAddend = true;
+				break;
 			default:
 				reloc.type = UnhandledRelocation;
 				relocTypes.insert(reloc.nativeType);
