@@ -115,7 +115,7 @@ void BinaryNinja::InitUniversalViewType()
 			"type" : "array",
 			"sorted" : false,
 			"default" : [],
-			"description" : "Specify an architecture preference for automatic loading of a Mach-O file from a Universal archive. By default, the first object file in the listing is loaded.",
+			"description" : "The preferred Mach-O architecture to select from Universal archives. On its own, changes the default Mach-O selected at load to match the specified architecture. To automatically open that slice without an extra dialog appearing, remove 'Universal' from ui.files.detection.openWithOptions",
 			"ignore" : ["SettingsProjectScope", "SettingsResourceScope"]
 			})");
 
