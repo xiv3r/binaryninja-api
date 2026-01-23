@@ -474,6 +474,7 @@ where
         isArgumentTypeRegisterCompatible: None,
         isNonRegisterArgumentIndirect: None,
         areStackArgumentsNaturallyAligned: None,
+        areStackArgumentsPushedLeftToRight: None,
 
         getCallLayout: None,
         freeCallLayout: None,
@@ -481,6 +482,8 @@ where
         freeValueLocation: None,
         getParameterLocations: None,
         freeParameterLocations: None,
+        getParameterOrderingForVariables: None,
+        freeVariableList: None,
         getStackAdjustmentForLocations: None,
         getRegisterStackAdjustments: None,
         freeRegisterStackAdjustments: None,

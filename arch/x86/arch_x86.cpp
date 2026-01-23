@@ -3971,6 +3971,170 @@ public:
 };
 
 
+class X86PascalCallingConvention : public X86BaseCallingConvention
+{
+public:
+	X86PascalCallingConvention(Architecture* arch) : X86BaseCallingConvention(arch, "pascal") {}
+
+	bool IsNonRegisterArgumentIndirect(BinaryView*, Type* type) override
+	{
+		return type && !type->IsFloat() && type->GetWidth() > 4;
+	}
+
+	bool IsStackAdjustedOnReturn() override
+	{
+		return true;
+	}
+
+	bool AreStackArgumentsPushedLeftToRight() override
+	{
+		return true;
+	}
+
+	Variable GetIndirectReturnValueLocation() override
+	{
+		// Return value pointer is always at the top of the stack (effectively the last parameter
+		// in a left-to-right convention)
+		return Variable::StackOffset(4);
+	}
+
+	std::optional<Variable> GetReturnedIndirectReturnValuePointer() override
+	{
+		return std::nullopt;
+	}
+};
+
+
+class X86PascalRegisterCallingConvention : public X86BaseCallingConvention
+{
+public:
+	X86PascalRegisterCallingConvention(Architecture* arch) : X86BaseCallingConvention(arch, "register") {}
+
+	vector<uint32_t> GetIntegerArgumentRegisters() override
+	{
+		return { XED_REG_EAX, XED_REG_EDX, XED_REG_ECX };
+	}
+
+	bool IsNonRegisterArgumentIndirect(BinaryView*, Type* type) override
+	{
+		return type && !type->IsFloat() && type->GetWidth() > 4;
+	}
+
+	bool AreStackArgumentsPushedLeftToRight() override
+	{
+		return true;
+	}
+
+	std::optional<Variable> GetReturnedIndirectReturnValuePointer() override
+	{
+		return std::nullopt;
+	}
+};
+
+
+class X86GoStackCallingConvention: public CallingConvention
+{
+public:
+	X86GoStackCallingConvention(Architecture* arch): CallingConvention(arch, "go-stack")
+	{
+	}
+
+	bool IsEligibleForHeuristics() override
+	{
+		// This convention cannot be detected by heuristics at this time and will cause issues
+		// with non-Go code.
+		return false;
+	}
+
+	uint32_t GetIntegerReturnValueRegister() override
+	{
+		return BN_INVALID_REGISTER;
+	}
+
+	vector<uint32_t> GetCallerSavedRegisters() override
+	{
+		return vector<uint32_t> { XED_REG_EAX, XED_REG_ECX, XED_REG_EDX, XED_REG_EBX, XED_REG_EBP };
+	}
+
+	RegisterValue GetIncomingFlagValue(uint32_t flag, Function*) override
+	{
+		RegisterValue result;
+		if (flag == IL_FLAG_D)
+		{
+			result.state = ConstantValue;
+			result.value = 0;
+		}
+		return result;
+	}
+
+	ValueLocation GetReturnValueLocation(BinaryView*, const ReturnValue&) override
+	{
+		// It is not possible for this API to determine the return value location on the stack at
+		// this point, return an invalid location and fall back to GetCallLayout.
+		return ValueLocation();
+	}
+
+	CallLayout GetCallLayout(BinaryView* view, const ReturnValue& returnValue, const vector<FunctionParameter>& params,
+		const std::optional<set<uint32_t>>& permittedRegs) override
+	{
+		CallLayout result;
+		result.parameters = GetParameterLocations(view, result.returnValue, params, permittedRegs);
+
+		if (returnValue.type.GetValue() && returnValue.type->GetClass() != VoidTypeClass)
+		{
+			if (returnValue.defaultLocation)
+			{
+				int64_t stackOffset = 4;
+				size_t i = 0;
+				for (auto it = result.parameters.begin(); it != result.parameters.end(); ++i, ++it)
+				{
+					std::optional<int64_t> varStorage;
+					std::optional<uint64_t> varSize;
+					for (auto& component: it->components)
+					{
+						if (component.variable.type != StackVariableSourceType)
+							continue;
+						if (!varStorage.has_value() || component.variable.storage > varStorage.value())
+						{
+							varStorage = component.variable.storage;
+							if (!it->indirect)
+								varSize = component.size;
+						}
+					}
+
+					if (!varStorage.has_value() || varStorage.value() < stackOffset)
+						continue;
+					if (it->indirect)
+						varSize = 4;
+
+					size_t width = 4;
+					if (varSize.has_value())
+						width = varSize.value();
+					else if (i < params.size() && params[i].type.GetValue())
+						width = params[i].type->GetWidth();
+
+					if (width < 4)
+						width = 4;
+					else if ((width % 4) != 0)
+						width += 4 - (width % 4);
+
+					stackOffset = varStorage.value() + width;
+				}
+
+				result.returnValue = Variable::StackOffset(stackOffset);
+			}
+			else
+			{
+				result.returnValue = returnValue.location.GetValue();
+			}
+		}
+
+		result.registerStackAdjustments = GetRegisterStackAdjustments(view, result.returnValue, result.parameters);
+		return result;
+	}
+};
+
+
 class X64BaseCallingConvention: public CallingConvention
 {
 public:
@@ -4141,6 +4305,111 @@ public:
 	virtual bool IsEligibleForHeuristics() override
 	{
 		return false;
+	}
+};
+
+
+class X64GoStackCallingConvention: public CallingConvention
+{
+public:
+	X64GoStackCallingConvention(Architecture* arch): CallingConvention(arch, "go-stack")
+	{
+	}
+
+	bool IsEligibleForHeuristics() override
+	{
+		// This convention cannot be detected by heuristics at this time and will cause issues
+		// with non-Go code.
+		return false;
+	}
+
+	uint32_t GetIntegerReturnValueRegister() override
+	{
+		return BN_INVALID_REGISTER;
+	}
+
+	vector<uint32_t> GetCallerSavedRegisters() override
+	{
+		return vector<uint32_t> { XED_REG_RAX, XED_REG_RCX, XED_REG_RDX, XED_REG_RBX, XED_REG_RBP,
+			XED_REG_R8, XED_REG_R9, XED_REG_R10, XED_REG_R11, XED_REG_R12, XED_REG_R13, XED_REG_R14,
+			XED_REG_R15 };
+	}
+
+	RegisterValue GetIncomingFlagValue(uint32_t flag, Function*) override
+	{
+		RegisterValue result;
+		if (flag == IL_FLAG_D)
+		{
+			result.state = ConstantValue;
+			result.value = 0;
+		}
+		return result;
+	}
+
+	ValueLocation GetReturnValueLocation(BinaryView*, const ReturnValue&) override
+	{
+		// It is not possible for this API to determine the return value location on the stack at
+		// this point, return an invalid location and fall back to GetCallLayout.
+		return ValueLocation();
+	}
+
+	CallLayout GetCallLayout(BinaryView* view, const ReturnValue& returnValue, const vector<FunctionParameter>& params,
+		const std::optional<set<uint32_t>>& permittedRegs) override
+	{
+		CallLayout result;
+		result.parameters = GetParameterLocations(view, result.returnValue, params, permittedRegs);
+
+		if (returnValue.type.GetValue() && returnValue.type->GetClass() != VoidTypeClass)
+		{
+			if (returnValue.defaultLocation)
+			{
+				int64_t stackOffset = 8;
+				size_t i = 0;
+				for (auto it = result.parameters.begin(); it != result.parameters.end(); ++i, ++it)
+				{
+					std::optional<int64_t> varStorage;
+					std::optional<uint64_t> varSize;
+					for (auto& component: it->components)
+					{
+						if (component.variable.type != StackVariableSourceType)
+							continue;
+						if (!varStorage.has_value() || component.variable.storage > varStorage.value())
+						{
+							varStorage = component.variable.storage;
+							if (!it->indirect)
+								varSize = component.size;
+						}
+					}
+
+					if (!varStorage.has_value() || varStorage.value() < stackOffset)
+						continue;
+					if (it->indirect)
+						varSize = 8;
+
+					size_t width = 8;
+					if (varSize.has_value())
+						width = varSize.value();
+					else if (i < params.size() && params[i].type.GetValue())
+						width = params[i].type->GetWidth();
+
+					if (width < 8)
+						width = 8;
+					else if ((width % 8) != 0)
+						width += 8 - (width % 8);
+
+					stackOffset = varStorage.value() + width;
+				}
+
+				result.returnValue = Variable::StackOffset(stackOffset);
+			}
+			else
+			{
+				result.returnValue = returnValue.location.GetValue();
+			}
+		}
+
+		result.registerStackAdjustments = GetRegisterStackAdjustments(view, result.returnValue, result.parameters);
+		return result;
 	}
 };
 
@@ -5052,6 +5321,12 @@ extern "C"
 		x86->RegisterCallingConvention(conv);
 		conv = new X86LinuxSystemCallConvention(x86);
 		x86->RegisterCallingConvention(conv);
+		conv = new X86PascalCallingConvention(x86);
+		x86->RegisterCallingConvention(conv);
+		conv = new X86PascalRegisterCallingConvention(x86);
+		x86->RegisterCallingConvention(conv);
+		conv = new X86GoStackCallingConvention(x86);
+		x86->RegisterCallingConvention(conv);
 
 		x86->RegisterRelocationHandler("Mach-O", new x86MachoRelocationHandler());
 		x86->RegisterRelocationHandler("KCView", new x86MachoRelocationHandler());
@@ -5068,6 +5343,8 @@ extern "C"
 		conv = new X64WindowsCallingConvention(x64);
 		x64->RegisterCallingConvention(conv);
 		conv = new X64LinuxSystemCallConvention(x64);
+		x64->RegisterCallingConvention(conv);
+		conv = new X64GoStackCallingConvention(x64);
 		x64->RegisterCallingConvention(conv);
 
 		x64->RegisterRelocationHandler("Mach-O", new x64MachoRelocationHandler());

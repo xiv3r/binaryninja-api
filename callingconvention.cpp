@@ -117,12 +117,15 @@ CallingConvention::CallingConvention(Architecture* arch, const string& name)
 	cc.isArgumentTypeRegisterCompatible = IsArgumentTypeRegisterCompatibleCallback;
 	cc.isNonRegisterArgumentIndirect = IsNonRegisterArgumentIndirectCallback;
 	cc.areStackArgumentsNaturallyAligned = AreStackArgumentsNaturallyAlignedCallback;
+	cc.areStackArgumentsPushedLeftToRight = AreStackArgumentsPushedLeftToRightCallback;
 	cc.getCallLayout = GetCallLayoutCallback;
 	cc.freeCallLayout = FreeCallLayoutCallback;
 	cc.getReturnValueLocation = GetReturnValueLocationCallback;
 	cc.freeValueLocation = FreeValueLocationCallback;
 	cc.getParameterLocations = GetParameterLocationsCallback;
 	cc.freeParameterLocations = FreeParameterLocationsCallback;
+	cc.getParameterOrderingForVariables = GetParameterOrderingForVariablesCallback;
+	cc.freeVariableList = FreeVariableListCallback;
 	cc.getStackAdjustmentForLocations = GetStackAdjustmentForLocationsCallback;
 	cc.getRegisterStackAdjustments = GetRegisterStackAdjustmentsCallback;
 	cc.freeRegisterStackAdjustments = FreeRegisterStackAdjustmentsCallback;
@@ -406,6 +409,13 @@ bool CallingConvention::AreStackArgumentsNaturallyAlignedCallback(void* ctxt)
 }
 
 
+bool CallingConvention::AreStackArgumentsPushedLeftToRightCallback(void* ctxt)
+{
+	CallbackRef<CallingConvention> cc(ctxt);
+	return cc->AreStackArgumentsPushedLeftToRight();
+}
+
+
 void CallingConvention::GetCallLayoutCallback(void* ctxt, BNBinaryView* view, BNReturnValue* returnValue,
 	BNFunctionParameter* params, size_t paramCount, bool hasPermittedRegs, uint32_t* permittedRegs,
 	size_t permittedRegCount, BNCallLayout* result)
@@ -497,6 +507,33 @@ void CallingConvention::FreeParameterLocationsCallback(void*, BNValueLocation* l
 	for (size_t i = 0; i < count; i++)
 		ValueLocation::FreeAPIObject(&locations[i]);
 	delete[] locations;
+}
+
+
+BNVariable* CallingConvention::GetParameterOrderingForVariablesCallback(
+	void* ctxt, BNBinaryView* view, BNVariable* vars, BNType** types, size_t paramCount, size_t* outCount)
+{
+	CallbackRef<CallingConvention> cc(ctxt);
+	Ref<BinaryView> viewObj;
+	if (view)
+		viewObj = new BinaryView(BNNewViewReference(view));
+	map<Variable, Ref<Type>> params;
+	for (size_t i = 0; i < paramCount; i++)
+		params[vars[i]] = types[i] ? new Type(BNNewTypeReference(types[i])) : nullptr;
+
+	auto outVars = cc->GetParameterOrderingForVariables(viewObj, params);
+
+	*outCount = outVars.size();
+	BNVariable* result = new BNVariable[outVars.size()];
+	for (size_t i = 0; i < outVars.size(); i++)
+		result[i] = outVars[i];
+	return result;
+}
+
+
+void CallingConvention::FreeVariableListCallback(void*, BNVariable* vars, size_t)
+{
+	delete[] vars;
 }
 
 
@@ -750,6 +787,12 @@ bool CallingConvention::AreStackArgumentsNaturallyAligned()
 }
 
 
+bool CallingConvention::AreStackArgumentsPushedLeftToRight()
+{
+	return false;
+}
+
+
 CallLayout CallingConvention::GetCallLayout(BinaryView* view, const ReturnValue& returnValue,
 	const vector<FunctionParameter>& params, const optional<set<uint32_t>>& permittedRegs)
 {
@@ -768,6 +811,13 @@ vector<ValueLocation> CallingConvention::GetParameterLocations(BinaryView* view,
 	const optional<set<uint32_t>>& permittedRegs)
 {
 	return GetDefaultParameterLocations(view, returnValue, params, permittedRegs);
+}
+
+
+std::vector<Variable> CallingConvention::GetParameterOrderingForVariables(
+	BinaryView*, const std::map<Variable, Ref<Type>>& params)
+{
+	return GetDefaultParameterOrderingForVariables(params);
 }
 
 
@@ -877,6 +927,33 @@ vector<ValueLocation> CallingConvention::GetDefaultParameterLocations(BinaryView
 	for (size_t i = 0; i < locationCount; i++)
 		result.push_back(ValueLocation::FromAPIObject(&locations[i]));
 	BNFreeValueLocationList(locations, locationCount);
+	return result;
+}
+
+
+std::vector<Variable> CallingConvention::GetDefaultParameterOrderingForVariables(
+	const std::map<Variable, Ref<Type>>& params)
+{
+	BNVariable* vars = new BNVariable[params.size()];
+	const BNType** types = new const BNType*[params.size()];
+	size_t i = 0;
+	for (auto it = params.begin(); it != params.end(); ++it, ++i)
+	{
+		vars[i] = it->first;
+		types[i] = it->second.GetPtr() ? it->second->GetObject() : nullptr;
+	}
+
+	size_t outCount = 0;
+	auto outVars = BNGetDefaultParameterOrderingForVariables(m_object, vars, types, params.size(), &outCount);
+
+	delete[] vars;
+	delete[] types;
+
+	vector<Variable> result;
+	result.reserve(outCount);
+	for (i = 0; i < outCount; i++)
+		result.emplace_back(outVars[i]);
+	BNFreeVariableList(outVars);
 	return result;
 }
 
@@ -1145,6 +1222,12 @@ bool CoreCallingConvention::AreStackArgumentsNaturallyAligned()
 }
 
 
+bool CoreCallingConvention::AreStackArgumentsPushedLeftToRight()
+{
+	return BNAreStackArgumentsPushedLeftToRight(m_object);
+}
+
+
 CallLayout CoreCallingConvention::GetCallLayout(BinaryView* view, const ReturnValue& returnValue,
 	const vector<FunctionParameter>& params, const optional<set<uint32_t>>& permittedRegs)
 {
@@ -1237,6 +1320,34 @@ vector<ValueLocation> CoreCallingConvention::GetParameterLocations(BinaryView* v
 	for (size_t i = 0; i < locationCount; i++)
 		result.push_back(ValueLocation::FromAPIObject(&locations[i]));
 	BNFreeValueLocationList(locations, locationCount);
+	return result;
+}
+
+
+std::vector<Variable> CoreCallingConvention::GetParameterOrderingForVariables(
+	BinaryView* view, const std::map<Variable, Ref<Type>>& params)
+{
+	BNVariable* vars = new BNVariable[params.size()];
+	const BNType** types = new const BNType*[params.size()];
+	size_t i = 0;
+	for (auto it = params.begin(); it != params.end(); ++it, ++i)
+	{
+		vars[i] = it->first;
+		types[i] = it->second.GetPtr() ? it->second->GetObject() : nullptr;
+	}
+
+	size_t outCount = 0;
+	auto outVars = BNGetParameterOrderingForVariables(
+		m_object, view ? view->GetObject() : nullptr, vars, types, params.size(), &outCount);
+
+	delete[] vars;
+	delete[] types;
+
+	vector<Variable> result;
+	result.reserve(outCount);
+	for (i = 0; i < outCount; i++)
+		result.emplace_back(outVars[i]);
+	BNFreeVariableList(outVars);
 	return result;
 }
 

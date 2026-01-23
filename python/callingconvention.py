@@ -104,10 +104,12 @@ class CallingConvention:
 	global_pointer_reg = None
 	implicitly_defined_regs = []
 	stack_args_naturally_aligned = False
+	stack_args_pushed_left_to_right = False
 
 	_registered_calling_conventions = []
 	_pending_value_locations = {}
 	_pending_value_location_lists = {}
+	_pending_variable_lists = {}
 	_pending_reg_stack_adjustment_reg_lists = {}
 	_pending_reg_stack_adjustment_amount_lists = {}
 
@@ -191,12 +193,19 @@ class CallingConvention:
 			self._cb.areStackArgumentsNaturallyAligned = self._cb.areStackArgumentsNaturallyAligned.__class__(
 				self._are_stack_args_naturally_aligned
 			)
+			self._cb.areStackArgumentsPushedLeftToRight = self._cb.areStackArgumentsPushedLeftToRight.__class__(
+				self._are_stack_args_pushed_left_to_right
+			)
 			self._cb.getCallLayout = self._cb.getCallLayout.__class__(self._get_call_layout)
 			self._cb.freeCallLayout = self._cb.freeCallLayout.__class__(self._free_call_layout)
 			self._cb.getReturnValueLocation = self._cb.getReturnValueLocation.__class__(self._get_return_value_location)
 			self._cb.freeValueLocation = self._cb.freeValueLocation.__class__(self._free_value_location)
 			self._cb.getParameterLocations = self._cb.getParameterLocations.__class__(self._get_parameter_locations)
 			self._cb.freeParameterLocations = self._cb.freeParameterLocations.__class__(self._free_parameter_locations)
+			self._cb.getParameterOrderingForVariables = self._cb.getParameterOrderingForVariables.__class__(
+				self._get_parameter_ordering_for_variables
+			)
+			self._cb.freeVariableList = self._cb.freeVariableList.__class__(self._free_variable_list)
 			self._cb.getStackAdjustmentForLocations = self._cb.getStackAdjustmentForLocations.__class__(
 				self._get_stack_adjustment_for_locations
 			)
@@ -551,6 +560,13 @@ class CallingConvention:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._are_stack_args_naturally_aligned")
 			return False
 
+	def _are_stack_args_pushed_left_to_right(self, ctxt):
+		try:
+			return self.__class__.stack_args_pushed_left_to_right
+		except:
+			log_error_for_exception("Unhandled Python exception in CallingConvention._are_stack_args_pushed_left_to_right")
+			return False
+
 	def _get_call_layout(
 		self, ctxt, view, ret_value, params, param_count, has_permitted_regs, permitted_regs,
 		permitted_reg_count, out_layout
@@ -708,6 +724,45 @@ class CallingConvention:
 				del self._pending_value_location_lists[location_ptr.value]
 		except:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._free_parameter_locations")
+
+	def _get_parameter_ordering_for_variables(self, ctxt, view, vars, type_list, param_count, out_count):
+		try:
+			if view:
+				view_obj = binaryview.BinaryView(handle=core.BNNewViewReference(view))
+			else:
+				view_obj = None
+			params = {}
+			for i in range(param_count):
+				var = variable.CoreVariable.from_BNVariable(vars[i])
+				ty = types.Type.from_core_struct(type_list[i])
+				params[var] = ty
+
+			var_list = self.get_parameter_ordering_for_variables(view_obj, params)
+
+			out_count[0] = len(var_list)
+			result = (core.BNVariable * len(var_list))()
+			for i, var in enumerate(var_list):
+				result[i] = var.to_BNVariable()
+
+			result_ptr = ctypes.cast(result, ctypes.c_void_p)
+			self._pending_variable_lists[result_ptr.value] = (result_ptr.value, result)
+
+			return result_ptr.value
+		except:
+			log_error_for_exception(
+				"Unhandled Python exception in CallingConvention._get_parameter_ordering_for_variables")
+			out_count[0] = 0
+			return None
+
+	def _free_variable_list(self, ctxt, vars, count):
+		try:
+			var_list_ptr = ctypes.cast(vars, ctypes.c_void_p)
+			if var_list_ptr.value is not None:
+				if var_list_ptr.value not in self._pending_variable_lists:
+					raise ValueError("freeing variable list that wasn't allocated")
+				del self._pending_variable_lists[var_list_ptr.value]
+		except:
+			log_error_for_exception("Unhandled Python exception in CallingConvention._free_variable_list")
 
 	def _get_stack_adjustment_for_locations(self, ctxt, view, ret_value, locations, type_list, param_count):
 		try:
@@ -952,6 +1007,28 @@ class CallingConvention:
 		core.BNFreeValueLocationList(locations, count.value)
 		return result
 
+	def get_parameter_ordering_for_variables(
+		self, view: Optional['binaryview.BinaryView'], params: Dict['variable.CoreVariable', 'types.Type']
+	) -> List['variable.CoreVariable']:
+		return self.get_default_parameter_ordering_for_variables(params)
+
+	def get_default_parameter_ordering_for_variables(self, params: Dict['variable.CoreVariable', 'types.Type']) -> List['variable.CoreVariable']:
+		vars = (core.BNVariable * len(params))()
+		types = (ctypes.POINTER(core.BNType) * len(params))()
+		for (i, (var, ty)) in enumerate(params.items()):
+			vars[i] = var.to_BNVariable()
+			types[i] = ty.handle
+			i += 1
+
+		count = ctypes.c_ulonglong()
+		var_list = core.BNGetDefaultParameterOrderingForVariables(self.handle, vars, types, len(params), count)
+
+		result = []
+		for i in range(count.value):
+			result.append(variable.CoreVariable.from_BNVariable(var_list[i]))
+		core.BNFreeVariableList(var_list)
+		return result
+
 	def get_stack_adjustment_for_locations(
 		self, view: Optional['binaryview.BinaryView'], return_value: Optional['types.ValueLocation'],
 		params: List[Tuple['types.ValueLocation', 'types.Type']]
@@ -1026,6 +1103,8 @@ class CoreCallingConvention(CallingConvention):
 		self.__dict__["stack_reserved_for_arg_regs"] = core.BNIsStackReservedForArgumentRegisters(handle)
 		self.__dict__["stack_adjusted_on_return"] = core.BNIsStackAdjustedOnReturn(handle)
 		self.__dict__["eligible_for_heuristics"] = core.BNIsEligibleForHeuristics(handle)
+		self.__dict__["stack_args_naturally_aligned"] = core.BNAreStackArgumentsNaturallyAligned(handle)
+		self.__dict__["stack_args_pushed_left_to_right"] = core.BNAreStackArgumentsPushedLeftToRight(handle)
 
 		count = ctypes.c_ulonglong()
 		regs = core.BNGetCallerSavedRegisters(handle, count)
@@ -1275,6 +1354,29 @@ class CoreCallingConvention(CallingConvention):
 		for i in range(count.value):
 			result.append(types.ValueLocation._from_core_struct(locations[i], arch))
 		core.BNFreeValueLocationList(locations, count.value)
+		return result
+
+	def get_parameter_ordering_for_variables(
+		self, view: Optional['binaryview.BinaryView'], params: Dict['variable.CoreVariable', 'types.Type']
+	) -> List['variable.CoreVariable']:
+		if view is None:
+			view_obj = None
+		else:
+			view_obj = view.handle
+		vars = (core.BNVariable * len(params))()
+		types = (ctypes.POINTER(core.BNType) * len(params))()
+		for (i, (var, ty)) in enumerate(params.items()):
+			vars[i] = var.to_BNVariable()
+			types[i] = ty.handle
+			i += 1
+
+		count = ctypes.c_ulonglong()
+		var_list = core.BNGetParameterOrderingForVariables(self.handle, view_obj, vars, types, len(params), count)
+
+		result = []
+		for i in range(count.value):
+			result.append(variable.CoreVariable.from_BNVariable(var_list[i]))
+		core.BNFreeVariableList(var_list)
 		return result
 
 	def get_stack_adjustment_for_locations(

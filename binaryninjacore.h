@@ -1157,7 +1157,10 @@ extern "C"
 		ILTransparentCopy = 0x1000,
 
 		// Instruction is defining an implicit trait of the calling convention
-		MLILCallingConventionImplicit = 0x2000
+		MLILCallingConventionImplicit = 0x2000,
+
+		// Function call returns its result onto the caller's stack
+		ILStackReturn = 0x4000,
 	};
 
 	BN_ENUM(uint8_t, BNIntrinsicClass)
@@ -2966,6 +2969,7 @@ extern "C"
 		bool (*isArgumentTypeRegisterCompatible)(void* ctxt, BNBinaryView* view, BNType* type);
 		bool (*isNonRegisterArgumentIndirect)(void* ctxt, BNBinaryView* view, BNType* type);
 		bool (*areStackArgumentsNaturallyAligned)(void* ctxt);
+		bool (*areStackArgumentsPushedLeftToRight)(void* ctxt);
 
 		void (*getIncomingVariableForParameterVariable)(
 		    void* ctxt, const BNVariable* var, BNFunction* func, BNVariable* result);
@@ -2985,6 +2989,9 @@ extern "C"
 			BNFunctionParameter* params, size_t paramCount, bool hasPermittedRegs, uint32_t* permittedRegs,
 			size_t permittedRegCount, size_t* outLocationCount);
 		void (*freeParameterLocations)(void* ctxt, BNValueLocation* locations, size_t count);
+		BNVariable* (*getParameterOrderingForVariables)(
+			void* ctxt, BNBinaryView* view, BNVariable* vars, BNType** types, size_t paramCount, size_t* outCount);
+		void (*freeVariableList)(void* ctxt, BNVariable* vars, size_t count);
 		int64_t (*getStackAdjustmentForLocations)(void* ctxt, BNBinaryView* view, BNValueLocation* returnValue,
 			BNValueLocation* locations, BNType** types, size_t paramCount);
 		size_t (*getRegisterStackAdjustments)(void* ctxt, BNBinaryView* view, BNValueLocation* returnValue,
@@ -7792,9 +7799,10 @@ extern "C"
 		size_t* outCount);
 	BINARYNINJACOREAPI void BNFreeValueLocationList(BNValueLocation* locations, size_t count);
 
-	BINARYNINJACOREAPI BNVariable* BNGetParameterOrderingForVariables(
-	    BNCallingConvention* cc, const BNVariable* paramVars, const BNType** paramTypes,
-	    size_t paramCount, size_t* count);
+	BINARYNINJACOREAPI BNVariable* BNGetParameterOrderingForVariables(BNCallingConvention* cc, BNBinaryView* view,
+		const BNVariable* paramVars, const BNType** paramTypes, size_t paramCount, size_t* count);
+	BINARYNINJACOREAPI BNVariable* BNGetDefaultParameterOrderingForVariables(BNCallingConvention* cc,
+		const BNVariable* paramVars, const BNType** paramTypes, size_t paramCount, size_t* count);
 	BINARYNINJACOREAPI int64_t BNGetStackAdjustmentForLocations(BNCallingConvention* cc, BNBinaryView* view,
 		BNValueLocation* returnValue, const BNValueLocation* paramLocations, const BNType** paramTypes,
 		size_t paramCount);
@@ -7828,6 +7836,7 @@ extern "C"
 	BINARYNINJACOREAPI bool BNDefaultIsArgumentTypeRegisterCompatible(BNCallingConvention* cc, BNType* type);
 	BINARYNINJACOREAPI bool BNIsNonRegisterArgumentIndirect(BNCallingConvention* cc, BNBinaryView* view, BNType* type);
 	BINARYNINJACOREAPI bool BNAreStackArgumentsNaturallyAligned(BNCallingConvention* cc);
+	BINARYNINJACOREAPI bool BNAreStackArgumentsPushedLeftToRight(BNCallingConvention* cc);
 
 	BINARYNINJACOREAPI BNCallingConvention* BNGetArchitectureDefaultCallingConvention(BNArchitecture* arch);
 	BINARYNINJACOREAPI BNCallingConvention* BNGetArchitectureCdeclCallingConvention(BNArchitecture* arch);

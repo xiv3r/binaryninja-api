@@ -127,6 +127,18 @@ void takes_callback(int (__stdcall* param_func_ptr)());
 void __convention("regparm") func();
 ```
 
+### Built-in Calling Conventions
+
+The following built-in calling conventions without dedicated keywords are available in Binary Ninja:
+
+|Name|Valid architectures|Description|
+|---|---|---|
+|`linux-syscall`|Most|Linux system call|
+|`windows-syscall`|aarch64|Windows system call|
+|`apple-syscall`|aarch64|macOS and iOS system calls|
+|`go-stack`|x86, x86_64|Stack-based calling convention used by the Go compiler on 32-bit x86 or older compilers|
+|`register`|x86|Register-based calling convention with left-to-right parameter passing (used by default in Delphi)|
+
 ## System Call Functions for Type Libraries
 
 [Type Libraries](typelibraries.md) can annotate system calls by adding functions with the special `__syscall()` attribute, specifying names and arguments for each syscall number. This attribute has no effect outside of [Type Libraries](typelibraries.md) and [Platform Types](platformtypes.md).
