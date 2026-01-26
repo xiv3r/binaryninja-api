@@ -127,7 +127,7 @@ void SymbolTableModel::sort(int column, Qt::SortOrder order)
 void SymbolTableModel::updateSymbols(std::vector<CacheSymbol> symbols)
 {
 	m_symbols = std::move(symbols);
-	setFilter(m_filter);
+	setFilter(m_filter, m_filterOptions);
 }
 
 
@@ -137,12 +137,12 @@ const CacheSymbol& SymbolTableModel::symbolAt(int row) const
 }
 
 
-void SymbolTableModel::setFilter(std::string text)
+void SymbolTableModel::setFilter(const std::string& text, FilterOptions options)
 {
+	m_filter = text;
+	m_filterOptions = options;
+	bool caseSensitive = options.testFlag(CaseSensitiveOption);
 	beginResetModel();
-
-	m_filter = std::move(text);
-
 	// Skip filtering if no filter applied.
 	if (m_filter.empty())
 	{
@@ -156,8 +156,27 @@ void SymbolTableModel::setFilter(std::string text)
 
 		for (const auto& symbol : m_symbols)
 		{
-			if (symbol.name.find(m_filter) != std::string::npos)
+			const std::string& symbolName = symbol.name;
+			bool match;
+			if (caseSensitive)
+			{
+				match = (symbolName.find(m_filter) != std::string::npos);
+			}
+			else
+			{
+				auto it = std::search(
+					symbolName.begin(), symbolName.end(),
+					m_filter.begin(), m_filter.end(),
+					[](char c1, char c2) { return std::tolower(c1) == std::tolower(c2); }
+				);
+
+				match = (it != symbolName.end());
+			}
+
+			if (match)
+			{
 				m_filteredSymbols.push_back(symbol);
+			}
 		}
 
 		// If the filtered vector is using less than 25% of its capacity,
@@ -170,6 +189,8 @@ void SymbolTableModel::setFilter(std::string text)
 
 	endResetModel();
 }
+
+
 
 
 SymbolTableView::SymbolTableView(QWidget* parent) :
@@ -223,6 +244,8 @@ void SymbolTableView::populateSymbols(BinaryView &view)
 	}
 }
 
-void SymbolTableView::setFilter(const std::string& filter) {
-	m_model->setFilter(filter);
+
+void SymbolTableView::setFilter(const std::string& filter, FilterOptions options)
+{
+	m_model->setFilter(filter, options);
 }

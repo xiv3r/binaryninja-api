@@ -254,7 +254,7 @@ class BINARYNINJAUIAPI VariableList : public SidebarWidget, public FilterTarget
 	//! Copy selected variables to clipboard
 	void copy();
 
-	virtual void setFilter(const std::string& filter) override;
+	virtual void setFilter(const std::string& filter, FilterOptions options) override;
 	virtual void scrollToFirstItem() override;
 	virtual void scrollToCurrentItem() override;
 	virtual void ensureSelection() override;

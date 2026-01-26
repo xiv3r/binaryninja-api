@@ -19,6 +19,7 @@ Q_OBJECT
 	SymbolTableView* m_parent;
 	QFont m_font;
 	std::string m_filter;
+	FilterOptions m_filterOptions;
 
 	std::vector<SharedCacheAPI::CacheSymbol> m_symbols;
 	std::vector<SharedCacheAPI::CacheSymbol> m_filteredSymbols;
@@ -36,7 +37,7 @@ public:
 	void sort(int column, Qt::SortOrder order) override;
 
 	void updateSymbols(std::vector<SharedCacheAPI::CacheSymbol> symbols);
-	void setFilter(std::string text);
+	void setFilter(const std::string& text, FilterOptions options);
 
 	const SharedCacheAPI::CacheSymbol& symbolAt(int row) const;
 };
@@ -98,7 +99,7 @@ public:
 		return m_model->symbolAt(row);
 	}
 
-	void setFilter(const std::string& filter) override;
+	void setFilter(const std::string& filter, FilterOptions options) override;
 };
 
 

@@ -115,16 +115,16 @@ QString GenericStringsModel::stringRefToQString(const BNStringReference& stringR
 	BinaryNinja::DataBuffer stringBuffer = m_data->ReadBuffer(stringRef.start, stringRef.length);
 
 	if (stringRef.type == BNStringType::Utf32String)
-	{	
+	{
 		char32_t* data = (char32_t*)stringBuffer.GetData();
 		qstr = QString::fromUcs4(data, stringRef.length / 4);
-	} 
+	}
 	else if (stringRef.type == BNStringType::Utf16String)
 	{
 		char16_t* data = (char16_t*)stringBuffer.GetData();
 		qstr = QString::fromUtf16(data, stringRef.length / 2);
 	}
-	else 
+	else
 	{
 		char* data = (char*)stringBuffer.GetData();
 		qstr = QString::fromUtf8(data, stringBuffer.GetLength());
@@ -159,7 +159,7 @@ void GenericStringsModel::performSort(int col, Qt::SortOrder order)
 				return a.length > b.length;
 		}
 		else if (col == 2)
-		{	
+		{
 			QString s = stringRefToQString(a);
 			QString s2 = stringRefToQString(b);
 
@@ -188,18 +188,31 @@ void GenericStringsModel::applyFilter()
 	m_entries.clear();
 	for (auto& entry : m_allEntries)
 	{
-		auto s = stringRefToQString(entry).toStdString();
+		auto s = stringRefToQString(entry);
 
-		if (FilteredView::match(s, m_filter))
+		bool match;
+		if (m_filterOptions.testFlag(UseRegexOption))
+		{
+			match = m_filterRegex.match(s).hasMatch();
+		}
+		else
+		{
+			match = s.contains(m_filter, m_filterOptions.testFlag(CaseSensitiveOption) ? Qt::CaseSensitive : Qt::CaseInsensitive);
+		}
+
+		if (match)
 			m_entries.push_back(entry);
 	}
 	performSort(m_sortCol, m_sortOrder);
 }
 
 
-void GenericStringsModel::setFilter(const std::string& filterText)
+void GenericStringsModel::setFilter(const QString& filterText, FilterOptions options)
 {
 	m_filter = filterText;
+	m_filterOptions = options;
+	bool caseSensitive = options.testFlag(CaseSensitiveOption);
+	m_filterRegex = QRegularExpression(filterText, caseSensitive ? QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption);
 	beginResetModel();
 	applyFilter();
 	endResetModel();
@@ -412,9 +425,9 @@ void StringsTreeView::stringDoubleClicked(const QModelIndex& cur)
 }
 
 
-void StringsTreeView::setFilter(const std::string& filterText)
+void StringsTreeView::setFilter(const std::string& filterText, FilterOptions options)
 {
-	m_model->setFilter(filterText);
+	m_model->setFilter(QString::fromStdString(filterText), options);
 }
 
 

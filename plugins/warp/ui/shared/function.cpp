@@ -299,9 +299,11 @@ void WarpFunctionTableWidget::RemoveFunction(uint64_t address)
 	m_model->RemoveFunction(address);
 }
 
-void WarpFunctionTableWidget::setFilter(const std::string& filter)
+void WarpFunctionTableWidget::setFilter(const std::string& filter, FilterOptions options)
 {
 	m_proxyModel->setFilterFixedString(QString::fromStdString(filter));
+	m_proxyModel->setFilterCaseSensitivity(
+		options.testFlag(CaseSensitiveOption) ? Qt::CaseSensitive : Qt::CaseInsensitive);
 	m_filterView->showFilter(QString::fromStdString(filter));
 }
 

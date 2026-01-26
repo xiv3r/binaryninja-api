@@ -13,6 +13,7 @@ class GenericExportsModel : public QAbstractItemModel, public BinaryNinja::Binar
 	BinaryViewRef m_data;
 	std::vector<SymbolRef> m_allEntries, m_entries;
 	std::string m_filter;
+	FilterOptions m_filterOptions;
 	QTimer* m_updateTimer;
 	Qt::SortOrder m_sortOrder;
 	int m_sortCol;
@@ -46,7 +47,7 @@ signals:
 	virtual QModelIndex index(int row, int col, const QModelIndex& parent) const override;
 	virtual QModelIndex parent(const QModelIndex& index) const override;
 	virtual void sort(int col, Qt::SortOrder order) override;
-	void setFilter(const std::string& filterText);
+	void setFilter(const std::string& filterText, FilterOptions options);
 
 	void pauseUpdates();
 	void resumeUpdates();
@@ -79,7 +80,7 @@ class ExportsTreeView : public QTreeView, public FilterTarget
 	void copySelection();
 	bool canCopySelection() const;
 
-	virtual void setFilter(const std::string& filterText) override;
+	virtual void setFilter(const std::string& filterText, FilterOptions options) override;
 	virtual void scrollToFirstItem() override;
 	virtual void scrollToCurrentItem() override;
 	virtual void ensureSelection() override;

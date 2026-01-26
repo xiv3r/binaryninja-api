@@ -14,8 +14,11 @@ class GenericStringsModel : public QAbstractItemModel, public BinaryNinja::Binar
 	std::vector<BNStringReference> m_allEntries, m_entries;
 	int m_totalCols, m_sortCol;
 	Qt::SortOrder m_sortOrder;
-	std::string m_filter;
 	QTimer* m_updateTimer;
+
+	QString m_filter;
+	FilterOptions m_filterOptions;
+	QRegularExpression m_filterRegex;
 
 	// Read from arbitrary threads while processing notifications.
 	std::atomic<bool> m_updatesPaused = false;
@@ -46,7 +49,8 @@ signals:
 	virtual QModelIndex index(int row, int col, const QModelIndex& parent) const override;
 	virtual QModelIndex parent(const QModelIndex& index) const override;
 	virtual void sort(int col, Qt::SortOrder order) override;
-	void setFilter(const std::string& filterText);
+
+	void setFilter(const QString& filterText, FilterOptions options);
 
 	void pauseUpdates();
 	void resumeUpdates();
@@ -81,7 +85,7 @@ class StringsTreeView : public QTreeView, public FilterTarget
 	void copySelection();
 	bool canCopySelection() const;
 
-	virtual void setFilter(const std::string& filterText) override;
+	virtual void setFilter(const std::string& filterText, FilterOptions options) override;
 	virtual void scrollToFirstItem() override;
 	virtual void scrollToCurrentItem() override;
 	virtual void ensureSelection() override;

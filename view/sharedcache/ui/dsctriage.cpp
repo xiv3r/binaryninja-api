@@ -267,8 +267,8 @@ QWidget* DSCTriageView::initImageTable()
 
 	auto loadImageFilterEdit = new FilterEdit(m_imageTable);
 	loadImageFilterEdit->setPlaceholderText("Filter images");
-	connect(loadImageFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-		m_imageTable->setFilter(filter.toStdString());
+	connect(loadImageFilterEdit, &FilterEdit::textChanged, [this, loadImageFilterEdit](const QString& filter) {
+		m_imageTable->setFilter(filter.toStdString(), loadImageFilterEdit->getFilterOptions());
 	});
 
 	connect(m_imageTable, &FilterableTableView::activated, this, [=, this](const QModelIndex& index) {
@@ -321,8 +321,8 @@ void DSCTriageView::initSymbolTable()
 
 	auto symbolFilterEdit = new FilterEdit(m_symbolTable);
 	symbolFilterEdit->setPlaceholderText("Filter symbols");
-	connect(symbolFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-		m_symbolTable->setFilter(filter.toStdString());
+	connect(symbolFilterEdit, &FilterEdit::textChanged, [this, symbolFilterEdit](const QString& filter) {
+		m_symbolTable->setFilter(filter.toStdString(), symbolFilterEdit->getFilterOptions());
 	});
 
 	auto loadSymbolImageButton = new QPushButton();
@@ -454,8 +454,8 @@ void DSCTriageView::initCacheInfoTables()
 	auto mappingLabel = new QLabel("Mappings");
 	auto mappingFilterEdit = new FilterEdit(m_mappingTable);
 	mappingFilterEdit->setPlaceholderText("Filter mappings");
-	connect(mappingFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-		m_mappingTable->setFilter(filter.toStdString());
+	connect(mappingFilterEdit, &FilterEdit::textChanged, [this, mappingFilterEdit](const QString& filter) {
+		m_mappingTable->setFilter(filter.toStdString(), mappingFilterEdit->getFilterOptions());
 	});
 
 	auto mappingHeaderLayout = new QHBoxLayout;
@@ -467,8 +467,8 @@ void DSCTriageView::initCacheInfoTables()
 	auto regionLabel = new QLabel("Regions");
 	auto regionFilterEdit = new FilterEdit(m_regionTable);
 	regionFilterEdit->setPlaceholderText("Filter regions");
-	connect(regionFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-		m_regionTable->setFilter(filter.toStdString());
+	connect(regionFilterEdit, &FilterEdit::textChanged, [this, regionFilterEdit](const QString& filter) {
+		m_regionTable->setFilter(filter.toStdString(), regionFilterEdit->getFilterOptions());
 	});
 
 	auto regionHeaderLayout = new QHBoxLayout;

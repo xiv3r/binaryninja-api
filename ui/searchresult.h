@@ -313,15 +313,14 @@ class BINARYNINJAUIAPI SearchResultHeaderWidget : public QWidget, public FilterT
 {
 	Q_OBJECT
 
-	QLineEdit* m_search;
+	FilterEdit* m_search;
 	QComboBox* m_mode;
-	ClickableIcon* m_caseSensitive;
 	ClickableIcon* m_ignoreWhitespace;
 
 public:
 	SearchResultHeaderWidget();
 
-	virtual void setFilter(const std::string&) override {}
+	virtual void setFilter(const std::string&, FilterOptions) override {}
 	virtual void scrollToFirstItem() override {}
 	virtual void scrollToCurrentItem() override {}
 	virtual void ensureSelection() override {}

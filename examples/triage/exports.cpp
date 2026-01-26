@@ -67,7 +67,7 @@ void GenericExportsModel::updateModel()
 	}
 	endResetModel();
 
-	setFilter(m_filter);
+	setFilter(m_filter, m_filterOptions);
 }
 
 
@@ -225,21 +225,25 @@ void GenericExportsModel::sort(int col, Qt::SortOrder order)
 }
 
 
-void GenericExportsModel::setFilter(const std::string& filterText)
+void GenericExportsModel::setFilter(const std::string& filterText, FilterOptions options)
 {
 	m_filter = filterText;
+	m_filterOptions = options;
 	beginResetModel();
 	m_entries.clear();
+
+	bool caseSensitive = options.testFlag(FilterOption::CaseSensitiveOption);
 	for (auto& entry : m_allEntries)
 	{
-		if (FilteredView::match(entry->GetFullName(), filterText))
+		if (FilteredView::match(entry->GetFullName(), filterText, caseSensitive))
 			m_entries.push_back(entry);
-		else if (FilteredView::match(std::to_string(entry->GetOrdinal()), filterText))
+		else if (FilteredView::match(std::to_string(entry->GetOrdinal()), filterText, caseSensitive))
 			m_entries.push_back(entry);
 	}
 	performSort(m_sortCol, m_sortOrder);
 	endResetModel();
 }
+
 
 void GenericExportsModel::setNeedsUpdate(bool needed)
 {
@@ -248,6 +252,7 @@ void GenericExportsModel::setNeedsUpdate(bool needed)
 
 	updateTimer(needed);
 }
+
 
 void GenericExportsModel::updateTimer(bool needsUpdate)
 {
@@ -427,9 +432,9 @@ void ExportsTreeView::exportDoubleClicked(const QModelIndex& cur)
 }
 
 
-void ExportsTreeView::setFilter(const std::string& filterText)
+void ExportsTreeView::setFilter(const std::string& filterText, FilterOptions options)
 {
-	m_model->setFilter(filterText);
+	m_model->setFilter(filterText, options);
 }
 
 

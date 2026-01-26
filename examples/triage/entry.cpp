@@ -141,13 +141,14 @@ void GenericEntryModel::sort(int col, Qt::SortOrder order)
 }
 
 
-void GenericEntryModel::setFilter(const std::string& filterText)
+void GenericEntryModel::setFilter(const std::string& filterText, FilterOptions options)
 {
 	beginResetModel();
 	m_entries.clear();
+	bool caseSensitive = options.testFlag(FilterOption::CaseSensitiveOption);
 	for (auto& entry : m_allEntries)
 	{
-		if (FilteredView::match(entry->GetSymbol()->GetFullName(), filterText))
+		if (FilteredView::match(entry->GetSymbol()->GetFullName(), filterText, caseSensitive))
 			m_entries.push_back(entry);
 	}
 	performSort(m_sortCol, m_sortOrder);
@@ -250,9 +251,9 @@ void EntryTreeView::entryDoubleClicked(const QModelIndex& cur)
 }
 
 
-void EntryTreeView::setFilter(const std::string& filterText)
+void EntryTreeView::setFilter(const std::string& filterText, FilterOptions options)
 {
-	m_model->setFilter(filterText);
+	m_model->setFilter(filterText, options);
 }
 
 

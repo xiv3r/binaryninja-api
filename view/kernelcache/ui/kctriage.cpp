@@ -256,8 +256,8 @@ QWidget* KCTriageView::initImageTable()
 
 	auto loadImageFilterEdit = new FilterEdit(m_imageTable);
 	loadImageFilterEdit->setPlaceholderText("Filter images");
-	connect(loadImageFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-		m_imageTable->setFilter(filter.toStdString());
+	connect(loadImageFilterEdit, &FilterEdit::textChanged, [this, loadImageFilterEdit](const QString& filter) {
+		m_imageTable->setFilter(filter.toStdString(), loadImageFilterEdit->getFilterOptions());
 	});
 
 	connect(m_imageTable, &FilterableTableView::activated, this, [=, this](const QModelIndex& index) {
@@ -310,8 +310,8 @@ void KCTriageView::initSymbolTable()
 
 	auto symbolFilterEdit = new FilterEdit(m_symbolTable);
 	symbolFilterEdit->setPlaceholderText("Filter symbols");
-	connect(symbolFilterEdit, &FilterEdit::textChanged, [this](const QString& filter) {
-		m_symbolTable->setFilter(filter.toStdString());
+	connect(symbolFilterEdit, &FilterEdit::textChanged, [this, symbolFilterEdit](const QString& filter) {
+		m_symbolTable->setFilter(filter.toStdString(), symbolFilterEdit->getFilterOptions());
 	});
 
 	auto loadSymbolImageButton = new QPushButton();

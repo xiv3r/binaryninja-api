@@ -78,7 +78,7 @@ WarpCurrentFunctionWidget::WarpCurrentFunctionWidget()
 		"Search for Source", [this](WarpFunctionItem* item, std::optional<uint64_t>) {
 			// Apply the source as the filter.
 			if (const auto source = item->GetSource(); source)
-				m_tableWidget->setFilter(source->ToString());
+				m_tableWidget->setFilter(source->ToString(), NoFilterOption);
 		});
 
 	connect(m_tableWidget->GetTableView(), &QTableView::clicked, this, [this](const QModelIndex& index) {

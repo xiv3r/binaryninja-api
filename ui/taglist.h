@@ -143,8 +143,9 @@ class BINARYNINJAUIAPI TagList : public QTreeView, public FilterTarget
 	typedef std::function<bool(const BinaryNinja::TagReference&)> FilterFn;
 
   private:
-	bool m_hasFilter;
-	FilterFn m_filter;
+	std::optional<FilterFn> m_filterFn;
+
+	FilterOptions m_searchFilterOptions;
 	std::string m_searchFilter;
 
 	QTimer* m_hoverTimer;
@@ -161,7 +162,7 @@ class BINARYNINJAUIAPI TagList : public QTreeView, public FilterTarget
 	virtual void resizeEvent(QResizeEvent* event) override;
 	void goToReference(const QModelIndex& idx);
 
-	void setFilter(const std::string& filter) override;
+	void setFilter(const std::string& filter, FilterOptions options) override;
 
   private Q_SLOTS:
 	void hoverTimerEvent();
@@ -186,7 +187,7 @@ class BINARYNINJAUIAPI TagList : public QTreeView, public FilterTarget
 
 	void filterTagReferences(std::vector<BinaryNinja::TagReference>& refs);
 	void clearFilter();
-	void setFilter(FilterFn filter);
+	void setFilterFunction(FilterFn filter);
 	void setFilterView(FilteredView* filterView) { m_filterView = filterView; }
 
 	bool hasSelection();
@@ -255,6 +256,7 @@ class BINARYNINJAUIAPI TagListDialog : public QDialog
   private:
 	BinaryViewRef m_data;
 	TagList* m_list;
+	FilterEdit* m_filterEdit;
 	FilteredView* m_filter;
 
 	AddFn m_addFn;
@@ -263,7 +265,7 @@ class BINARYNINJAUIAPI TagListDialog : public QDialog
 
   public:
 	TagListDialog(QWidget* parent, ViewFrame* frame, BinaryViewRef data, AddFn addFn);
-	void setFilter(TagList::FilterFn filter);
+	void setFilterFunction(TagList::FilterFn filter);
 
   private Q_SLOTS:
 	void updateActive(const QItemSelection&, const QItemSelection&);

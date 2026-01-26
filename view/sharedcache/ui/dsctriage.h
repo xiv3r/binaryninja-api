@@ -102,6 +102,8 @@ public:
 class FilterableTableView : public QTableView, public FilterTarget {
 	Q_OBJECT
 
+	std::string m_filter;
+	FilterOptions m_filterOptions;
 	bool m_filterByHiding;
 
 public:
@@ -113,19 +115,22 @@ public:
 
 	~FilterableTableView() override = default;
 
-	void setFilter(const std::string& filter) override {
+	void setFilter(const std::string& filter, FilterOptions options) override {
+		m_filter = filter;
+		m_filterOptions = options;
+		QString qFilter = QString::fromStdString(m_filter);
 		if (!m_filterByHiding)
 		{
-			emit filterTextChanged(QString::fromStdString(filter));
+			emit filterTextChanged(qFilter);
 			return;
 		}
-		QString qFilter = QString::fromStdString(filter);
+		bool caseSensitive = options.testFlag(CaseSensitiveOption);
 		for (int row = 0; row < model()->rowCount(); ++row) {
 			bool match = false;
 			for (int col = 0; col < model()->columnCount(); ++col) {
 				QModelIndex index = model()->index(row, col);
 				QString data = model()->data(index).toString();
-				if (data.contains(qFilter, Qt::CaseInsensitive)) {
+				if (data.contains(qFilter, caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive)) {
 					match = true;
 					break;
 				}

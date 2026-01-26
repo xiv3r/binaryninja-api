@@ -173,11 +173,14 @@ class BINARYNINJAUIAPI ProjectTree: public QTreeView, public FilterTarget
 
 	QSet<QString> m_expandedIds;
 
+	FilterOptions m_filterOptions;
+	std::string m_filter;
+
 	virtual void scrollToFirstItem() override;
 	virtual void scrollToCurrentItem() override;
 	virtual void ensureSelection() override;
 	virtual void activateSelection() override;
-	virtual void setFilter(const std::string& filter) override;
+	virtual void setFilter(const std::string& filter, FilterOptions options) override;
 
 protected:
 	void mousePressEvent(QMouseEvent* event) override;
@@ -188,7 +191,7 @@ public:
 	ProjectTree(QWidget* parent = nullptr);
 
 Q_SIGNALS:
-	void filterChanged(const QString& filter);
+	void filterChanged(const QString& filter, FilterOptions options);
 };
 
 
@@ -196,11 +199,15 @@ class BINARYNINJAUIAPI RecentsList: public QListWidget, public FilterTarget
 {
 	Q_OBJECT
 
+	QString m_filter;
+	FilterOptions m_filterOptions;
+
 	virtual void scrollToFirstItem() override;
 	virtual void scrollToCurrentItem() override;
 	virtual void ensureSelection() override;
 	virtual void activateSelection() override;
-	virtual void setFilter(const std::string& filter) override;
+	void applyFilter();
+	virtual void setFilter(const std::string& filter, FilterOptions options) override;
 
 public:
 
@@ -333,7 +340,7 @@ private slots:
 	void itemSelectionChanged(const QItemSelection& selected, const QItemSelection& deselected);
 	void itemChanged(QStandardItem* item);
 	void handleItemsDropped(Qt::DropAction action, const QList<QString> fileIds, const QList<QString> folderIds, const QList<QUrl> newUrls, ProjectFolderRef newParentFolder);
-	void onTreeFilterChanged(const QString& filter);
+	void onTreeFilterChanged(const QString& filter, FilterOptions options);
 
 protected:
 	void SelectItems(std::vector<ProjectFileRef> files, std::vector<ProjectFolderRef> folders);

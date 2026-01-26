@@ -123,7 +123,7 @@ public:
 
 	void RemoveFunction(uint64_t address);
 
-	void setFilter(const std::string&) override;
+	void setFilter(const std::string&, FilterOptions options) override;
 
 	void scrollToFirstItem() override {}
 

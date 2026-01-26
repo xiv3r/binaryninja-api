@@ -268,7 +268,7 @@ class BINARYNINJAUIAPI LogView : public SidebarWidget, public FilterTarget
 		void focus() override;
 
 		LogListModel* model() { return m_listModel; }
-		void setFilter(const std::string& filter) override;
+		void setFilter(const std::string& filter, FilterOptions options) override;
 		LoggingScope getScope() const { return m_model->getScope(); }
 		void setScope(LoggingScope scope) { m_model->setScope(scope); }
 
