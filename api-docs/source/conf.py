@@ -62,11 +62,26 @@ try:
 except ImportError:
 	pass
 
+try:
+	import binaryninja.warp
+except ImportError:
+	pass
+
+try:
+	import binaryninja.sharedcache
+except ImportError:
+	pass
+
+try:
+	import binaryninja.kernelcache
+except ImportError:
+	pass
+
 def modulelist(module, basename=""):
 	modules = inspect.getmembers(module, inspect.ismodule)
 	# We block the module named "debugger", because it is the folder that contains all debugger Python files
 	moduleblacklist = ["binaryninja", "core", "_binaryninjacore", "associateddatastore",
-	"dbgcore", "_debuggercore", "_collaboration"]
+	"dbgcore", "_debuggercore", "_collaboration", "_warpcore", "_sharedcachecore", "_kernelcachecore"]
 	if basename != "":
 		basename += "."
 
@@ -230,10 +245,16 @@ Full Class List
 		modules.extend(modulelist(binaryninja.debugger, basename="debugger"))
 	if hasattr(binaryninja, "collaboration"):
 		modules.extend(modulelist(binaryninja.collaboration, basename="collaboration"))
+	if hasattr(binaryninja, "warp"):
+		modules.extend(modulelist(binaryninja.warp, basename="warp"))
+	if hasattr(binaryninja, "sharedcache"):
+		modules.extend(modulelist(binaryninja.sharedcache, basename="sharedcache"))
+	if hasattr(binaryninja, "kernelcache"):
+		modules.extend(modulelist(binaryninja.kernelcache, basename="kernelcache"))
 	modules = sorted(modules, key=lambda pair: pair[0])
 
 	# Separate top-level and nested modules for proper TOC structure
-	nested_modules = {"debugger": [], "collaboration": []}
+	nested_modules = {"debugger": [], "collaboration": [], "warp": [], "sharedcache": [], "kernelcache": []}
 
 	for modulename, module in modules:
 		filename = f"{module.__name__}-module.rst"
