@@ -4,27 +4,27 @@ using namespace BinaryNinja;
 using namespace std;
 
 
-TransformSession::TransformSession(const string& filename)
+TransformSession::TransformSession(const string& filename, const string& options)
 {
-	m_object = BNCreateTransformSession(filename.c_str());
+	m_object = BNCreateTransformSession(filename.c_str(), options.c_str());
 }
 
 
-TransformSession::TransformSession(const string& filename, BNTransformSessionMode mode)
+TransformSession::TransformSession(const string& filename, BNTransformSessionMode mode, const string& options)
 {
-	m_object = BNCreateTransformSessionWithMode(filename.c_str(), mode);
+	m_object = BNCreateTransformSessionWithMode(filename.c_str(), mode, options.c_str());
 }
 
 
-TransformSession::TransformSession(Ref<BinaryView> initialView)
+TransformSession::TransformSession(Ref<BinaryView> initialView, const string& options)
 {
-	m_object = BNCreateTransformSessionFromBinaryView(initialView->GetObject());
+	m_object = BNCreateTransformSessionFromBinaryView(initialView->GetObject(), options.c_str());
 }
 
 
-TransformSession::TransformSession(Ref<BinaryView> initialView, BNTransformSessionMode mode)
+TransformSession::TransformSession(Ref<BinaryView> initialView, BNTransformSessionMode mode, const string& options)
 {
-	m_object = BNCreateTransformSessionFromBinaryViewWithMode(initialView->GetObject(), mode);
+	m_object = BNCreateTransformSessionFromBinaryViewWithMode(initialView->GetObject(), mode, options.c_str());
 }
 
 
@@ -36,6 +36,12 @@ TransformSession::TransformSession(BNTransformSession* session)
 
 TransformSession::~TransformSession()
 {
+}
+
+
+void TransformSession::SetInteractive(bool interactive)
+{
+	BNTransformSessionSetInteractive(m_object, interactive);
 }
 
 

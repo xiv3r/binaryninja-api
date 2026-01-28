@@ -9287,18 +9287,21 @@ namespace BinaryNinja {
 		void SetRequestedFiles(const std::vector<std::string>& files);
 		bool HasRequestedFiles() const;
 		bool IsDatabase() const;
+		bool IsInteractive() const;
+		Ref<Settings> GetSettings() const;
 	};
 
 	class TransformSession : public CoreRefCountObject<BNTransformSession, BNNewTransformSessionReference, BNFreeTransformSession>
 	{
 	  public:
-		TransformSession(const std::string& filename);
-		TransformSession(const std::string& filename, BNTransformSessionMode mode);
-		TransformSession(Ref<BinaryView> initialView);
-		TransformSession(Ref<BinaryView> initialView, BNTransformSessionMode mode);
+		TransformSession(const std::string& filename, const std::string& options = "{}");
+		TransformSession(const std::string& filename, BNTransformSessionMode mode, const std::string& options = "{}");
+		TransformSession(Ref<BinaryView> initialView, const std::string& options = "{}");
+		TransformSession(Ref<BinaryView> initialView, BNTransformSessionMode mode, const std::string& options = "{}");
 		TransformSession(BNTransformSession* session);
 		virtual ~TransformSession();
 
+		void SetInteractive(bool interactive);
 		Ref<BinaryView> GetCurrentView() const;
 		Ref<TransformContext> GetRootContext() const;
 		Ref<TransformContext> GetCurrentContext() const;

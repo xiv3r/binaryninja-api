@@ -372,6 +372,7 @@ class Transform(metaclass=_TransformMetaClass):
 		  - ``context.transform_result``: Result of applying transform to input
 
 		Common error scenarios:
+
 		  - Archive encrypted, password required
 		  - Corrupt archive structure
 		  - Unsupported archive format
@@ -502,7 +503,16 @@ class TransformContext:
 
 	@property
 	def available_transforms(self) -> List[str]:
-		"""Get the list of transforms that can decode this context's input"""
+		"""
+		Get the list of transforms that can decode this context's input.
+
+		Binary Ninja auto-detects which transforms can handle the current data by checking each
+		transform's ``can_decode()`` method. This property returns the names of all transforms
+		that reported they can decode this context's input.
+
+		:return: List of transform names that can decode this data
+		:rtype: List[str]
+		"""
 		count = ctypes.c_size_t()
 		transforms = core.BNTransformContextGetAvailableTransforms(self.handle, ctypes.byref(count))
 		if transforms is None:
@@ -519,7 +529,31 @@ class TransformContext:
 		return core.BNTransformContextGetTransformName(self.handle)
 
 	def set_transform_name(self, transform_name: str):
-		"""Set the transform name for this context"""
+		"""
+		Manually specify which transform to apply to this context.
+
+		Use this when auto-detection is not possible or when you want to override the detected transform.
+		This is commonly needed for formats without magic bytes (like Base64) or when forcing a specific decoder.
+
+		After setting the transform name, call ``session.process_from(context)`` to apply the transform.
+
+		:param transform_name: Name of the transform to apply (e.g., "Base64", "Gzip", "XOR")
+
+		**Example:**
+
+		.. code-block:: python
+
+			# Base64 has no magic bytes, so it's not auto-detected
+			session = TransformSession("data.zip")
+			session.process()
+
+			ctx = session.current_context
+			ctx.set_transform_name("Base64") # Manually specify Base64
+
+			# Now apply the Base64 transform
+			if session.process_from(ctx):
+				print("Base64 decoded successfully")
+		"""
 		core.BNTransformContextSetTransformName(self.handle, transform_name.encode('utf-8'))
 
 	@property
@@ -537,14 +571,52 @@ class TransformContext:
 
 	@property
 	def metadata_obj(self) -> Optional['metadata.Metadata']:
-		"""Get the metadata for this context"""
+		"""
+		Get the metadata associated with this extraction context.
+
+		Container transforms can store format-specific metadata during extraction (e.g., timestamps,
+		permissions, compression ratios, archive structure). This metadata is preserved in the context
+		tree and can be accessed for analysis or debugging.
+
+		:return: Metadata object containing transform-specific key-value pairs, or None if no metadata
+		:rtype: Metadata or None
+		"""
 		meta = core.BNTransformContextGetMetadata(self.handle)
 		if meta is None:
 			return None
 		return metadata.Metadata(handle=meta)
 
 	def set_transform_parameter(self, name: str, data: databuffer.DataBuffer):
-		"""Set a transform parameter"""
+		"""
+		Set a parameter for the transform (e.g., password, encryption key).
+
+		Transform parameters provide additional input required for decoding, such as passwords for
+		encrypted archives or keys for encryption transforms. Parameters are passed to the transform's
+		decode operation.
+
+		:param name: Parameter name (e.g., "password", "key")
+		:param data: Parameter value as a DataBuffer
+
+		**Example:**
+
+		.. code-block:: python
+
+			# Create session and attempt extraction
+			session = TransformSession("encrypted.zip")
+			session.process() # Returns False - processing incomplete
+
+			# Check why extraction failed
+			if session.current_context.extraction_result == TransformResult.TransformRequiresPassword:
+				# Password is set on the parent context (the one doing extraction)
+				parent = session.current_context.parent
+				parent.set_transform_parameter("password", DataBuffer("secret_password"))
+
+				# Retry extraction from parent
+				if session.process_from(parent):
+					# Verify successful extraction
+					assert parent.children[0].extraction_result == TransformResult.TransformSuccess
+					print("Archive decrypted successfully")
+		"""
 		core.BNTransformContextSetTransformParameter(self.handle, name.encode('utf-8'), data.handle)
 
 	def has_transform_parameter(self, name: str) -> bool:
@@ -633,7 +705,57 @@ class TransformContext:
 
 	@property
 	def available_files(self) -> List[str]:
-		"""Get the list of available files for selection"""
+		"""
+		Get the list of files available for extraction from this container.
+
+		This property is populated during the **Discovery Phase** of container extraction, when a transform
+		enumerates the contents of an archive without extracting them.
+
+		**Mode Behavior:**
+
+		- **Full Mode (default)**: Discovery and extraction happen automatically in one pass. After ``process()``,
+		  ``available_files`` will be populated on the container context (the one with the archive transform),
+		  and all files will already be extracted.
+		- **Interactive Mode**: Discovery pauses for user selection. After first ``process()``, ``available_files``
+		  is populated on the parent context (the container), and you must call ``set_requested_files()`` before extraction proceeds.
+
+		:return: List of filenames that can be extracted from this container
+		:rtype: List[str]
+
+		**Example (Full Mode - Automatic):**
+
+		.. code-block:: python
+
+			# Full mode (default) - all files extracted automatically
+			session = TransformSession("archive.zip")
+			session.process() # Discovery + extraction in one pass
+
+			# After processing, available_files shows what was discovered on the container
+			# For a root-level archive, this is the root context
+			container = session.root_context
+			print(f"Extracted {len(container.available_files)} files")
+			print(f"Files: {container.available_files[:5]}...")
+
+		**Example (Interactive Mode - User Selection):**
+
+		.. code-block:: python
+
+			# Interactive mode - user selects files
+			session = TransformSession("archive.zip", mode=TransformSessionMode.TransformSessionModeInteractive)
+			session.process() # Discovery phase only - returns False
+
+			# available_files is on the parent (the container doing extraction)
+			container = session.current_context.parent
+			if container.has_available_files:
+				print(f"Archive contains {len(container.available_files)} files")
+				print(f"Files: {container.available_files[:5]}...")
+
+				# User selects which files to extract
+				container.set_requested_files(["important.bin", "config.txt"])
+
+				# Extract selected files
+				session.process_from(container)
+		"""
 		count = ctypes.c_size_t()
 		files = core.BNTransformContextGetAvailableFiles(self.handle, ctypes.byref(count))
 		if files is None:
@@ -645,7 +767,21 @@ class TransformContext:
 		return result
 
 	def set_available_files(self, files: List[str]):
-		"""Set the list of available files for selection"""
+		"""
+		Populate the list of files available for extraction (Discovery Phase).
+
+		Container transforms call this during the **Discovery Phase** to enumerate files without extracting them.
+		After calling this, the transform should return ``False`` to indicate user selection is needed.
+
+		**Session Mode Handling:**
+
+		- **Full Mode**: Session automatically calls ``set_requested_files(available_files)`` and re-invokes
+		  the transform for extraction, so all files are extracted in one pass.
+		- **Interactive Mode**: Transform returns ``False``, user must call ``set_requested_files()`` manually,
+		  then call ``process_from()`` to continue.
+
+		:param files: List of filenames that can be extracted from this container
+		"""
 		file_array = (ctypes.c_char_p * len(files))()
 		for i, f in enumerate(files):
 			file_array[i] = f.encode('utf-8')
@@ -658,7 +794,15 @@ class TransformContext:
 
 	@property
 	def requested_files(self) -> List[str]:
-		"""Get the list of requested files"""
+		"""
+		Get the list of files requested for extraction from this container.
+
+		This property contains the filenames that have been selected for extraction during the **Extraction Phase**.
+		Container transforms read this property to determine which files to extract and create child contexts for.
+
+		:return: List of filenames requested for extraction
+		:rtype: List[str]
+		"""
 		count = ctypes.c_size_t()
 		files = core.BNTransformContextGetRequestedFiles(self.handle, ctypes.byref(count))
 		if files is None:
@@ -670,7 +814,19 @@ class TransformContext:
 		return result
 
 	def set_requested_files(self, files: List[str]):
-		"""Set the list of requested files"""
+		"""
+		Specify which files to extract from this container (Extraction Phase).
+
+		Call this after ``available_files`` has been populated to indicate which files should be extracted.
+		After setting this, call ``session.process_from(context)`` to perform the extraction.
+
+		**Mode Behavior:**
+
+		- **Full Mode**: Called automatically by the session with all available files, you rarely need to call this.
+		- **Interactive Mode**: You must call this manually to select which files to extract.
+
+		:param files: List of filenames to extract (must be subset of ``available_files``)
+		"""
 		file_array = (ctypes.c_char_p * len(files))()
 		for i, f in enumerate(files):
 			file_array[i] = f.encode('utf-8')
@@ -685,6 +841,38 @@ class TransformContext:
 	def is_database(self) -> bool:
 		"""Check if this context represents a database file"""
 		return core.BNTransformContextIsDatabase(self.handle)
+
+	@property
+	def is_interactive(self) -> bool:
+		"""
+		Check if this context is in interactive mode.
+
+		This flag indicates whether the transform session is operating in interactive mode (e.g., UI with
+		user dialogs) or non-interactive mode (e.g., headless/auto-open). Transforms can use this to
+		adjust their behavior. For example, filtering children in non-interactive mode while showing
+		all children in interactive mode.
+
+		:return: True if in interactive mode, False otherwise
+		:rtype: bool
+		"""
+		return core.BNTransformContextIsInteractive(self.handle)
+
+	@property
+	def settings(self) -> 'Settings':
+		"""
+		Get the settings object for this transform context.
+
+		This provides access to session-time settings overrides passed to the TransformSession.
+		Transforms should use this `Settings` object to read configuration values that may
+		have been overridden for the session.
+
+		:return: Settings object
+		:rtype: Settings
+		"""
+		handle = core.BNTransformContextGetSettings(self.handle)
+		if handle is None:
+			return None
+		return Settings(handle=handle)
 
 
 class TransformSession:
@@ -746,19 +934,19 @@ class TransformSession:
 	- ``current_view``: The current BinaryView (after processing)
 	- ``root_context``: The root of the extraction tree
 	"""
-	def __init__(self, filename_or_view: Union[str, 'binaryview.BinaryView'], mode=None, handle=None):
+	def __init__(self, filename_or_view: Union[str, 'binaryview.BinaryView'], mode=None, options="{}", handle=None):
 		if handle is not None:
 			self.handle = core.handle_of_type(handle, core.BNTransformSession)
 		elif isinstance(filename_or_view, str):
 			if mode is None:
-				self.handle = core.BNCreateTransformSession(filename_or_view.encode('utf-8'))
+				self.handle = core.BNCreateTransformSession(filename_or_view.encode('utf-8'), options.encode('utf-8'))
 			else:
-				self.handle = core.BNCreateTransformSessionWithMode(filename_or_view.encode('utf-8'), mode)
+				self.handle = core.BNCreateTransformSessionWithMode(filename_or_view.encode('utf-8'), mode, options.encode('utf-8'))
 		elif hasattr(filename_or_view, 'handle'):  # BinaryView
 			if mode is None:
-				self.handle = core.BNCreateTransformSessionFromBinaryView(filename_or_view.handle)
+				self.handle = core.BNCreateTransformSessionFromBinaryView(filename_or_view.handle, options.encode('utf-8'))
 			else:
-				self.handle = core.BNCreateTransformSessionFromBinaryViewWithMode(filename_or_view.handle, mode)
+				self.handle = core.BNCreateTransformSessionFromBinaryViewWithMode(filename_or_view.handle, mode, options.encode('utf-8'))
 		else:
 			raise TypeError("filename_or_view must be a string filename or BinaryView")
 
@@ -794,13 +982,41 @@ class TransformSession:
 		return TransformContext(context)
 
 	def process_from(self, context: 'TransformContext') -> bool:
-		"""Process the transform session starting from a specific context"""
+		"""
+		Process the transform session starting from a specific context.
+
+		:return: ``True`` if processing completed successfully (all transforms applied and no user input required). \
+		         ``False`` if processing is incomplete and requires user input (file selection, password), \
+		         additional parameters, or if an error occurred during transformation.
+		:rtype: bool
+
+		In **Interactive Mode**, this returns ``False`` when user selection is needed at the current stage.
+		In **Full Mode**, this recursively processes all child contexts and returns ``False`` if any stage is incomplete.
+		"""
 		if not isinstance(context, TransformContext):
 			raise TypeError("context must be a TransformContext")
 		return core.BNTransformSessionProcessFrom(self.handle, context.handle)
 
 	def process(self) -> bool:
-		"""Process the transform session"""
+		"""
+		Process the transform session from the root context.
+
+		:return: ``True`` if processing completed successfully (all transforms applied and no user input required). \
+		         ``False`` if processing is incomplete and requires user input (file selection, password), \
+		         additional parameters, or if an error occurred during transformation.
+		:rtype: bool
+
+		In **Full Mode** (default), automatically processes the entire container tree.
+		In **Interactive Mode**, processes one stage at a time, returning ``False`` when user input is needed.
+		In **Disabled Mode**, immediately returns ``True`` without processing.
+
+		Common reasons for returning ``False``:
+
+		- Container has multiple files and user must select which to extract
+		- Archive is password-protected and no valid password was provided
+		- Transform requires additional parameters
+		- Transform encountered an error during processing
+		"""
 		return core.BNTransformSessionProcess(self.handle)
 
 	@property
@@ -815,7 +1031,12 @@ class TransformSession:
 
 	@property
 	def selected_contexts(self) -> List['TransformContext']:
-		"""Get the currently selected contexts"""
+		"""
+		Get the currently selected contexts.
+
+		Selected contexts are the extraction outputs that will be loaded into Binary Ninja for analysis.
+		Use ``set_selected_contexts()`` to mark which contexts should be kept active.
+		"""
 		count = ctypes.c_size_t()
 		contexts = core.BNTransformSessionGetSelectedContexts(self.handle, ctypes.byref(count))
 		if contexts is None:
@@ -827,7 +1048,27 @@ class TransformSession:
 		return result
 
 	def set_selected_contexts(self, contexts: Union[List['TransformContext'], 'TransformContext']):
-		"""Set the selected contexts"""
+		"""
+		Mark contexts as selected for analysis and resource management. This allows Binary Ninja to release
+		resources for unselected branches of the extraction tree.
+
+		:param contexts: Single context or list of contexts to mark as selected. All other contexts will be unselected.
+		:type contexts: TransformContext or List[TransformContext]
+
+		**Example:**
+
+		.. code-block:: python
+
+			session = TransformSession("archive.tar.gz")
+			if session.process():
+				# Mark the final extracted file for loading
+				session.set_selected_contexts(session.current_context)
+
+				# Now load it
+				with load(session.current_view) as bv:
+					print(f"Loaded: {bv.file.virtual_path}")
+
+		"""
 		if isinstance(contexts, TransformContext):
 			contexts = [contexts]
 		context_array = (ctypes.POINTER(core.BNTransformContext) * len(contexts))()
@@ -835,13 +1076,34 @@ class TransformSession:
 			context_array[i] = ctx.handle
 		core.BNTransformSessionSetSelectedContexts(self.handle, context_array, len(contexts))
 
+	def set_interactive(self, interactive: bool):
+		"""
+		Set whether this session is running in interactive mode.
+
+		This flag allows transforms to adjust their behavior: in interactive mode, transforms typically
+		expose all available children and options. In non-interactive mode, transforms may filter children
+		based on settings preferences or apply automatic selections.
+
+		Call this before ``process()`` to establish the session's mode.
+
+		:param interactive: True for interactive mode (UI), False for non-interactive (headless/scripting)
+		:type interactive: bool
+		"""
+		core.BNTransformSessionSetInteractive(self.handle, interactive)
+
 
 class ZipPython(Transform):
 	"""
-	``ZipPython`` is a transform that handles ZIP archive decoding using Python's built-in zipfile module.
-	It supports password-protected archives and context-aware extraction of multiple files. It is provided
-	as a reference implementation and may not be as performant as native implementations. By default, this
-	Transform is not registered; to use it, call `ZipPython.register()`.
+	Reference implementation of a ZIP container transform using Python's zipfile module.
+
+	This transform demonstrates the Container Transform API including two-phase extraction
+	(discovery and extraction), multi-file support, password handling, and result reporting.
+
+	>>> from binaryninja.transform import ZipPython
+	>>> ZipPython.register()
+	>>> session = TransformSession("Archive.zip")
+	>>> session.root_context.available_transforms
+	>>> ['Zip', 'ZipPython']
 	"""
 	transform_type = TransformType.DecodeTransform
 	capabilities = TransformCapabilities.TransformSupportsDetection | TransformCapabilities.TransformSupportsContext
@@ -850,6 +1112,14 @@ class ZipPython(Transform):
 	group = "Container"
 
 	def can_decode(self, input) -> bool:
+		"""
+		Detect ZIP archives by checking for "PK" magic bytes and valid ZIP signature.
+
+		Checks the first 4 bytes for ZIP file signatures (local file header, central directory, etc.).
+
+		:param input: BinaryView to check
+		:return: True if valid ZIP archive
+		"""
 		try:
 			head = input.read(0, 4)
 			if len(head) < 4 or head[0:2] != b"PK":
@@ -861,6 +1131,16 @@ class ZipPython(Transform):
 			return False
 
 	def perform_decode(self, data: bytes, params: dict) -> Optional[bytes]:
+		"""
+		Extract a single file from a ZIP archive.
+
+		Extracts the file specified in params['filename'], or the first file if not specified.
+		For multi-file extraction and password handling, use ``perform_decode_with_context()``.
+
+		:param data: Raw ZIP archive bytes
+		:param params: May contain 'filename' key
+		:return: Extracted file data, or None on failure
+		"""
 		try:
 			zf = zipfile.ZipFile(io.BytesIO(data), "r")
 		except Exception:
@@ -885,6 +1165,20 @@ class ZipPython(Transform):
 		return None
 
 	def perform_decode_with_context(self, context, params) -> bool:
+		"""
+		Extract files from a ZIP archive using two-phase container extraction.
+
+		**Phase 1 (Discovery):** Enumerates files and populates ``context.available_files``.
+		Returns False for user file selection.
+
+		**Phase 2 (Extraction):** Extracts files from ``context.requested_files``, trying passwords
+		from params['password'] and ``files.container.defaultPasswords`` setting. Creates child
+		contexts for each file with appropriate result codes.
+
+		:param context: Transform context with input data and file selection state
+		:param params: May contain 'password' key for encrypted archives
+		:return: True if all extractions succeeded, False if user input needed or extraction failed
+		"""
 		try:
 			zf = zipfile.ZipFile(io.BytesIO(context.input.read(0, context.input.length)), "r")
 		except Exception:

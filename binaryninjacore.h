@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 153
+#define BN_CURRENT_CORE_ABI_VERSION 154
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 153
+#define BN_MINIMUM_CORE_ABI_VERSION 154
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -4885,14 +4885,17 @@ extern "C"
 	BINARYNINJACOREAPI void BNTransformContextSetRequestedFiles(BNTransformContext* context, const char** files, size_t count);
 	BINARYNINJACOREAPI bool BNTransformContextHasRequestedFiles(BNTransformContext* context);
 	BINARYNINJACOREAPI bool BNTransformContextIsDatabase(BNTransformContext* context);
+	BINARYNINJACOREAPI bool BNTransformContextIsInteractive(BNTransformContext* context);
+	BINARYNINJACOREAPI BNSettings* BNTransformContextGetSettings(BNTransformContext* context);
 
 	// Transform Session
-	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSession(const char* filename);
-	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionWithMode(const char* filename, BNTransformSessionMode mode);
-	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromBinaryView(BNBinaryView* initialView);
-	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromBinaryViewWithMode(BNBinaryView* initialView, BNTransformSessionMode mode);
+	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSession(const char* filename, const char* options);
+	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionWithMode(const char* filename, BNTransformSessionMode mode, const char* options);
+	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromBinaryView(BNBinaryView* initialView, const char* options);
+	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromBinaryViewWithMode(BNBinaryView* initialView, BNTransformSessionMode mode, const char* options);
 	BINARYNINJACOREAPI BNTransformSession* BNNewTransformSessionReference(BNTransformSession* session);
 	BINARYNINJACOREAPI void BNFreeTransformSession(BNTransformSession* session);
+	BINARYNINJACOREAPI void BNTransformSessionSetInteractive(BNTransformSession* session, bool interactive);
 	BINARYNINJACOREAPI BNBinaryView* BNTransformSessionGetCurrentView(BNTransformSession* session);
 	BINARYNINJACOREAPI BNTransformContext* BNTransformSessionGetRootContext(BNTransformSession* session);
 	BINARYNINJACOREAPI BNTransformContext* BNTransformSessionGetCurrentContext(BNTransformSession* session);

@@ -272,3 +272,18 @@ bool TransformContext::IsDatabase() const
 {
 	return BNTransformContextIsDatabase(m_object);
 }
+
+
+bool TransformContext::IsInteractive() const
+{
+	return BNTransformContextIsInteractive(m_object);
+}
+
+
+Ref<Settings> TransformContext::GetSettings() const
+{
+	BNSettings* settings = BNTransformContextGetSettings(m_object);
+	if (!settings)
+		return nullptr;
+	return new Settings(settings);
+}
