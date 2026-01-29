@@ -22,8 +22,9 @@ import traceback
 import ctypes
 import abc
 import io
+import json
 import zipfile
-from typing import List, Optional, Union, Any
+from typing import List, Mapping, Optional, Union, Any
 
 # Binary Ninja components
 import binaryninja
@@ -205,8 +206,8 @@ class Transform(metaclass=_TransformMetaClass):
 			count[0] = len(self.parameters)
 			param_buf = (core.BNTransformParameterInfo * len(self.parameters))()
 			for i in range(0, len(self.parameters)):
-				param_buf[i].name = self.parameters[i].name.encode('utf-8')
-				param_buf[i].longName = self.parameters[i].long_name.encode('utf-8')
+				param_buf[i].name = core.cstr(self.parameters[i].name)
+				param_buf[i].longName = core.cstr(self.parameters[i].long_name)
 				param_buf[i].fixedLength = self.parameters[i].fixed_length
 			result = ctypes.cast(param_buf, ctypes.c_void_p)
 			self._pending_param_lists[result.value] = (result, param_buf)
@@ -554,7 +555,7 @@ class TransformContext:
 			if session.process_from(ctx):
 				print("Base64 decoded successfully")
 		"""
-		core.BNTransformContextSetTransformName(self.handle, transform_name.encode('utf-8'))
+		core.BNTransformContextSetTransformName(self.handle, transform_name)
 
 	@property
 	def filename(self) -> str:
@@ -617,15 +618,15 @@ class TransformContext:
 					assert parent.children[0].extraction_result == TransformResult.TransformSuccess
 					print("Archive decrypted successfully")
 		"""
-		core.BNTransformContextSetTransformParameter(self.handle, name.encode('utf-8'), data.handle)
+		core.BNTransformContextSetTransformParameter(self.handle, name, data.handle)
 
 	def has_transform_parameter(self, name: str) -> bool:
 		"""Check if a transform parameter exists"""
-		return core.BNTransformContextHasTransformParameter(self.handle, name.encode('utf-8'))
+		return core.BNTransformContextHasTransformParameter(self.handle, name)
 
 	def clear_transform_parameter(self, name: str):
 		"""Clear a transform parameter"""
-		core.BNTransformContextClearTransformParameter(self.handle, name.encode('utf-8'))
+		core.BNTransformContextClearTransformParameter(self.handle, name)
 
 	@property
 	def extraction_message(self) -> str:
@@ -675,7 +676,7 @@ class TransformContext:
 
 	def get_child(self, filename: str) -> Optional['TransformContext']:
 		"""Get a child context by filename"""
-		child = core.BNTransformContextGetChild(self.handle, filename.encode('utf-8'))
+		child = core.BNTransformContextGetChild(self.handle, filename)
 		if child is None:
 			return None
 		return TransformContext(child)
@@ -688,7 +689,7 @@ class TransformContext:
 		:param result: Transform result for the child (default: TransformResult.TransformSuccess)
 		:param message: Extraction message for the child (default: "")
 		"""
-		child = core.BNTransformContextSetChild(self.handle, data.handle, filename.encode('utf-8'), result, message.encode('utf-8'))
+		child = core.BNTransformContextSetChild(self.handle, data.handle, filename, result, message)
 		if child is None:
 			raise RuntimeError("Failed to create child context")
 		return TransformContext(child)
@@ -784,7 +785,7 @@ class TransformContext:
 		"""
 		file_array = (ctypes.c_char_p * len(files))()
 		for i, f in enumerate(files):
-			file_array[i] = f.encode('utf-8')
+			file_array[i] = core.cstr(f)
 		core.BNTransformContextSetAvailableFiles(self.handle, file_array, len(files))
 
 	@property
@@ -829,7 +830,7 @@ class TransformContext:
 		"""
 		file_array = (ctypes.c_char_p * len(files))()
 		for i, f in enumerate(files):
-			file_array[i] = f.encode('utf-8')
+			file_array[i] = core.cstr(f)
 		core.BNTransformContextSetRequestedFiles(self.handle, file_array, len(files))
 
 	@property
@@ -862,9 +863,10 @@ class TransformContext:
 		"""
 		Get the settings object for this transform context.
 
-		This provides access to session-time settings overrides passed to the TransformSession.
-		Transforms should use this `Settings` object to read configuration values that may
-		have been overridden for the session.
+		This provides access to session-time settings overrides passed via the ``TransformSession`` ``options``
+		parameter. These ephemeral settings override global settings for this session only. Transforms should
+		use this `Settings` object instead of ``Settings()`` to read settings values that may have been
+		overridden for the session.
 
 		:return: Settings object
 		:rtype: Settings
@@ -882,6 +884,10 @@ class TransformSession:
 
 	Sessions automatically detect and apply appropriate transforms to navigate through nested containers,
 	maintaining a tree of ``TransformContext`` objects representing each extraction stage.
+
+	:param Union[str, 'binaryview.BinaryView'] filename_or_view: Path to the file to process, or an existing BinaryView to start from.
+	:param TransformSessionMode mode: Session mode controlling extraction behavior. Can be ``TransformSessionMode.Full`` (automatic), ``TransformSessionMode.Interactive`` (requires user selection), or None to use the default mode from settings. Defaults to None.
+	:param dict options: Dictionary of session-time settings overrides that apply only to this session. These ephemeral settings override global settings and are accessible to transforms via ``TransformContext.settings``. For example, ``{'files.universal.architecturePreference': ['x86_64']}`` to prefer x86_64 when opening universal binaries. Defaults to empty dict.
 
 	**Modes:**
 
@@ -934,19 +940,19 @@ class TransformSession:
 	- ``current_view``: The current BinaryView (after processing)
 	- ``root_context``: The root of the extraction tree
 	"""
-	def __init__(self, filename_or_view: Union[str, 'binaryview.BinaryView'], mode=None, options="{}", handle=None):
+	def __init__(self, filename_or_view: Union[str, 'binaryview.BinaryView'], mode=None, options: Mapping[str, Any]={}, handle=None):
 		if handle is not None:
 			self.handle = core.handle_of_type(handle, core.BNTransformSession)
 		elif isinstance(filename_or_view, str):
 			if mode is None:
-				self.handle = core.BNCreateTransformSession(filename_or_view.encode('utf-8'), options.encode('utf-8'))
+				self.handle = core.BNCreateTransformSession(filename_or_view, json.dumps(options))
 			else:
-				self.handle = core.BNCreateTransformSessionWithMode(filename_or_view.encode('utf-8'), mode, options.encode('utf-8'))
+				self.handle = core.BNCreateTransformSessionWithMode(filename_or_view, mode, json.dumps(options))
 		elif hasattr(filename_or_view, 'handle'):  # BinaryView
 			if mode is None:
-				self.handle = core.BNCreateTransformSessionFromBinaryView(filename_or_view.handle, options.encode('utf-8'))
+				self.handle = core.BNCreateTransformSessionFromBinaryView(filename_or_view.handle, json.dumps(options))
 			else:
-				self.handle = core.BNCreateTransformSessionFromBinaryViewWithMode(filename_or_view.handle, mode, options.encode('utf-8'))
+				self.handle = core.BNCreateTransformSessionFromBinaryViewWithMode(filename_or_view.handle, mode, json.dumps(options))
 		else:
 			raise TypeError("filename_or_view must be a string filename or BinaryView")
 
