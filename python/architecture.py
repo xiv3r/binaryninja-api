@@ -480,10 +480,10 @@ class FunctionLifterContext:
 
 			dest = function.ArchAndAddr(
 				CoreArchitecture._from_cache(bn_fl_context.indirectBranches[i].destArch),
-				bn_fl_context.indirectBranches[i].dests[j].destAddr,
+				bn_fl_context.indirectBranches[i].destAddr,
 			)
 
-			if bn_fl_context.indirectBranches[i].dests[j].isAutoDefined:
+			if bn_fl_context.indirectBranches[i].autoDefined:
 				if src not in auto_indirect_branches:
 					auto_indirect_branches[src] = set()
 				auto_indirect_branches[src].add(dest)
