@@ -50,7 +50,7 @@ The previous tools are used in the generation of our documentation, but are not 
     - [capstone] ([capstone license] - 3-clause BSD) used in the [PPC architecture module] as an example of how to wrap an external disassembler
     - [flatbuffer] ([flatbuffer license] - Apache License 2.0) used in the binary format for the function fingerprint libraries
     - [deprecation] ([deprecation license] - Apache License 2.0) used in the Python API for marking deprecated functions/properties/classes
-    - [GraalVM CE] ([GraalVM CE license] - GPLv2 with the "Classpath" Exception) used in building the Ghidra DB FFI for the Ghidra Import plugin
+    - [GraalVM CE] ([GraalVM CE license] - GPLv2 with the "Classpath" Exception) used in building the Ghidra DB FFI for the Ghidra plugin
 
 ## Rust Licenses
 
