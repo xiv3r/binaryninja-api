@@ -3850,22 +3850,20 @@ class LowLevelILFunction:
 
 	def expr(
 	    self, operation, a: ExpressionIndex = 0, b: ExpressionIndex = 0, c: ExpressionIndex = 0, d: ExpressionIndex = 0, size: int = 0,
-	    flags: Optional[Union['architecture.FlagWriteTypeName', 'architecture.FlagType', 'architecture.FlagIndex', int]] = None,
+	    flags: Optional['architecture.FlagWriteType'] = None,
 	    source_location: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
-		_flags = architecture.FlagIndex(0)
+		_flags = architecture.FlagWriteTypeIndex(0)
 		if isinstance(operation, str):
 			operation = LowLevelILOperation[operation]
 		elif isinstance(operation, LowLevelILOperation):
 			operation = operation.value
 		if isinstance(flags, str):
 			_flags = self.arch.get_flag_write_type_by_name(architecture.FlagWriteTypeName(flags))
-		elif isinstance(flags, ILFlag):
-			_flags = flags.index
 		elif isinstance(flags, int):
-			_flags = architecture.FlagIndex(flags)
+			_flags = architecture.FlagWriteTypeIndex(flags)
 		elif flags is None:
-			_flags = architecture.FlagIndex(0)
+			_flags = architecture.FlagWriteTypeIndex(0)
 		else:
 			assert False, "flags type unsupported"
 		if source_location is not None:
@@ -4257,7 +4255,7 @@ class LowLevelILFunction:
 
 	def set_reg(
 	    self, size: int, reg: 'architecture.RegisterType', value: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``set_reg`` sets the register ``reg`` of size ``size`` to the expression ``value``
@@ -4265,7 +4263,7 @@ class LowLevelILFunction:
 		:param int size: size of the register parameter in bytes
 		:param str reg: the register name
 		:param ExpressionIndex value: an expression to set the register to
-		:param str flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``reg = value``
 		:rtype: ExpressionIndex
@@ -4277,7 +4275,7 @@ class LowLevelILFunction:
 
 	def set_reg_split(
 	    self, size: int, hi: 'architecture.RegisterType', lo: 'architecture.RegisterType', value: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``set_reg_split`` uses ``hi`` and ``lo`` as a single extended register setting ``hi:lo`` to the expression
@@ -4287,7 +4285,7 @@ class LowLevelILFunction:
 		:param str hi: the high register name
 		:param str lo: the low register name
 		:param ExpressionIndex value: an expression to set the split registers to
-		:param str flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``hi:lo = value``
 		:rtype: ExpressionIndex
@@ -4300,7 +4298,7 @@ class LowLevelILFunction:
 
 	def set_reg_stack_top_relative(
 	    self, size: int, reg_stack: 'architecture.RegisterStackType', entry: ExpressionIndex, value: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``set_reg_stack_top_relative`` sets the top-relative entry ``entry`` of size ``size`` in register
@@ -4310,7 +4308,7 @@ class LowLevelILFunction:
 		:param str reg_stack: the register stack name
 		:param ExpressionIndex entry: an expression for which stack entry to set
 		:param ExpressionIndex value: an expression to set the entry to
-		:param str flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``reg_stack[entry] = value``
 		:rtype: ExpressionIndex
@@ -4322,7 +4320,7 @@ class LowLevelILFunction:
 
 	def reg_stack_push(
 	    self, size: int, reg_stack: 'architecture.RegisterStackType', value: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``reg_stack_push`` pushes the expression ``value`` of size ``size`` onto the top of the register
@@ -4331,7 +4329,7 @@ class LowLevelILFunction:
 		:param int size: size of the register parameter in bytes
 		:param str reg_stack: the register stack name
 		:param ExpressionIndex value: an expression to push
-		:param str flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``reg_stack.push(value)``
 		:rtype: ExpressionIndex
@@ -4404,7 +4402,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FORCE_VER, ExpressionIndex(self.arch.get_reg_index(dest)), size=size, source_location=loc)
 
 	def load(
-		self, size: int, addr: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+		self, size: int, addr: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4412,7 +4410,7 @@ class LowLevelILFunction:
 
 		:param int size: number of bytes to read
 		:param ExpressionIndex addr: the expression to read memory from
-		:param FlagType flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``[addr].size``
 		:rtype: ExpressionIndex
@@ -4420,7 +4418,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_LOAD, addr, size=size, flags=flags, source_location=loc)
 
 	def store(
-	    self, size: int, addr: ExpressionIndex, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, addr: ExpressionIndex, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4429,7 +4427,7 @@ class LowLevelILFunction:
 		:param int size: number of bytes to write
 		:param ExpressionIndex addr: the expression to write to
 		:param ExpressionIndex value: the expression to be written
-		:param FlagType flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``[addr].size = value``
 		:rtype: ExpressionIndex
@@ -4440,7 +4438,7 @@ class LowLevelILFunction:
 		self,
 		size: int,
 		value: ExpressionIndex,
-		flags: Optional['architecture.FlagType'] = None,
+		flags: Optional['architecture.FlagWriteType'] = None,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4448,7 +4446,7 @@ class LowLevelILFunction:
 
 		:param int size: number of bytes to write and adjust the stack by
 		:param ExpressionIndex value: the expression to write
-		:param FlagType flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression push(value)
 		:rtype: ExpressionIndex
@@ -4458,14 +4456,14 @@ class LowLevelILFunction:
 	def pop(
 		self,
 		size: int,
-		flags: Optional['architecture.FlagType'] = None,
+		flags: Optional['architecture.FlagWriteType'] = None,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``pop`` reads ``size`` bytes from the stack, adjusting the stack by ``size``.
 
 		:param int size: number of bytes to read from the stack
-		:param FlagType flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``pop``
 		:rtype: ExpressionIndex
@@ -4522,7 +4520,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_REG_STACK_REL, _reg_stack, entry, size=size, source_location=loc)
 
 	def reg_stack_pop(
-		self, size: int, reg_stack: 'architecture.RegisterStackType', flags: Optional['architecture.FlagType'] = None,
+		self, size: int, reg_stack: 'architecture.RegisterStackType', flags: Optional['architecture.FlagWriteType'] = None,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4531,7 +4529,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the register in bytes
 		:param str reg_stack: the name of the register stack
-		:param FlagType flags: which flags are set by this operation
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``reg_stack.pop``
 		:rtype: ExpressionIndex
@@ -4686,7 +4684,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FLAG_BIT, ExpressionIndex(flag_index), bit, size=size, source_location=loc)
 
 	def add(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4696,7 +4694,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``add.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4705,7 +4703,7 @@ class LowLevelILFunction:
 
 	def add_carry(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, carry: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``add_carry`` adds with carry expression ``a`` to expression ``b`` potentially setting flags ``flags`` and
@@ -4715,7 +4713,7 @@ class LowLevelILFunction:
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
 		:param ExpressionIndex carry: Carry flag expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``adc.<size>{<flags>}(a, b, carry)``
 		:rtype: ExpressionIndex
@@ -4723,7 +4721,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_ADC, a, b, carry, size=size, flags=flags, source_location=loc)
 
 	def sub(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4733,7 +4731,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``sub.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4742,7 +4740,7 @@ class LowLevelILFunction:
 
 	def sub_borrow(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, carry: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``sub_borrow`` subtracts with borrow expression ``b`` from expression ``a`` potentially setting flags ``flags``
@@ -4752,7 +4750,7 @@ class LowLevelILFunction:
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
 		:param ExpressionIndex carry: Carry flag expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``sbb.<size>{<flags>}(a, b, carry)``
 		:rtype: ExpressionIndex
@@ -4760,7 +4758,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_SBB, a, b, carry, size=size, flags=flags, source_location=loc)
 
 	def and_expr(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4770,7 +4768,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``and.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4778,7 +4776,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_AND, a, b, size=size, flags=flags, source_location=loc)
 
 	def or_expr(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4788,7 +4786,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``or.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4796,7 +4794,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_OR, a, b, size=size, flags=flags, source_location=loc)
 
 	def xor_expr(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4806,7 +4804,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``xor.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4814,7 +4812,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_XOR, a, b, size=size, flags=flags, source_location=loc)
 
 	def shift_left(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4824,7 +4822,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``lsl.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4832,7 +4830,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_LSL, a, b, size=size, flags=flags, source_location=loc)
 
 	def logical_shift_right(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4842,7 +4840,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``lsr.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4850,7 +4848,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_LSR, a, b, size=size, flags=flags, source_location=loc)
 
 	def arith_shift_right(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4860,7 +4858,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``asr.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4868,7 +4866,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_ASR, a, b, size=size, flags=flags, source_location=loc)
 
 	def rotate_left(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4878,7 +4876,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``rol.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4887,7 +4885,7 @@ class LowLevelILFunction:
 
 	def rotate_left_carry(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, carry: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``rotate_left_carry`` bitwise rotates left with carry expression ``a`` by expression ``b`` potentially setting
@@ -4897,7 +4895,7 @@ class LowLevelILFunction:
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
 		:param ExpressionIndex carry: Carry flag expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``rlc.<size>{<flags>}(a, b, carry)``
 		:rtype: ExpressionIndex
@@ -4905,7 +4903,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_RLC, a, b, carry, size=size, flags=flags, source_location=loc)
 
 	def rotate_right(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4915,7 +4913,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``ror.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4924,7 +4922,7 @@ class LowLevelILFunction:
 
 	def rotate_right_carry(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, carry: ExpressionIndex,
-	    flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``rotate_right_carry`` bitwise rotates right with carry expression ``a`` by expression ``b`` potentially setting
@@ -4934,7 +4932,7 @@ class LowLevelILFunction:
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
 		:param ExpressionIndex carry: Carry flag expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``rrc.<size>{<flags>}(a, b, carry)``
 		:rtype: ExpressionIndex
@@ -4942,7 +4940,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_RRC, a, b, carry, size=size, flags=flags, source_location=loc)
 
 	def mult(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4952,7 +4950,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result and input operands, in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``mul.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4960,7 +4958,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MUL, a, b, size=size, flags=flags, source_location=loc)
 
 	def mult_double_prec_signed(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4972,7 +4970,7 @@ class LowLevelILFunction:
 		:param int size: the size of the input operands, in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``muls.dp.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -4980,7 +4978,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MULS_DP, a, b, size=size, flags=flags, source_location=loc)
 
 	def mult_double_prec_unsigned(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4992,7 +4990,7 @@ class LowLevelILFunction:
 		:param int size: the size of the input operands, in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``mulu.dp.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5000,7 +4998,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MULU_DP, a, b, size=size, flags=flags, source_location=loc)
 
 	def div_signed(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5010,7 +5008,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``divs.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5018,7 +5016,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_DIVS, a, b, size=size, flags=flags, source_location=loc)
 
 	def div_double_prec_signed(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5029,7 +5027,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``divs.dp.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5037,7 +5035,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_DIVS_DP, a, b, size=size, flags=flags, source_location=loc)
 
 	def div_unsigned(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5047,7 +5045,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``divu.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5055,7 +5053,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_DIVU, a, b, size=size, flags=flags, source_location=loc)
 
 	def div_double_prec_unsigned(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5066,7 +5064,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``divu.dp.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5074,7 +5072,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_DIVU_DP, a, b, size=size, flags=flags, source_location=loc)
 
 	def mod_signed(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5084,7 +5082,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``mods.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5092,7 +5090,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MODS, a, b, size=size, flags=flags, source_location=loc)
 
 	def mod_double_prec_signed(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5103,7 +5101,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``mods.dp.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5111,7 +5109,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MODS_DP, a, b, size=size, flags=flags, source_location=loc)
 
 	def mod_unsigned(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5121,7 +5119,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``modu.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5129,7 +5127,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MODU, a, b, size=size, flags=flags, source_location=loc)
 
 	def mod_double_prec_unsigned(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5140,7 +5138,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``modu.dp.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5148,7 +5146,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_MODU_DP, a, b, size=size, flags=flags, source_location=loc)
 
 	def neg_expr(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5156,7 +5154,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to negate
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``neg.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5164,7 +5162,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_NEG, value, size=size, flags=flags, source_location=loc)
 
 	def not_expr(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5172,7 +5170,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to bitwise invert
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``not.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5180,7 +5178,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_NOT, value, size=size, flags=flags, source_location=loc)
 
 	def sign_extend(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5188,7 +5186,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to sign extend
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``sx.<size>(value)``
 		:rtype: ExpressionIndex
@@ -5196,7 +5194,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_SX, value, size=size, flags=flags, source_location=loc)
 
 	def zero_extend(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5204,6 +5202,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to zero extend
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``zx.<size>(value)``
 		:rtype: ExpressionIndex
@@ -5211,7 +5210,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_ZX, value, size=size, flags=flags, source_location=loc)
 
 	def low_part(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5219,6 +5218,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to truncate
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``(value).<size>``
 		:rtype: ExpressionIndex
@@ -5549,11 +5549,15 @@ class LowLevelILFunction:
 
 	def intrinsic(
 	    self, outputs: List[Union[ILRegisterType, ILFlag, 'architecture.RegisterInfo']], intrinsic: 'architecture.IntrinsicType',
-	    params: List[ExpressionIndex], flags: Optional['architecture.FlagType'] = None, loc: Optional['ILSourceLocation'] = None
+	    params: List[ExpressionIndex], flags: Optional['architecture.FlagWriteType'] = None, loc: Optional['ILSourceLocation'] = None
 	):
 		"""
 		``intrinsic`` return an intrinsic expression.
 
+		:param outputs: list of output registers and flags
+		:param intrinsic: name of intrinsic
+		:param params: list of input parameter expressions
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: an intrinsic expression.
 		:rtype: ExpressionIndex
@@ -5640,7 +5644,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_UNIMPL_MEM, addr, size=size, source_location=loc)
 
 	def float_add(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5650,7 +5654,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fadd.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5658,7 +5662,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FADD, a, b, size=size, flags=flags, source_location=loc)
 
 	def float_sub(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5668,7 +5672,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fsub.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5676,7 +5680,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FSUB, a, b, size=size, flags=flags, source_location=loc)
 
 	def float_mult(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5686,7 +5690,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fmul.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5694,7 +5698,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FMUL, a, b, size=size, flags=flags, source_location=loc)
 
 	def float_div(
-	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5704,7 +5708,7 @@ class LowLevelILFunction:
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
+		:param FlagWriteType flags: flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fdiv.<size>{<flags>}(a, b)``
 		:rtype: ExpressionIndex
@@ -5712,7 +5716,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FDIV, a, b, size=size, flags=flags, source_location=loc)
 
 	def float_sqrt(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5720,7 +5724,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to calculate the square root of
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``sqrt.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5728,7 +5732,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FSQRT, value, size=size, flags=flags, source_location=loc)
 
 	def float_neg(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5736,7 +5740,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to negate
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fneg.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5744,7 +5748,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FNEG, value, size=size, flags=flags, source_location=loc)
 
 	def float_abs(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5752,7 +5756,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to get the absolute value of
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fabs.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5760,7 +5764,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FABS, value, size=size, flags=flags, source_location=loc)
 
 	def float_to_int(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5768,7 +5772,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to convert to an int
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``int.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5776,7 +5780,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FLOAT_TO_INT, value, size=size, flags=flags, source_location=loc)
 
 	def int_to_float(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5784,7 +5788,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to convert to a float
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``float.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5792,7 +5796,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_INT_TO_FLOAT, value, size=size, flags=flags, source_location=loc)
 
 	def float_convert(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5800,7 +5804,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to convert to a float of ``size`` bytes
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``fconvert.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5808,7 +5812,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FLOAT_CONV, value, size=size, flags=flags, source_location=loc)
 
 	def round_to_int(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5816,7 +5820,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to round to the nearest integer
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``roundint.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5824,7 +5828,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_ROUND_TO_INT, value, size=size, flags=flags, source_location=loc)
 
 	def floor(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5832,7 +5836,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to round down
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``roundint.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5840,7 +5844,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_FLOOR, value, size=size, flags=flags, source_location=loc)
 
 	def ceil(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5848,7 +5852,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to round up
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``roundint.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex
@@ -5856,7 +5860,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_CEIL, value, size=size, flags=flags, source_location=loc)
 
 	def float_trunc(
-	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
+	    self, size: int, value: ExpressionIndex, flags: Optional['architecture.FlagWriteType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -5864,7 +5868,7 @@ class LowLevelILFunction:
 
 		:param int size: the size of the result in bytes
 		:param ExpressionIndex value: the expression to truncate
-		:param str flags: optional, flags to set
+		:param FlagWriteType flags: optional, flag write type caused by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``roundint.<size>{<flags>}(value)``
 		:rtype: ExpressionIndex

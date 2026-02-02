@@ -61,6 +61,7 @@ FlagWriteTypeName = NewType('FlagWriteTypeName', str)
 
 RegisterType = Union[RegisterName, 'lowlevelil.ILRegister', RegisterIndex]
 FlagType = Union[FlagName, 'lowlevelil.ILFlag', FlagIndex]
+FlagWriteType = Union[FlagWriteTypeName, FlagWriteTypeIndex]
 RegisterStackType = Union[RegisterStackName, 'lowlevelil.ILRegisterStack', RegisterStackIndex]
 SemanticClassType = Union[SemanticClassName, 'lowlevelil.ILSemanticFlagClass', SemanticClassIndex]
 SemanticGroupType = Union[SemanticGroupName, 'lowlevelil.ILSemanticFlagGroup', SemanticGroupIndex]
