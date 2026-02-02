@@ -1495,7 +1495,13 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			flag_name = self._flags_by_index[flag]
 			operand_list = []
 			for i in range(operand_count):
-				if operands[i].constant:
+				if operand_count == 3 and i == 2 and not operands[i].constant and (
+						op == LowLevelILOperation.LLIL_ADC
+						or op == LowLevelILOperation.LLIL_SBB
+						or op == LowLevelILOperation.LLIL_RLC
+						or op == LowLevelILOperation.LLIL_RRC):
+					operand_list.append(lowlevelil.ILFlag(self, operands[i].reg))
+				elif operands[i].constant:
 					operand_list.append(operands[i].value)
 				elif lowlevelil.LLIL_REG_IS_TEMP(operands[i].reg):
 					operand_list.append(lowlevelil.ILRegister(self, operands[i].reg))
@@ -2241,14 +2247,14 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 
 	def get_flag_write_low_level_il(
 	    self, op: LowLevelILOperation, size: int, write_type: Optional[FlagWriteTypeName], flag: FlagType,
-	    operands: List['lowlevelil.ILRegisterType'], il: 'lowlevelil.LowLevelILFunction'
+	    operands: List['lowlevelil.ILOperandType'], il: 'lowlevelil.LowLevelILFunction'
 	) -> 'lowlevelil.ExpressionIndex':
 		"""
 		:param LowLevelILOperation op:
 		:param int size:
 		:param str write_type:
 		:param FlagType flag:
-		:param operands: a list of either items that are either string register names or constant integer values
+		:param operands: a list of either items that are either string registers, flags, or constant integer values
 		:type operands: list(str) or list(int)
 		:param LowLevelILFunction il:
 		:rtype: lowlevelil.ExpressionIndex
@@ -2260,7 +2266,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 
 	def get_default_flag_write_low_level_il(
 	    self, op: 'lowlevelil.LowLevelILOperation', size: int, role: FlagRole,
-	    operands: List['lowlevelil.ILRegisterType'], il: 'lowlevelil.LowLevelILFunction'
+	    operands: List['lowlevelil.ILOperandType'], il: 'lowlevelil.LowLevelILFunction'
 	) -> 'lowlevelil.ExpressionIndex':
 		"""
 		:param LowLevelILOperation op:
@@ -2277,6 +2283,15 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			if isinstance(operand, str):
 				operand_list[i].constant = False
 				operand_list[i].reg = self.regs[RegisterName(operand)].index
+			elif isinstance(operand, lowlevelil.ILFlag):
+				assert len(operands) == 3 and i == 2 and (
+						op == LowLevelILOperation.LLIL_ADC
+						or op == LowLevelILOperation.LLIL_SBB
+						or op == LowLevelILOperation.LLIL_RLC
+						or op == LowLevelILOperation.LLIL_RRC
+				), "Flag operands only allowed for adc/sbb/rlc/rrc"
+				operand_list[i].constant = False
+				operand_list[i].reg = operand.index
 			elif isinstance(operand, lowlevelil.ILRegister):
 				operand_list[i].constant = False
 				operand_list[i].reg = operand.index

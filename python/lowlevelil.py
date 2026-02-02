@@ -50,6 +50,7 @@ Index = Union[ExpressionIndex, InstructionIndex]
 TokenList = List['function.InstructionTextToken']
 InstructionOrExpression = Union['LowLevelILInstruction', Index]
 ILRegisterType = Union[str, 'ILRegister', int]
+ILOperandType = Union[ILRegisterType, 'architecture.ILFlag', int]
 LLILInstructionsType = Generator['LowLevelILInstruction', None, None]
 OperandsType = Tuple[ExpressionIndex, ExpressionIndex, ExpressionIndex, ExpressionIndex]
 LowLevelILOperandType = Union['LowLevelILOperationAndSize', 'ILRegister', 'ILFlag', 'ILIntrinsic', 'ILRegisterStack',
