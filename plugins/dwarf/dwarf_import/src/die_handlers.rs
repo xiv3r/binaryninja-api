@@ -215,11 +215,7 @@ pub(crate) fn handle_pointer<R: ReaderType>(
                     None
                 })?;
 
-            if let Some(ntr) = debug_target_type.get_type().get_named_type_reference() {
-                Type::named_type_from_type(ntr.name(), &debug_target_type.get_type())
-            } else {
-                debug_target_type.get_type()
-            }
+            debug_target_type.get_type()
         }
         None => Type::void(),
     };
