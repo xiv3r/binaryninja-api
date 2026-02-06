@@ -224,6 +224,25 @@ class FileMetadata:
 		core.BNSetVirtualPath(self.handle, str(value))
 
 	@property
+	def display_name(self) -> str:
+		"""
+		``display_name`` is the synthesized name for UI display purposes.
+
+		For container entries, this contains a virtual filename representing the extracted artifact (e.g., "/path/to/entry").
+		For normal files, this equals ``filename``.
+
+		Use this property for tab titles, save dialog defaults, and other UI display purposes.
+		Use ``filename`` for the actual physical file path that can be reopened.
+
+		.. note:: For normal files, ``filename`` == ``virtual_path`` == ``display_name``. For container files, ``filename`` is the container path, ``virtual_path`` is the transform chain, and ``display_name`` is the extracted entry name.
+		"""
+		return core.BNGetDisplayName(self.handle)
+
+	@display_name.setter
+	def display_name(self, value: str) -> None:
+		core.BNSetDisplayName(self.handle, str(value))
+
+	@property
 	def modified(self) -> bool:
 		"""Boolean result of whether the file is modified (Inverse of 'saved' property) (read/write)"""
 		return core.BNIsFileModified(self.handle)

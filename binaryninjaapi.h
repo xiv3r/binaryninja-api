@@ -3803,6 +3803,20 @@ namespace BinaryNinja {
 		*/
 		void SetVirtualPath(const std::string& path);
 
+		/*! Get the display name for the file. For container entries, this returns the synthesized name
+			representing the extracted artifact. For normal files, this returns the filename.
+
+			\return The display name for UI purposes (tab titles, save dialogs, etc.)
+		*/
+		std::string GetDisplayName() const;
+
+		/*! Set the display name for the file. This is typically used for container entries to store
+			a synthesized name representing the extracted artifact.
+
+			\param name The display name to set
+		*/
+		void SetDisplayName(const std::string& name);
+
 		/*! Whether the file has unsaved modifications
 
 			\return Whether the file has unsaved modifications

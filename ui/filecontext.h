@@ -65,6 +65,7 @@ class BINARYNINJAUIAPI FileContext : public FileContextBase, public BinaryNinja:
 	FileMetadataRef getMetadata() const { return m_file; }
 	QString getFilename() const { return m_filename; }
 	void setFilename(QString newName) { m_filename = newName; }
+	QString getDisplayName() const;
 	ViewFrame* getCurrentViewFrame() const { return m_currentViewFrame; }
 	QString getTabName(QWidget* widget);
 	QString getShortFileName(QWidget* widget);

@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 155
+#define BN_CURRENT_CORE_ABI_VERSION 156
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -4450,6 +4450,9 @@ extern "C"
 
 	BINARYNINJACOREAPI char* BNGetVirtualPath(BNFileMetadata* file);
 	BINARYNINJACOREAPI void BNSetVirtualPath(BNFileMetadata* file, const char* path);
+
+	BINARYNINJACOREAPI char* BNGetDisplayName(BNFileMetadata* file);
+	BINARYNINJACOREAPI void BNSetDisplayName(BNFileMetadata* file, const char* name);
 
 	BINARYNINJACOREAPI BNProjectFile* BNGetProjectFile(BNFileMetadata* file);
 	BINARYNINJACOREAPI void BNSetProjectFile(BNFileMetadata* file, BNProjectFile* pfile);
