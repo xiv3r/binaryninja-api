@@ -2,14 +2,15 @@
 
 Currently, the following categories of analysis information can be imported from Ghidra files:
 
-- Types
-- Memory map
+- Bookmarks
+- Comments
 - Data variables
 - Functions
-- Comments
-- Bookmarks
+- Memory map
+- Types
 
 ## Importing data
+
 ### Import to a new file
 `Plugins > Ghidra > Open Database...` allows you to select a Ghidra file to open as a binary view in Binary Ninja. You are able to select a single `.gbf`/`.gzf` file or project file from a `.gpr`.
 
