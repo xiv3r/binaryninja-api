@@ -390,7 +390,6 @@ class BasicBlockAnalysisContext:
                 direct_no_return_calls[i].address = loc.addr
             core.BNAnalyzeBasicBlocksContextSetDirectNoReturnCalls(self._handle, direct_no_return_calls, total)
 
-        self._halted_disassembly_addresses.add(function.ArchAndAddr(self._function.arch, 0))
         if self._halted_disassembly_addresses:
             total = len(self._halted_disassembly_addresses)
             halted_addresses = (core.BNArchitectureAndAddress * total)()
