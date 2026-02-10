@@ -561,10 +561,10 @@ public:
 	virtual ProjectRef getProject();
 	virtual ProjectStatusWidget* getProjectStatusWidget();
 
-	virtual bool openFilename(const QString& path, bool openOptions = false);
+	virtual bool openFilename(const QString& path, bool openOptions = false, bool forceContainerBrowser = false);
 	virtual ProjectRef openProject(const QString& path);
 	virtual ViewFrame* openFileContext(FileContext* file, const QString& forcedView = "", bool addTab = true);
-	virtual bool openProjectFile(ProjectFileRef file, ExternalLocationRef loc = nullptr, bool openWithOptions = false);
+	virtual bool openProjectFile(ProjectFileRef file, ExternalLocationRef loc = nullptr, bool openWithOptions = false, bool forceContainerBrowser = false);
 	virtual bool openUrl(const QUrl& url, bool openWithOptions = false);
 	virtual void recreateViewFrames(FileContext* file) = 0;
 	virtual void refreshCurrentViewContents();
@@ -629,6 +629,12 @@ public:
 	    \return Name to display for this path
 	 */
 	QString GetNameForPath(const QString& path);
+	/*!
+	    Get the displayed name for a file, resolving container entries within projects
+	    \param metadata FileMetadata whose displayed name you want
+	    \return Name to display for this file
+	 */
+	QString GetNameForPath(FileMetadataRef metadata);
 
 	virtual QWidget* fileContentsLockStatusWidget() = 0;
 
