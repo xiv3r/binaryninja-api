@@ -175,7 +175,7 @@ class Platform(metaclass=_PlatformMetaClass):
 	def _view_init(self, ctxt, view):
 		try:
 			view_obj = binaryview.BinaryView(handle=core.BNNewViewReference(view))
-			self.view_init(view)
+			self.view_init(view_obj)
 		except:
 			log_error_for_exception("Unhandled Python exception in Platform._view_init")
 
