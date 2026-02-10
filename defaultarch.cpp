@@ -517,22 +517,6 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 
 			if (indirectNoReturnCalls.count(location))
 			{
-				size_t instrLength = info.length;
-				if (info.delaySlots)
-				{
-					InstructionInfo delayInfo;
-					delayInfo.delaySlots = info.delaySlots; // we'll decrement this inside the loop
-					size_t archMax = location.arch->GetMaxInstructionLength();
-					uint8_t delayOpcode[BN_MAX_INSTRUCTION_LENGTH];
-					do
-					{
-						delayInfo.delaySlots--;
-						if (!location.arch->GetInstructionInfo(delayOpcode, location.address + instrLength, archMax - instrLength, delayInfo))
-							break;
-						instrLength += delayInfo.length;
-					} while (delayInfo.delaySlots && (instrLength < archMax));
-				}
-
 				// Conditional Call Support (Part 1)
 				// Do not halt basic block analysis if this is a conditional call to a function that is 'no return'
 				// This works for both direct and indirect calls.
