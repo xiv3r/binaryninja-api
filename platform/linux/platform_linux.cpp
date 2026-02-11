@@ -15,7 +15,7 @@ public:
 	{
 		Ref<CallingConvention> cc;
 
-		cc = arch->GetCallingConventionByName("cdecl");
+		cc = arch->GetCallingConventionByName("sysv");
 		if (cc)
 		{
 			RegisterDefaultCallingConvention(cc);
@@ -26,7 +26,7 @@ public:
 		if (cc)
 			RegisterCallingConvention(cc);
 
-		cc = arch->GetCallingConventionByName("stdcall");
+		cc = arch->GetCallingConventionByName("sysv-stdcall");
 		if (cc)
 			RegisterStdcallCallingConvention(cc);
 

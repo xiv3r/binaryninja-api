@@ -138,6 +138,10 @@ The following built-in calling conventions without dedicated keywords are availa
 |`apple-syscall`|aarch64|macOS and iOS system calls|
 |`go-stack`|x86, x86_64|Stack-based calling convention used by the Go compiler on 32-bit x86 or older compilers|
 |`register`|x86|Register-based calling convention with left-to-right parameter passing (used by default in Delphi)|
+|`gcc-fastcall`|x86|The `fastcall` calling convention as implemented in GCC on non-Windows platforms|
+|`clang-fastcall`|x86|The `fastcall` calling convention as implemented in Clang on non-Windows platforms|
+|`gcc-thiscall`|x86|The `thiscall` calling convention as implemented in GCC on non-Windows platforms|
+|`clang-thiscall`|x86|The `thiscall` calling convention as implemented in Clang on non-Windows platforms|
 
 ## System Call Functions for Type Libraries
 
