@@ -27,6 +27,8 @@ struct GenericException : public ExceptionWithStackTrace
 	} while (0);
 #define RAPIDJSON_PARSE_ERROR_NORETURN(parseErrorCode, offset) \
 	throw ParseException(parseErrorCode, #parseErrorCode, offset)
+#define RAPIDJSON_NO_SIZETYPEDEFINE
+namespace rapidjson { typedef ::std::size_t SizeType; }
 
 #include "rapidjson/error/error.h"
 struct ParseException : public ExceptionWithStackTrace, public rapidjson::ParseResult
