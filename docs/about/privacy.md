@@ -28,7 +28,7 @@ All three of the settings below use the same update server endpoint and send the
 |---------|---------|-------------|
 | `network.enableUpdates` | `true` | Automatically check for updates on startup |
 | `network.enableUpdateChannelList` | `true` | Fetch available update channels (used in preferences) |
-| `network.enableReleaseNotes` | `true` | Fetch release notes for display on the launchpad |
+| `network.enableReleaseNotes` | `true` | Fetch release notes for display on the new tab page |
 
 ## Plugin Manager
 
