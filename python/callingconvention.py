@@ -447,11 +447,11 @@ class CallingConvention:
 		result[0].state = api_obj.state
 		result[0].value = api_obj.value
 
-	def _get_incoming_flag_value(self, ctxt, reg, func, result):
+	def _get_incoming_flag_value(self, ctxt, flag, func, result):
 		try:
 			func_obj = function.Function(handle=core.BNNewFunctionReference(func))
-			reg_name = self.arch.get_reg_name(reg)
-			api_obj = self.perform_get_incoming_flag_value(reg_name, func_obj)._to_core_struct()
+			flag_name = self.arch.get_reg_name(flag)
+			api_obj = self.perform_get_incoming_flag_value(flag_name, func_obj)._to_core_struct()
 		except:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_incoming_flag_value")
 			api_obj = variable.Undetermined()._to_core_struct()
@@ -502,7 +502,7 @@ class CallingConvention:
 		return variable.Undetermined()
 
 	def perform_get_incoming_flag_value(
-	    self, reg: 'architecture.RegisterName', func: 'function.Function'
+	    self, flag: 'architecture.FlagName', func: 'function.Function'
 	) -> 'variable.RegisterValue':
 		return variable.Undetermined()
 
@@ -535,14 +535,14 @@ class CallingConvention:
 		)
 
 	def get_incoming_flag_value(
-	    self, flag: 'architecture.FlagIndex', func: 'function.Function'
+	    self, flag: 'architecture.FlagType', func: 'function.Function'
 	) -> 'variable.RegisterValue':
-		reg_num = self.arch.get_flag_index(flag)
+		flag_index = self.arch.get_flag_index(flag)
 		func_handle = None
 		if func is not None:
 			func_handle = func.handle
 		return variable.RegisterValue.from_BNRegisterValue(
-		    core.BNGetIncomingFlagValue(self.handle, reg_num, func_handle), self.arch
+		    core.BNGetIncomingFlagValue(self.handle, flag_index, func_handle), self.arch
 		)
 
 	def get_incoming_var_for_parameter_var(
