@@ -88,6 +88,7 @@ PathType = Union[str, os.PathLike]
 InstructionsType = Generator[Tuple[List['_function.InstructionTextToken'], int], None, None]
 ProgressFuncType = Callable[[int, int], bool]
 DataMatchCallbackType = Callable[[int, 'databuffer.DataBuffer'], bool]
+TextMatchCallbackType = Callable[[int, str, 'lineardisassembly.LinearDisassemblyLine'], bool]
 LineMatchCallbackType = Callable[[int, 'lineardisassembly.LinearDisassemblyLine'], bool]
 StringOrType = Union[str, '_types.Type', '_types.TypeBuilder']
 
@@ -9535,6 +9536,18 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 				if (not self.thread.is_alive()) and self.results.empty():
 					raise StopIteration
 
+	@overload
+	def find_all_data(
+	    self, start: int, end: int, data: bytes, flags: FindFlag = FindFlag.FindCaseSensitive,
+	    progress_func: Optional[ProgressFuncType] = None, match_callback: None = None
+	) -> QueueGenerator: ...
+
+	@overload
+	def find_all_data(
+	    self, start: int, end: int, data: bytes, flags: FindFlag = FindFlag.FindCaseSensitive,
+	    progress_func: Optional[ProgressFuncType] = None, match_callback: DataMatchCallbackType = None
+	) -> bool: ...
+
 	def find_all_data(
 	    self, start: int, end: int, data: bytes, flags: FindFlag = FindFlag.FindCaseSensitive,
 	    progress_func: Optional[ProgressFuncType] = None, match_callback: Optional[DataMatchCallbackType] = None
@@ -9610,10 +9623,24 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		core.BNFreeLinearDisassemblyLines(lines, 1)
 		return line
 
+	@overload
 	def find_all_text(
 	    self, start: int, end: int, text: str, settings: Optional[_function.DisassemblySettings] = None,
 	    flags=FindFlag.FindCaseSensitive, graph_type: _function.FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph, progress_func=None,
-	    match_callback=None
+	    match_callback: None = None
+	) -> QueueGenerator: ...
+
+	@overload
+	def find_all_text(
+	    self, start: int, end: int, text: str, settings: Optional[_function.DisassemblySettings] = None,
+	    flags=FindFlag.FindCaseSensitive, graph_type: _function.FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph, progress_func=None,
+	    match_callback: TextMatchCallbackType = None
+	) -> bool: ...
+
+	def find_all_text(
+	    self, start: int, end: int, text: str, settings: Optional[_function.DisassemblySettings] = None,
+	    flags=FindFlag.FindCaseSensitive, graph_type: _function.FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph, progress_func=None,
+	    match_callback: Optional[TextMatchCallbackType] = None
 	) -> Union[QueueGenerator, bool]:
 		"""
 		``find_all_text`` searches for string ``text`` occurring in the linear view output starting
@@ -9679,7 +9706,7 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 			    ctypes.POINTER(core.BNLinearDisassemblyLine)
 			)(
 			    lambda ctxt, addr, match, line:
-			    not match_callback(addr, match, self._LinearDisassemblyLine_convertor(line)) is False
+			    not match_callback(addr, core.pyNativeStr(match), self._LinearDisassemblyLine_convertor(line)) is False
 			)
 
 			return core.BNFindAllTextWithProgress(
@@ -9692,7 +9719,7 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 			    ctypes.c_bool, ctypes.c_void_p, ctypes.c_ulonglong, ctypes.c_char_p,
 			    ctypes.POINTER(core.BNLinearDisassemblyLine)
 			)(
-			    lambda ctxt, addr, match, line: results.put((addr, match, self._LinearDisassemblyLine_convertor(line)))
+			    lambda ctxt, addr, match, line: results.put((addr, core.pyNativeStr(match), self._LinearDisassemblyLine_convertor(line)))
 			    or True
 			)
 
@@ -9704,6 +9731,20 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 			)
 
 			return self.QueueGenerator(t, results)
+
+	@overload
+	def find_all_constant(
+	    self, start: int, end: int, constant: int, settings: Optional[_function.DisassemblySettings] = None,
+	    graph_type: _function.FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph, progress_func: Optional[ProgressFuncType] = None,
+	    match_callback: None = None
+	) -> QueueGenerator: ...
+
+	@overload
+	def find_all_constant(
+	    self, start: int, end: int, constant: int, settings: Optional[_function.DisassemblySettings] = None,
+	    graph_type: _function.FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph, progress_func: Optional[ProgressFuncType] = None,
+	    match_callback: LineMatchCallbackType = None
+	) -> bool: ...
 
 	def find_all_constant(
 	    self, start: int, end: int, constant: int, settings: Optional[_function.DisassemblySettings] = None,
@@ -11496,6 +11537,12 @@ class TypedDataAccessor:
 
 		for i in range(_type.count):
 			yield self[i]
+
+	@overload
+	def __getitem__(self, key: Union[str, int]) -> 'TypedDataAccessor': ...
+
+	@overload
+	def __getitem__(self, key: slice) -> List['TypedDataAccessor']: ...
 
 	def __getitem__(self, key: Union[str, int, slice]) -> Union['TypedDataAccessor', List['TypedDataAccessor']]:
 		_type = self.type
