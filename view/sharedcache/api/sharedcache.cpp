@@ -107,6 +107,7 @@ CacheSymbol SymbolFromApi(BNSharedCacheSymbol apiSymbol)
 	symbol.name = apiSymbol.name;
 	symbol.address = apiSymbol.address;
 	symbol.type = apiSymbol.symbolType;
+	symbol.binding = apiSymbol.symbolBinding;
 	return symbol;
 }
 
@@ -140,7 +141,7 @@ std::pair<std::string, Ref<Type>> CacheSymbol::DemangledName(BinaryView &view) c
 Ref<Symbol> CacheSymbol::GetBNSymbol(BinaryView &view) const
 {
 	auto [shortName, _] = DemangledName(view);
-	return new Symbol(type, shortName, shortName, name, address, nullptr);
+	return new Symbol(type, shortName, shortName, name, address, binding);
 }
 
 std::string SharedCacheAPI::GetSymbolTypeAsString(const BNSymbolType &type)

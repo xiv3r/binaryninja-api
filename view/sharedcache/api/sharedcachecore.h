@@ -27,9 +27,10 @@ extern "C"
 {
 #endif
 
-	//	binaryninjacore.h is not included so we must duplicate enum types here.
+	// binaryninjacore.h is not included so we must duplicate enum types here.
+	// TODO: Why isn't it?!
 #ifdef BN_TYPE_PARSER
-	typedef enum BNSegmentFlag
+	enum BNSegmentFlag : uint8_t
 	{
 		SegmentExecutable = 1,
 		SegmentWritable = 2,
@@ -38,9 +39,9 @@ extern "C"
 		SegmentContainsCode = 0x10,
 		SegmentDenyWrite = 0x20,
 		SegmentDenyExecute = 0x40
-	} BNSegmentFlag;
+	};
 
-	typedef enum BNSymbolType
+	enum BNSymbolType : uint8_t
 	{
 		FunctionSymbol = 0,
 		ImportAddressSymbol = 1,
@@ -51,7 +52,15 @@ extern "C"
 		LibraryFunctionSymbol = 6,
 		SymbolicFunctionSymbol = 7,
 		LocalLabelSymbol = 8,
-	} BNSymbolType;
+	};
+
+	enum BNSymbolBinding : uint8_t
+	{
+		NoBinding = 0,
+		LocalBinding = 1,
+		GlobalBinding = 2,
+		WeakBinding = 3,
+	};
 #endif
 
 	typedef struct BNBinaryView BNBinaryView;
@@ -105,6 +114,7 @@ extern "C"
 
 	typedef struct BNSharedCacheSymbol {
 		BNSymbolType symbolType;
+		BNSymbolBinding symbolBinding;
 		uint64_t address;
 		char* name;
 	} BNSharedCacheSymbol;

@@ -10,12 +10,13 @@
 struct CacheSymbol
 {
 	BNSymbolType type;
+	BNSymbolBinding binding = NoBinding;
 	uint64_t address;
 	std::string name;
 
 	CacheSymbol() = default;
-	CacheSymbol(BNSymbolType type, uint64_t address, std::string name) :
-		type(type), address(address), name(std::move(name))
+	CacheSymbol(BNSymbolType type, BNSymbolBinding binding, uint64_t address, std::string name) :
+		type(type), binding(binding), address(address), name(std::move(name))
 	{}
 	~CacheSymbol() = default;
 

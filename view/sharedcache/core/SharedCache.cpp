@@ -21,7 +21,7 @@ std::pair<std::string, Ref<Type>> CacheSymbol::DemangledName(BinaryView &view) c
 std::pair<Ref<Symbol>, Ref<Type>> CacheSymbol::GetBNSymbolAndType(BinaryView& view) const
 {
 	auto [shortName, demangledType] = DemangledName(view);
-	auto symbol = new Symbol(type, shortName, shortName, name, address, nullptr);
+	auto symbol = new Symbol(type, shortName, shortName, name, address, binding);
 	return {symbol, demangledType};
 }
 

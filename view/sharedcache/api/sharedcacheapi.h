@@ -286,6 +286,7 @@ namespace SharedCacheAPI {
 	struct CacheSymbol
 	{
 		BNSymbolType type;
+		BNSymbolBinding binding = NoBinding;
 		uint64_t address;
 		std::string name;
 

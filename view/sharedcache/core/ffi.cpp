@@ -91,6 +91,7 @@ BNSharedCacheSymbol SymbolToApi(const CacheSymbol& symbol)
 	apiSymbol.name = BNAllocStringWithLength(symbol.name.data(), symbol.name.size());
 	apiSymbol.address = symbol.address;
 	apiSymbol.symbolType = symbol.type;
+	apiSymbol.symbolBinding = symbol.binding;
 	return apiSymbol;
 }
 
@@ -100,6 +101,7 @@ CacheSymbol SymbolFromApi(const BNSharedCacheSymbol& apiSymbol)
 	symbol.name = apiSymbol.name;
 	symbol.address = apiSymbol.address;
 	symbol.type = apiSymbol.symbolType;
+	symbol.binding = apiSymbol.symbolBinding;
 	return symbol;
 }
 

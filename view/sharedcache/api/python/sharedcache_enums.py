@@ -26,6 +26,13 @@ class SharedCacheRegionType(enum.IntEnum):
 	SharedCacheRegionTypeNonImage = 3
 
 
+class SymbolBinding(enum.IntEnum):
+	NoBinding = 0
+	LocalBinding = 1
+	GlobalBinding = 2
+	WeakBinding = 3
+
+
 class SymbolType(enum.IntEnum):
 	FunctionSymbol = 0
 	ImportAddressSymbol = 1

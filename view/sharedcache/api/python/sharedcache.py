@@ -40,6 +40,7 @@ class CacheImage:
 @dataclasses.dataclass
 class CacheSymbol:
     symbol_type: sccore.SymbolTypeEnum
+    symbol_binding: sccore.SymbolBindingEnum
     address: int
     name: str
 
@@ -94,6 +95,7 @@ def image_to_api(image: CacheImage) -> sccore.BNSharedCacheImage:
 def symbol_from_api(symbol: sccore.BNSharedCacheSymbol) -> CacheSymbol:
     return CacheSymbol(
         symbol_type=symbol.symbolType,
+        symbol_binding=symbol.symbolBinding,
         address=symbol.address,
         name=symbol.name
     )
@@ -101,6 +103,7 @@ def symbol_from_api(symbol: sccore.BNSharedCacheSymbol) -> CacheSymbol:
 def symbol_to_api(symbol: CacheSymbol) -> sccore.BNSharedCacheSymbol:
     return sccore.BNSharedCacheSymbol(
         symbolType=symbol.symbol_type,
+        symbolBinding=symbol.symbol_binding,
         address=symbol.address,
         _name=BNAllocString(symbol.name)
     )

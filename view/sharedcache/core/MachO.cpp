@@ -457,7 +457,8 @@ std::optional<SharedCacheMachOHeader> SharedCacheMachOHeader::ParseHeaderForAddr
 	return header;
 }
 
-std::vector<CacheSymbol> SharedCacheMachOHeader::ReadSymbolTable(VirtualMemory& vm, const TableInfo &symbolInfo, const TableInfo &stringInfo) const
+std::vector<CacheSymbol> SharedCacheMachOHeader::ReadSymbolTable(VirtualMemory& vm, const TableInfo &symbolInfo, const TableInfo &stringInfo,
+	BNSymbolBinding bindingOverride) const
 {
 	std::vector<CacheSymbol> symbolList;
 	// TODO: This assumes that 95% (or more) are going to be added.
@@ -544,11 +545,15 @@ std::vector<CacheSymbol> SharedCacheMachOHeader::ReadSymbolTable(VirtualMemory& 
 		if ((nlist.n_desc & N_ARM_THUMB_DEF) == N_ARM_THUMB_DEF)
 			symbolAddress++;
 
-		CacheSymbol symbol;
-		symbol.address = symbolAddress;
-		symbol.name = std::move(symbolName);
-		symbol.type = symbolType.value();
-		symbolList.emplace_back(symbol);
+		BNSymbolBinding symbolBinding = GlobalBinding;
+		if (bindingOverride != NoBinding)
+			symbolBinding = bindingOverride;
+		else if (dysymPresent && dysymtab.nlocalsym && entryIndex >= dysymtab.ilocalsym && entryIndex < dysymtab.ilocalsym + dysymtab.nlocalsym)
+			symbolBinding = LocalBinding;
+		else if (nlist.n_desc & N_WEAK_DEF)
+			symbolBinding = WeakBinding;
+
+		symbolList.emplace_back(symbolType.value(), symbolBinding, symbolAddress, std::move(symbolName));
 	}
 
 	return symbolList;
@@ -565,6 +570,9 @@ bool SharedCacheMachOHeader::AddExportTerminalSymbol(
 	uint64_t symbolAddress = textBase + imageOffset;
 	if (symbolName.empty() || symbolAddress == 0)
 		return false;
+
+	// Export trie entries are exported by definition.
+	BNSymbolBinding symbolBinding = (symbolFlags & EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION) ? WeakBinding : GlobalBinding;
 
 	// Tries to get the symbol type based off the section containing it.
 	auto sectionSymbolType = [&]() -> BNSymbolType {
@@ -593,10 +601,10 @@ bool SharedCacheMachOHeader::AddExportTerminalSymbol(
 	{
 	case EXPORT_SYMBOL_FLAGS_KIND_REGULAR:
 	case EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL:
-		symbols.emplace_back(sectionSymbolType(), symbolAddress, symbolName);
+		symbols.emplace_back(sectionSymbolType(), symbolBinding, symbolAddress, symbolName);
 		break;
 	case EXPORT_SYMBOL_FLAGS_KIND_ABSOLUTE:
-		symbols.emplace_back(DataSymbol, symbolAddress, symbolName);
+		symbols.emplace_back(DataSymbol, symbolBinding, symbolAddress, symbolName);
 		break;
 	default:
 		LogWarnF("Unhandled export symbol kind: {:#x}", symbolFlags & EXPORT_SYMBOL_FLAGS_KIND_MASK);

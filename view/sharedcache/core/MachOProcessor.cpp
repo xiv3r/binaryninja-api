@@ -130,7 +130,7 @@ void SharedCacheMachOProcessor::ApplyUnmappedLocalSymbols(const SharedCache& cac
 		TableInfo symbolInfo = {symbolTableStart, localSymbolsEntry.nlistCount};
 		TableInfo stringInfo = {localStringsAddr, localSymbolsInfo.stringsSize};
 		BulkSymbolModification bulkSymbolModification(m_view);
-		const auto symbols = header.ReadSymbolTable(*localSymbolsVM, symbolInfo, stringInfo);
+		const auto symbols = header.ReadSymbolTable(*localSymbolsVM, symbolInfo, stringInfo, LocalBinding);
 		for (const auto &sym: symbols)
 		{
 			auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
