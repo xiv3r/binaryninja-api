@@ -4,6 +4,7 @@
 #include "fatmachoview.h"
 #include "lowlevelilinstruction.h"
 #include "rapidjsonwrapper.h"
+#include "universaltransform.h"
 #include "universalview.h"
 
 #include <algorithm>
@@ -1952,7 +1953,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 				return true;
 
 			bool is64Bit;
-			string archName = UniversalViewType::ArchitectureToString(m_archId, 0, is64Bit);
+			string archName = UniversalTransform::ArchitectureToString(m_archId, 0, is64Bit);
 			if (!archName.empty())
 			{
 				#ifdef DEMO_EDITION
@@ -4004,6 +4005,7 @@ extern "C"
 		InitMachoViewType();
 		InitFatMachoViewType();
 		InitUniversalViewType();
+		InitUniversalTransform();
 		return true;
 	}
 }

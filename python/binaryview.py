@@ -3256,13 +3256,15 @@ class BinaryView:
 		file during initialization. If no architecture is detected or specified in the load options, then the ``Mapped`` view type fails to \
 		initialize and returns ``None``.
 
-		.. note:: Although general container file support is not complete, support for Universal archives exists. It's possible to control the architecture preference \
-		with the **'files.universal.architecturePreference'** setting. This setting is scoped to SettingsUserScope and can be modified as follows ::
+		.. note:: Container file support enables automatic extraction from container formats such as Universal (Fat) Mach-O archives. \
+		The architecture preference for Universal archives can be controlled with the **'files.universal.architecturePreference'** setting. \
+		When set, the first matching architecture is automatically selected for loading. When unset, headless operation defaults to the \
+		first available architecture, while interactive operation presents all available architectures for selection. \
+		This setting is scoped to SettingsUserScope and can be modified as follows ::
 
 			>>> Settings().set_string_list("files.universal.architecturePreference", ["arm64"])
 
-		It's also possible to override the **'files.universal.architecturePreference'** user setting by specifying it directly with :py:func:`load`.
-		This specific usage of this setting is experimental and may change in the future ::
+		It's also possible to specify the architecture preference directly with :py:func:`load` ::
 
 			>>> bv = binaryninja.load('/bin/ls', options={'files.universal.architecturePreference': ['arm64']})
 

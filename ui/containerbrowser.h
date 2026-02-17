@@ -110,7 +110,9 @@ class BINARYNINJAUIAPI ContainerBrowser : public QDialog
 	static QString formatMetadata(BinaryNinja::Ref<BinaryNinja::Metadata> metadata, int indent = 0);
 	QModelIndex findNodeByPath(const QStringList& path);
 	QModelIndex findFirstLeaf();
+	QModelIndex findLeafByName(const QString& name);
 	void selectNodeByPath(const QStringList& path);
+	void selectLeafByName(const QString& name);
 
 public:
 	ContainerBrowser(TransformSessionRef session, QWidget* parent = nullptr);
