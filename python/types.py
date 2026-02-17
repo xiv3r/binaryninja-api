@@ -1864,6 +1864,11 @@ class NamedTypeReferenceBuilder(TypeBuilder):
 	def name(self) -> QualifiedName:
 		return QualifiedName._from_core_struct(core.BNGetTypeReferenceBuilderName(self.ntr_builder_handle))
 
+	@name.setter
+	def name(self, value: QualifiedNameType) -> None:
+		qn = QualifiedName(value)._to_core_struct()
+		core.BNSetNamedTypeReferenceBuilderName(self.ntr_builder_handle, qn)
+
 	@property
 	def id(self) -> str:
 		return core.BNGetTypeReferenceBuilderId(self.ntr_builder_handle)
@@ -1872,9 +1877,17 @@ class NamedTypeReferenceBuilder(TypeBuilder):
 	def type_id(self) -> str:
 		return core.BNGetTypeReferenceBuilderId(self.ntr_builder_handle)
 
+	@type_id.setter
+	def type_id(self, value: str) -> None:
+		core.BNSetNamedTypeReferenceBuilderTypeId(self.ntr_builder_handle, value)
+
 	@property
 	def named_type_class(self) -> NamedTypeReferenceClass:
 		return NamedTypeReferenceClass(core.BNGetTypeReferenceBuilderClass(self.ntr_builder_handle))
+
+	@named_type_class.setter
+	def named_type_class(self, value: NamedTypeReferenceClass) -> None:
+		core.BNSetNamedTypeReferenceBuilderTypeClass(self.ntr_builder_handle, value)
 
 	@staticmethod
 	def named_type(
