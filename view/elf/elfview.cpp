@@ -1094,14 +1094,10 @@ bool ElfView::Init()
 			DefineAutoSymbol(new Symbol(DataSymbol, "__elf_hash_table", m_hashHeader, NoBinding));
 
 			// Gratuitously create sections for the symbol and string tables if none exist
-			if (m_auxSymbolTable.size && !GetSectionsAt(m_auxSymbolTable.offset).size())
+			if (!GetSectionsAt(m_auxSymbolTable.offset).size())
 				AddAutoSection(".dynamic_symtab", m_auxSymbolTable.offset, m_auxSymbolTable.size, ReadOnlyDataSectionSemantics);
-			else if (!m_auxSymbolTable.size)
-				m_logger->LogWarn("Skipping zero-length .dynamic_symtab section at 0x%" PRIx64, m_auxSymbolTable.offset);
-			if (m_dynamicStringTable.size && !GetSectionsAt(m_dynamicStringTable.offset).size())
+			if (!GetSectionsAt(m_dynamicStringTable.offset).size())
 				AddAutoSection(".dynamic_strtab", m_dynamicStringTable.offset, m_dynamicStringTable.size, ReadOnlyDataSectionSemantics);
-			else if (!m_dynamicStringTable.size)
-				m_logger->LogWarn("Skipping zero-length .dynamic_strtab section at 0x%" PRIx64, m_dynamicStringTable.offset);
 		}
 
 		// Parse and create types for ELF GNU hash table
