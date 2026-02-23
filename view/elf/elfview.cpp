@@ -550,10 +550,8 @@ bool ElfView::Init()
 				break;
 			}
 
-			if (!foundMatch && i.memorySize)
+			if (!foundMatch)
 				AddAutoSection(".dynamic", adjustedVirtualAddr, i.memorySize, ReadOnlyDataSectionSemantics, "DYNAMIC", i.align, entrySize);
-			else if (!foundMatch)
-				m_logger->LogWarn("Skipping zero-length .dynamic section at 0x%" PRIx64, adjustedVirtualAddr);
 		}
 		else if (i.type == ELF_PT_INTERP)
 		{
@@ -574,10 +572,8 @@ bool ElfView::Init()
 				break;
 			}
 
-			if (!foundMatch && i.memorySize)
+			if (!foundMatch)
 				AddAutoSection(".interp", adjustedVirtualAddr, i.memorySize, ReadOnlyDataSectionSemantics, "PROGBITS", i.align);
-			else if (!foundMatch)
-				m_logger->LogWarn("Skipping zero-length .interp section at 0x%" PRIx64, adjustedVirtualAddr);
 
 			DefineDataVariable(adjustedVirtualAddr, Type::ArrayType(Type::IntegerType(1, true), i.fileSize));
 			DefineAutoSymbol(new Symbol(DataSymbol, "__elf_interp", adjustedVirtualAddr, LocalBinding));
