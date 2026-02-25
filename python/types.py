@@ -172,7 +172,7 @@ class QualifiedName:
 		result = []
 		for i in range(0, name.nameCount):
 			result.append(name.name[i].decode("utf-8"))
-		return QualifiedName(result)
+		return QualifiedName(result, name.join.decode("utf-8"))
 
 	@property
 	def name(self) -> List[str]:
