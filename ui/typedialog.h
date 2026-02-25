@@ -85,18 +85,16 @@ class BINARYNINJAUIAPI TypeDialog : public QDialog
 	QLabel* m_prompt;
 	QString m_promptText;
 	std::optional<BinaryNinja::TypeContainer> m_typeContainer;
-	bool m_resultValid;
+	bool m_resultValid = true;
+	bool m_resolved = false;
 	QStringList m_historyEntries;
 	int m_historySize;
-	GetTypesListThread* m_updateThread;
-	QFont m_defaultFont;
-	bool m_initialTextSelection;
+	GetTypesListThread* m_updateThread = nullptr;
 	BinaryNinja::QualifiedNameAndType m_type;
 	QPushButton* m_acceptButton;
 	QTimer* m_updateTimer;
 	QTimer* m_parseTimer;
-	bool m_isParsing;
-	std::atomic_bool m_comboBoxTextChanged;
+	bool m_isParsing = false;
 	QPalette m_defaultPalette;
 	QString m_parseError;
 
