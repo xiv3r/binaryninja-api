@@ -85,7 +85,7 @@ def convert_integer(value: ctypes.c_uint64, signed: bool, width: int) -> int:
 	return func[bool(signed)][width](value).value
 
 class QualifiedName:
-	def __init__(self, name: Optional[QualifiedNameType] = None, separator: str = "::"):
+	def __init__(self, name: Optional[QualifiedNameType] = None, join: str = "::"):
 		self._name: List[str] = []
 		if isinstance(name, str):
 			self._name = [name]
@@ -99,10 +99,10 @@ class QualifiedName:
 					self._name.append(i.decode("utf-8"))
 				else:
 					self._name.append(str(i))
-		self._separator = separator
+		self._join = join
 
 	def __str__(self):
-		return self.separator.join(self.name)
+		return self.join.join(self.name)
 
 	def __repr__(self):
 		return repr(str(self))
@@ -116,7 +116,7 @@ class QualifiedName:
 		elif isinstance(other, list):
 			return self.name == other
 		elif isinstance(other, self.__class__):
-			return self.name == other.name and self.separator == other.separator
+			return self.name == other.name and self.join == other.join
 		return NotImplemented
 
 	def __ne__(self, other):
@@ -164,7 +164,7 @@ class QualifiedName:
 			name_list[i] = self.name[i].encode("utf-8")
 		result.name = name_list
 		result.nameCount = len(self.name)
-		result.join = self.separator.encode("utf-8")
+		result.join = self.join.encode("utf-8")
 		return result
 
 	@staticmethod
@@ -183,12 +183,12 @@ class QualifiedName:
 		self._name = value
 
 	@property
-	def separator(self) -> str:
-		return self._separator
+	def join(self) -> str:
+		return self._join
 
-	@separator.setter
-	def separator(self, value: str) -> None:
-		self._separator = value
+	@join.setter
+	def join(self, value: str) -> None:
+		self._join = value
 
 	@staticmethod
 	def escape(name: QualifiedNameType, escaping: TokenEscapingType) -> str:
