@@ -164,7 +164,7 @@ class QualifiedName:
 			name_list[i] = self.name[i].encode("utf-8")
 		result.name = name_list
 		result.nameCount = len(self.name)
-		result.join = self.join.encode("utf-8")
+		result.join = self.join
 		return result
 
 	@staticmethod
@@ -172,7 +172,7 @@ class QualifiedName:
 		result = []
 		for i in range(0, name.nameCount):
 			result.append(name.name[i].decode("utf-8"))
-		return QualifiedName(result, name.join.decode("utf-8"))
+		return QualifiedName(result, name.join)
 
 	@property
 	def name(self) -> List[str]:
@@ -216,16 +216,14 @@ class TypeReferenceSource:
 
 
 class NameSpace(QualifiedName):
-	def __str__(self):
-		return ":".join(self.name)
-
 	def _to_core_struct(self) -> core.BNNameSpace:
 		result = core.BNNameSpace()
 		name_list = (ctypes.c_char_p * len(self.name))()
 		for i in range(0, len(self.name)):
-			name_list[i] = self.name[i].encode('charmap')
+			name_list[i] = self.name[i].encode('utf-8')
 		result.name = name_list
 		result.nameCount = len(self.name)
+		result.join = self.join
 		return result
 
 	@staticmethod
@@ -233,7 +231,7 @@ class NameSpace(QualifiedName):
 		result = []
 		for i in range(0, name.nameCount):
 			result.append(name.name[i].decode("utf-8"))
-		return NameSpace(result)
+		return NameSpace(result, name.join)
 
 	@staticmethod
 	def get_core_struct(name: Optional[Union[str, List[str], 'NameSpace']]) -> Optional[core.BNNameSpace]:
