@@ -1710,6 +1710,51 @@ bool MachoView::Init()
 }
 
 
+static Ref<Symbol> FindInternalSymbol(BinaryView* view, const std::string& name)
+{
+	// When multiple symbols are defined with the same name, which can happen when a symbol is both
+	// in the symbol table and self-bound, `GetSymbolByRawName` prefers the symbol with the lowest
+	// type value. Since `ImportAddressSymbol` is a lower value than `DataSymbol`/`FunctionSymbol`,
+	// it would return the import stub rather than the actual symbol definition. Filter it out.
+	auto symbols = view->GetSymbolsByRawName(name, view->GetInternalNameSpace());
+	auto it = std::ranges::find_if(symbols, [](const Ref<Symbol>& sym) {
+		return sym->GetType() != ImportAddressSymbol;
+	});
+	return it != symbols.end() ? *it : nullptr;
+}
+
+
+static Ref<Symbol> ResolveBindSymbol(BinaryView* view, const MachOHeader& header, const std::string& name, int32_t ordinal)
+{
+	switch (ordinal)
+	{
+	case BindSpecialDylibSelf:
+		return FindInternalSymbol(view, name);
+
+	case BindSpecialDylibMainExecutable:
+	case BindSpecialDylibFlatLookup:
+	case BindSpecialDylibWeakLookup:
+	{
+		Ref<Symbol> symbol;
+
+		// Prefer internal symbols for executables, and external symbols for everything else.
+		if (header.ident.filetype == MH_EXECUTE)
+			symbol = FindInternalSymbol(view, name);
+		if (!symbol)
+			symbol = view->GetSymbolByRawName(name, view->GetExternalNameSpace());
+		if (!symbol && header.ident.filetype != MH_EXECUTE)
+			symbol = FindInternalSymbol(view, name);
+		return symbol;
+	}
+
+	default:
+		if (ordinal > 0)
+			return view->GetSymbolByRawName(name, view->GetExternalNameSpace());
+		return nullptr;
+	}
+}
+
+
 bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_t preferredImageBase,
 	std::string preferredImageBaseDesc, bool platformSetByUser)
 {
@@ -2272,86 +2317,19 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 	Ref<Metadata> symbolToLibraryMapping = new Metadata(KeyValueDataType);
 	for (auto& [relocation, name, ordinal] : header.bindingRelocations)
 	{
-		bool handled = false;
-
-		switch (ordinal)
+		if (auto symbol = ResolveBindSymbol(this, header, name, ordinal); symbol)
 		{
-		case BindSpecialDylibSelf:
+			DefineRelocation(m_arch, relocation, symbol, relocation.address);
+			if (objcProcessor && symbol->GetNameSpace() == GetInternalNameSpace())
+				objcProcessor->AddRelocatedPointer(relocation.address, symbol->GetAddress());
+		}
+		else
 		{
-			// When multiple symbols are defined with the same name, which can happen for a symbol is both in the
-			// symbol table and self-bound, `GetSymbolByRawName` prefers the symbol with the lowest type value.
-			// Since `ImportAddressSymbol` is a lower value than `DataSymbol`, using `GetSymbolByRawName` would
-			// return the symbol representing the import we're binding to rather than the actual symbol definition.
-			auto symbols = GetSymbolsByRawName(name, GetInternalNameSpace());
-			auto it = std::ranges::find_if(symbols, [](const Ref<Symbol>& sym) {
-				return sym->GetType() != ImportAddressSymbol;
-			});
-
-			if (it != symbols.end())
-			{
-				auto symbol = *it;
-				DefineRelocation(m_arch, relocation, symbol, relocation.address);
-				if (objcProcessor)
-					objcProcessor->AddRelocatedPointer(relocation.address, symbol->GetAddress());
-				handled = true;
-			}
-			break;
+			m_logger->LogErrorF("Failed to find symbol {:?} for bind at {:#x} (ordinal: {})", name, relocation.address, ordinal);
 		}
 
-		case BindSpecialDylibMainExecutable:
-		case BindSpecialDylibFlatLookup:
-		case BindSpecialDylibWeakLookup:
-			// In cases where we are the primary executable, flat lookup should find us first,
-			//		it seems like our best course of action is to try and find internally first on
-			//		executables, and externally on libraries.
-			if (header.ident.filetype == MH_EXECUTE)
-			{
-				if (auto symbol = GetSymbolByRawName(name, GetInternalNameSpace()); symbol)
-				{
-					DefineRelocation(m_arch, relocation, symbol, relocation.address);
-					if (objcProcessor)
-						objcProcessor->AddRelocatedPointer(relocation.address, symbol->GetAddress());
-					handled = true;
-				}
-				else if (auto symbol = GetSymbolByRawName(name, GetExternalNameSpace()); symbol)
-				{
-					DefineRelocation(m_arch, relocation, symbol, relocation.address);
-					handled = true;
-				}
-			}
-			else
-			{
-				if (auto symbol = GetSymbolByRawName(name, GetExternalNameSpace()); symbol)
-				{
-					DefineRelocation(m_arch, relocation, symbol, relocation.address);
-					handled = true;
-				}
-				else if (auto symbol = GetSymbolByRawName(name, GetInternalNameSpace()); symbol)
-				{
-					DefineRelocation(m_arch, relocation, symbol, relocation.address);
-					if (objcProcessor)
-						objcProcessor->AddRelocatedPointer(relocation.address, symbol->GetAddress());
-					handled = true;
-				}
-			}
-			break;
-
-		default:
-			if (ordinal > 0)
-			{
-				if (auto symbol = GetSymbolByRawName(name, GetExternalNameSpace()))
-				{
-					DefineRelocation(m_arch, relocation, symbol, relocation.address);
-					handled = true;
-				}
-				if (ordinal - 1 < header.dylibs.size())
-					symbolToLibraryMapping->SetValueForKey(name, new Metadata(header.dylibs[ordinal - 1].first));
-			}
-			break;
-		}
-
-		if (!handled)
-			m_logger->LogErrorF("Failed to find external symbol {:?}, couldn't bind symbol at {:#x}", name, relocation.address);
+		if (ordinal > 0 && ordinal - 1 < header.dylibs.size())
+			symbolToLibraryMapping->SetValueForKey(name, new Metadata(header.dylibs[ordinal - 1].first));
 	}
 
 	StoreMetadata("SymbolExternalLibraryMapping", std::move(symbolToLibraryMapping), true);

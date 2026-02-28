@@ -247,7 +247,7 @@ ImportEntry ReadChainedImport32(BinaryReader& reader, std::span<const char> symb
 	return {
 		std::string_view(&symbolData[import.name_offset]),
 		0,
-		static_cast<int8_t>(import.lib_ordinal),
+		import.lib_ordinal > 0xF0 ? static_cast<int8_t>(import.lib_ordinal) : static_cast<int32_t>(import.lib_ordinal),
 		(bool)import.weak_import,
 	};
 }
@@ -259,7 +259,7 @@ ImportEntry ReadChainedImportAddend32(BinaryReader& reader, std::span<const char
 	return {
 		std::string_view(&symbolData[import.name_offset]),
 		static_cast<uint32_t>(import.addend),
-		static_cast<int8_t>(import.lib_ordinal),
+		import.lib_ordinal > 0xF0 ? static_cast<int8_t>(import.lib_ordinal) : static_cast<int32_t>(import.lib_ordinal),
 		(bool)import.weak_import,
 	};
 }
@@ -271,7 +271,7 @@ ImportEntry ReadChainedImportAddend64(BinaryReader& reader, std::span<const char
 	return {
 		std::string_view(&symbolData[import.name_offset]),
 		import.addend,
-		static_cast<int16_t>(import.lib_ordinal),
+		import.lib_ordinal > 0xFFF0 ? static_cast<int16_t>(import.lib_ordinal) : static_cast<int32_t>(import.lib_ordinal),
 		(bool)import.weak_import,
 	};
 }
