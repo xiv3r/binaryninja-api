@@ -37,6 +37,15 @@ The resulting `.BinDiff` file can either be opened in the BinDiff Java GUI, or d
 ![BD Viewer](../img/binexport-bdviewer.png "BD Viewer"){ width="800" }
 _BD Viewer Plugin_
 
+### Headless
+
+If you want to trigger the plugin headlessly, you can use the exposed quick action which will automatically write a `.BinExport` in the same folder as the source file:
+
+```python
+cxt = PluginCommandContext(bv)
+PluginCommand.get_valid_list(cxt)['BinExport (Quick)'].execute(cxt)
+```
+
 ### Disabling
 
 If desired, the plugin can be disabled from loading using the `corePlugins.binexport` setting.

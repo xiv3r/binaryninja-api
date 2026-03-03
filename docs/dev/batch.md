@@ -49,6 +49,15 @@ Note that we used the `load` method which lets you temporarily create a `bv` wit
 bv.file.close() #close the file handle or else leak memory
 ```
 
+### Triggering Actions
+
+While you might associate actions with UI based actions in the product, many actions can be triggered headlessly. For example:
+
+```python
+cxt = PluginCommandContext(bv)
+PluginCommand.get_valid_list(cxt)['BinExport (Quick)'].execute(cxt)
+```
+
 ### Multiple files
 
 Looks good! But what if we just want to parse basic headers or stop any major analysis from happening and scan multiple files quickly? We can use the `update_analysis` named parameter to prevent the usual linear sweep and recursive descent analysis from event occurring:
