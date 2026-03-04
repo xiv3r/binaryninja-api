@@ -6,6 +6,7 @@
 #include "entry.h"
 #include "imports.h"
 #include "exports.h"
+#include "resources.h"
 #include "sections.h"
 #include "fileinfo.h"
 #include "librariesinfo.h"
@@ -118,6 +119,19 @@ TriageView::TriageView(QWidget* parent, BinaryViewRef data) : QScrollArea(parent
 		layout->addWidget(sectionsGroup);
 		if (sectionsWidget->GetSections().size() == 0)
 			sectionsGroup->hide();
+
+		if (m_data->GetTypeName() == "PE")
+		{
+			auto resourcesMd = m_data->QueryMetadata("PEResources");
+			if (resourcesMd && resourcesMd->IsArray() && !resourcesMd->GetArray().empty())
+			{
+				QGroupBox* resourcesGroup = new QGroupBox("Resources", container);
+				QVBoxLayout* resourcesLayout = new QVBoxLayout();
+				resourcesLayout->addWidget(new ResourcesWidget(resourcesGroup, this, m_data));
+				resourcesGroup->setLayout(resourcesLayout);
+				layout->addWidget(resourcesGroup);
+			}
+		}
 
 		QGroupBox* analysisInfoGroup = new QGroupBox("Analysis Info", container);
 		QVBoxLayout* analysisInfoLayout = new QVBoxLayout();

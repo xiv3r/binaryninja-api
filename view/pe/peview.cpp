@@ -22,6 +22,47 @@ using namespace std;
 static PEViewType* g_peViewType = nullptr;
 static const char* imageDirName[] = { "exportTable", "importTable", "resourceTable", "exceptionTable", "certificateTable", "baseRelocationTable", "debug", "architecture", "globalPtr", "tlsTable", "loadConfigTable", "boundImport", "iat", "delayImportDescriptor", "clrRuntimeHeader", "reserved"};
 
+
+static const char* GetResourceTypeName(uint32_t id)
+{
+	switch (id)
+	{
+	case 1:  return "RT_CURSOR";
+	case 2:  return "RT_BITMAP";
+	case 3:  return "RT_ICON";
+	case 4:  return "RT_MENU";
+	case 5:  return "RT_DIALOG";
+	case 6:  return "RT_STRING";
+	case 7:  return "RT_FONTDIR";
+	case 8:  return "RT_FONT";
+	case 9:  return "RT_ACCELERATOR";
+	case 10: return "RT_RCDATA";
+	case 11: return "RT_MESSAGETABLE";
+	case 12: return "RT_GROUP_CURSOR";
+	case 14: return "RT_GROUP_ICON";
+	case 16: return "RT_VERSION";
+	case 17: return "RT_DLGINCLUDE";
+	case 19: return "RT_PLUGPLAY";
+	case 20: return "RT_VXD";
+	case 21: return "RT_ANICURSOR";
+	case 22: return "RT_ANIICON";
+	case 23: return "RT_HTML";
+	case 24: return "RT_MANIFEST";
+	default: return nullptr;
+	}
+}
+
+
+struct ResourceParseItem
+{
+	uint64_t tableAddr;
+	uint32_t depth;          // 0=root, 1=type children, 2=name children
+	std::string typeName;    // resolved at depth 0
+	std::string resourceName;// resolved at depth 1
+	uint32_t typeId;         // raw type ID
+	uint32_t nameId;         // raw name/ID
+};
+
 void BinaryNinja::InitPEViewType()
 {
 	static PEViewType type;
@@ -2657,8 +2698,6 @@ bool PEView::Init()
 
 	try
 	{
-		//TODO: properly name tables, entries, data entries
-
 		PEDataDirectory dir;
 		// Read resource directory
 		if (m_dataDirs.size() > IMAGE_DIRECTORY_ENTRY_RESOURCE)
@@ -2707,7 +2746,51 @@ bool PEView::Init()
 			string resourceDataEntryTypeId = Type::GenerateAutoTypeId("pe", resourceDataEntryName);
 			QualifiedName resourceDataEntryTypeName = DefineType(resourceDataEntryTypeId, resourceDataEntryName, resourceDataEntryType);
 
-			std::list<uint64_t> tableAddrsToParse = {dir.virtualAddress};
+			// Helper: convert UTF-16LE code units to UTF-8
+			auto utf16ToUtf8 = [](const std::vector<uint16_t>& codeUnits) -> std::string {
+				std::string result;
+				result.reserve(codeUnits.size());
+				for (uint16_t ch : codeUnits)
+				{
+					if (ch < 0x80)
+						result.push_back(static_cast<char>(ch));
+					else if (ch < 0x800)
+					{
+						result.push_back(static_cast<char>(0xC0 | (ch >> 6)));
+						result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+					}
+					else
+					{
+						result.push_back(static_cast<char>(0xE0 | (ch >> 12)));
+						result.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
+						result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+					}
+				}
+				return result;
+			};
+
+			// Helper lambda to read a UTF-16LE resource name string and convert to UTF-8
+			auto readResourceName = [&](uint64_t nameRva) -> std::string {
+				if (nameRva < dir.virtualAddress || nameRva >= dir.virtualAddress + dir.size)
+					return "";
+				BinaryReader nameReader(GetParentView(), LittleEndian);
+				nameReader.Seek(RVAToFileOffset(nameRva));
+				uint16_t nameLen = nameReader.Read16();
+				if (nameLen == 0 || nameRva + 2 + (nameLen * 2) > dir.virtualAddress + dir.size)
+					return "";
+
+				// Define the wide char array data variable
+				DefineDataVariable(m_imageBase + nameRva + 2, Type::ArrayType(Type::WideCharType(2), nameLen));
+
+				std::vector<uint16_t> codeUnits(nameLen);
+				for (uint16_t i = 0; i < nameLen; i++)
+					codeUnits[i] = nameReader.Read16();
+				return utf16ToUtf8(codeUnits);
+			};
+
+			// Path-tracking BFS traversal of the resource directory tree
+			std::list<ResourceParseItem> itemsToParse;
+			itemsToParse.push_back({dir.virtualAddress, 0, "", "", 0, 0});
 			std::unordered_set<uint64_t> visitedTables;
 
 			uint64_t maxTableCount = 10000;
@@ -2715,7 +2798,24 @@ bool PEView::Init()
 				maxTableCount = settings->Get<uint64_t>("loader.pe.maxResourceDirectoryTableCount", this);
 
 			uint32_t resourceDirectoryTableNum = 0;
-			while (!tableAddrsToParse.empty())
+
+			// Collect resource leaf entries for metadata
+			std::vector<std::map<std::string, Ref<Metadata>>> resourceEntries;
+			// Track used symbol names to handle duplicates
+			std::unordered_map<std::string, int> usedSymbolNames;
+
+			auto makeUniqueSymbolName = [&](const std::string& baseName) -> std::string {
+				auto it = usedSymbolNames.find(baseName);
+				if (it == usedSymbolNames.end())
+				{
+					usedSymbolNames[baseName] = 1;
+					return baseName;
+				}
+				int count = it->second++;
+				return fmt::format("{}_{}", baseName, count);
+			};
+
+			while (!itemsToParse.empty())
 			{
 				// Check for safety limit to prevent infinite parsing
 				if (resourceDirectoryTableNum >= maxTableCount)
@@ -2724,97 +2824,135 @@ bool PEView::Init()
 					break;
 				}
 
-				uint64_t tableAddr = tableAddrsToParse.front();
-				tableAddrsToParse.pop_front();
+				ResourceParseItem item = itemsToParse.front();
+				itemsToParse.pop_front();
 
 				// Cycle detection - skip if we've already processed this table
-				if (visitedTables.count(tableAddr))
+				if (visitedTables.count(item.tableAddr))
 				{
-					m_logger->LogWarn("Resource directory cycle detected at RVA 0x%" PRIx64 ", skipping", tableAddr);
+					m_logger->LogWarn("Resource directory cycle detected at RVA 0x%" PRIx64 ", skipping", item.tableAddr);
 					continue;
 				}
-				visitedTables.insert(tableAddr);
+				visitedTables.insert(item.tableAddr);
 
 				// Bounds check - ensure table address is within resource section
-				if (tableAddr < dir.virtualAddress || tableAddr >= dir.virtualAddress + dir.size)
+				if (item.tableAddr < dir.virtualAddress || item.tableAddr >= dir.virtualAddress + dir.size)
 				{
-					m_logger->LogWarn("Resource directory table at RVA 0x%" PRIx64 " is outside resource section bounds", tableAddr);
+					m_logger->LogWarn("Resource directory table at RVA 0x%" PRIx64 " is outside resource section bounds", item.tableAddr);
 					continue;
 				}
 
-				// Read in next directory entry
-				reader.Seek(RVAToFileOffset(tableAddr));
-				PEResourceDirectoryTable importDirTable;
-				importDirTable.characteristics = reader.Read32();
-				importDirTable.timeDateStamp = reader.Read32();
-				importDirTable.majorVersion = reader.Read16();
-				importDirTable.minorVersion = reader.Read16();
-				importDirTable.numNameEntries = reader.Read16();
-				importDirTable.numIdEntries = reader.Read16();
+				// Read in next directory table
+				reader.Seek(RVAToFileOffset(item.tableAddr));
+				PEResourceDirectoryTable dirTable;
+				dirTable.characteristics = reader.Read32();
+				dirTable.timeDateStamp = reader.Read32();
+				dirTable.majorVersion = reader.Read16();
+				dirTable.minorVersion = reader.Read16();
+				dirTable.numNameEntries = reader.Read16();
+				dirTable.numIdEntries = reader.Read16();
 
-				DefineDataVariable(m_imageBase + tableAddr, Type::NamedType(this, resourceDirTableTypeName));
-				DefineAutoSymbol(new Symbol(DataSymbol, fmt::format("__resource_directory_table_{}", resourceDirectoryTableNum), m_imageBase + tableAddr, NoBinding));
+				// Build a descriptive symbol name for this directory table
+				std::string tableSymName;
+				if (item.depth == 0)
+					tableSymName = "__pe_rsrc_root";
+				else if (item.depth == 1)
+					tableSymName = makeUniqueSymbolName(fmt::format("__pe_rsrc_{}", item.typeName));
+				else
+					tableSymName = makeUniqueSymbolName(fmt::format("__pe_rsrc_{}_{}", item.typeName, item.resourceName));
+
+				DefineDataVariable(m_imageBase + item.tableAddr, Type::NamedType(this, resourceDirTableTypeName));
+				DefineAutoSymbol(new Symbol(DataSymbol, tableSymName, m_imageBase + item.tableAddr, NoBinding));
 
 				// All the Name entries precede all the ID entries for the table but we treat them the same
-				// All entries for the table are sorted in ascending order: the Name entries by case-sensitive string and the ID entries by numeric value.
 				// Offsets are relative to the address in the IMAGE_DIRECTORY_ENTRY_RESOURCE DataDirectory.
 
-				// Offset value:
-				// High bit 0. Address of a Resource Data entry (a leaf).
-				// High bit 1. The lower 31 bits are the address of another resource directory table (the next level down).
+				struct PendingDataEntry {
+					size_t offset;
+					std::string typeName;
+					std::string resourceName;
+					std::string langName;
+					uint32_t typeId;
+					uint32_t nameId;
+					uint32_t langId;
+				};
+				std::vector<PendingDataEntry> pendingDataEntries;
 
-				std::vector<size_t> dataEntryOffsets;
-
-				size_t numTableEntries = importDirTable.numNameEntries + importDirTable.numIdEntries;
+				size_t numTableEntries = dirTable.numNameEntries + dirTable.numIdEntries;
 
 				if (numTableEntries > 0)
 				{
 					for (size_t entryNum = 0; entryNum < numTableEntries; entryNum++)
 					{
-						PEResourceDirectoryEntry importDirEntry;
-						importDirEntry.id = reader.Read32();
-						importDirEntry.offset = reader.Read32();
+						PEResourceDirectoryEntry dirEntry;
+						dirEntry.id = reader.Read32();
+						dirEntry.offset = reader.Read32();
 
-						if (importDirEntry.id & 0x80000000)
+						// Resolve the name/ID for this entry based on depth
+						std::string entryName;
+						uint32_t entryRawId = dirEntry.id & 0x7FFFFFFF;
+
+						if (dirEntry.id & 0x80000000)
 						{
-							// Name entry
-							// First 2 bytes of name are length
-
-							size_t nameAddr = dir.virtualAddress + (importDirEntry.id ^ 0x80000000);
-
-							// Bounds check - ensure name address is within resource section
-							if (nameAddr < dir.virtualAddress || nameAddr >= dir.virtualAddress + dir.size)
+							// Name entry — UTF-16LE string at the offset
+							uint64_t nameAddr = dir.virtualAddress + entryRawId;
+							std::string uniName = readResourceName(nameAddr);
+							if (!uniName.empty())
+								entryName = uniName;
+							else
+								entryName = fmt::format("name_{:x}", entryRawId);
+						}
+						else
+						{
+							// ID entry — resolve based on depth
+							if (item.depth == 0)
 							{
-								m_logger->LogWarn("Resource name at RVA 0x%zx is outside resource section bounds, skipping", nameAddr);
-								continue;
+								// Type ID
+								const char* typeName = GetResourceTypeName(entryRawId);
+								if (typeName)
+									entryName = typeName;
+								else
+									entryName = fmt::format("type_{}", entryRawId);
 							}
-
-							BinaryReader nameReader(GetParentView(), LittleEndian);
-							nameReader.Seek(RVAToFileOffset(nameAddr));
-
-							uint16_t nameLen = nameReader.Read16();
-
-							// Check that the full name fits within the resource section
-							// nameLen is in UTF-16 code-units, each 2 bytes, plus 2 bytes for the length prefix
-							if (nameAddr + 2 + (nameLen * 2) > dir.virtualAddress + dir.size)
+							else if (item.depth == 1)
 							{
-								m_logger->LogWarn("Resource name extends beyond resource section bounds, skipping");
-								continue;
+								// Resource name/ID
+								entryName = fmt::format("#{}", entryRawId);
 							}
-
-							// Plus 2 because it's length-prefixed
-							DefineDataVariable(m_imageBase + nameAddr + 2, Type::ArrayType(Type::WideCharType(2), nameLen));
+							else
+							{
+								// Language ID
+								entryName = fmt::format("lang{}", entryRawId);
+							}
 						}
 
-						if (importDirEntry.offset & 0x80000000)
+						// Build child item context
+						std::string childTypeName = item.typeName;
+						std::string childResourceName = item.resourceName;
+						uint32_t childTypeId = item.typeId;
+						uint32_t childNameId = item.nameId;
+
+						if (item.depth == 0)
+						{
+							childTypeName = entryName;
+							childTypeId = entryRawId;
+						}
+						else if (item.depth == 1)
+						{
+							childResourceName = entryName;
+							childNameId = entryRawId;
+						}
+
+						if (dirEntry.offset & 0x80000000)
 						{
 							// Lower 31 bits are address of another table
-							uint64_t nextTableAddr = dir.virtualAddress + (importDirEntry.offset ^ 0x80000000);
+							uint64_t nextTableAddr = dir.virtualAddress + (dirEntry.offset ^ 0x80000000);
 
 							// Bounds check before adding to queue to prevent invalid references
 							if (nextTableAddr >= dir.virtualAddress && nextTableAddr < dir.virtualAddress + dir.size)
 							{
-								tableAddrsToParse.push_back(nextTableAddr);
+								itemsToParse.push_back({nextTableAddr, item.depth + 1,
+									childTypeName, childResourceName, childTypeId, childNameId});
 							}
 							else
 							{
@@ -2823,32 +2961,54 @@ bool PEView::Init()
 						}
 						else
 						{
-							// Address of data entry
-							// Validate offset is within resource section bounds
-							uint64_t dataEntryAddr = dir.virtualAddress + importDirEntry.offset;
+							// Address of data entry (leaf)
+							uint64_t dataEntryAddr = dir.virtualAddress + dirEntry.offset;
 							if (dataEntryAddr >= dir.virtualAddress && dataEntryAddr + sizeof(PEResourceDataEntry) <= dir.virtualAddress + dir.size)
 							{
-								dataEntryOffsets.push_back(importDirEntry.offset);
+								std::string langName;
+								uint32_t langId = 0;
+								if (item.depth >= 2)
+								{
+									// This shouldn't happen in a well-formed PE (depth 2 entries point to data),
+									// but handle gracefully
+									langName = entryName;
+									langId = entryRawId;
+								}
+								else if (item.depth == 1)
+								{
+									// We're at the name level, entry is language
+									langName = entryName;
+									langId = entryRawId;
+								}
+								else
+								{
+									langName = entryName;
+									langId = entryRawId;
+								}
+
+								pendingDataEntries.push_back({(size_t)dirEntry.offset,
+									childTypeName, childResourceName, langName,
+									childTypeId, childNameId, langId});
 							}
 							else
 							{
-								m_logger->LogWarn("Resource data entry at offset 0x%" PRIx32 " is outside resource section bounds, skipping", importDirEntry.offset);
+								m_logger->LogWarn("Resource data entry at offset 0x%" PRIx32 " is outside resource section bounds, skipping", dirEntry.offset);
 							}
 						}
 					}
 
-					size_t tableEntriesStart = m_imageBase + tableAddr + sizeof(PEResourceDirectoryTable);
+					size_t tableEntriesStart = m_imageBase + item.tableAddr + sizeof(PEResourceDirectoryTable);
 					DefineDataVariable(tableEntriesStart, Type::ArrayType(Type::NamedType(this, resourceDirEntryTypeName), numTableEntries));
-					DefineAutoSymbol(new Symbol(DataSymbol, fmt::format("__resource_directory_table_{}_entries", resourceDirectoryTableNum), tableEntriesStart, NoBinding));
+					std::string entriesSymName = tableSymName + "_entries";
+					DefineAutoSymbol(new Symbol(DataSymbol, entriesSymName, tableEntriesStart, NoBinding));
 				}
 
-				// Create BinaryReader once outside the loop for better performance
+				// Process data entries (leaves)
 				BinaryReader entryReader(GetParentView(), LittleEndian);
 
-				for(size_t dataEntryNum = 0; dataEntryNum < dataEntryOffsets.size(); dataEntryNum++)
+				for (auto& pending : pendingDataEntries)
 				{
-					size_t entryOffset = dataEntryOffsets[dataEntryNum];
-					entryReader.Seek(RVAToFileOffset(dir.virtualAddress + entryOffset));
+					entryReader.Seek(RVAToFileOffset(dir.virtualAddress + pending.offset));
 					PEResourceDataEntry dataEntry;
 					dataEntry.dataRva = entryReader.Read32();
 					dataEntry.dataSize = entryReader.Read32();
@@ -2856,12 +3016,8 @@ bool PEView::Init()
 					dataEntry.reserved = entryReader.Read32();
 
 					if (dataEntry.reserved != 0)
-					{
-						// Invalid entry, this needs to be 0
 						continue;
-					}
 
-					// Limit excessively large data sizes 
 					const uint32_t MAX_REASONABLE_RESOURCE_SIZE = 100 * 1024 * 1024; // 100 MB
 					if (dataEntry.dataSize > MAX_REASONABLE_RESOURCE_SIZE)
 					{
@@ -2869,7 +3025,6 @@ bool PEView::Init()
 						continue;
 					}
 
-					// Check for overflow when adding dataRva + dataSize
 					if (dataEntry.dataSize > 0)
 					{
 						uint64_t dataEnd = (uint64_t)dataEntry.dataRva + dataEntry.dataSize;
@@ -2880,19 +3035,314 @@ bool PEView::Init()
 						}
 					}
 
-					size_t entryAddr = m_imageBase + dir.virtualAddress + entryOffset;
+					// Build descriptive path-based symbol names
+					std::string pathPrefix;
+					if (!pending.typeName.empty() && !pending.resourceName.empty() && !pending.langName.empty())
+						pathPrefix = fmt::format("__pe_rsrc_{}_{}_{}", pending.typeName, pending.resourceName, pending.langName);
+					else if (!pending.typeName.empty() && !pending.resourceName.empty())
+						pathPrefix = fmt::format("__pe_rsrc_{}_{}", pending.typeName, pending.resourceName);
+					else if (!pending.typeName.empty())
+						pathPrefix = fmt::format("__pe_rsrc_{}", pending.typeName);
+					else
+						pathPrefix = fmt::format("__pe_rsrc_entry_{}", resourceDirectoryTableNum);
 
+					size_t entryAddr = m_imageBase + dir.virtualAddress + pending.offset;
 					DefineDataVariable(entryAddr, Type::NamedType(this, resourceDataEntryTypeName));
-					DefineAutoSymbol(new Symbol(DataSymbol, fmt::format("__resource_directory_table_{}_data_entry_{}", resourceDirectoryTableNum, dataEntryNum), entryAddr, NoBinding));
+					DefineAutoSymbol(new Symbol(DataSymbol, makeUniqueSymbolName(pathPrefix + "_data_entry"), entryAddr, NoBinding));
 
-					//TODO: properly name based on path taken to get here
 					if (dataEntry.dataSize > 0)
 					{
 						DefineDataVariable(m_imageBase + dataEntry.dataRva, Type::ArrayType(Type::IntegerType(1, true), dataEntry.dataSize));
+						DefineAutoSymbol(new Symbol(DataSymbol, makeUniqueSymbolName(pathPrefix + "_data"), m_imageBase + dataEntry.dataRva, NoBinding));
 					}
+
+					// Generate preview for parseable resource types
+					std::string preview;
+					if (pending.typeId == 6 && dataEntry.dataSize > 0) // RT_STRING
+					{
+						try
+						{
+							BinaryReader strReader(GetParentView(), LittleEndian);
+							strReader.Seek(RVAToFileOffset(dataEntry.dataRva));
+							size_t bytesRead = 0;
+							std::vector<std::string> strings;
+							for (int strIdx = 0; strIdx < 16 && bytesRead < dataEntry.dataSize; strIdx++)
+							{
+								uint16_t strLen = strReader.Read16();
+								bytesRead += 2;
+								if (strLen == 0)
+									continue;
+								if (bytesRead + strLen * 2 > dataEntry.dataSize)
+									break;
+								std::vector<uint16_t> codeUnits(strLen);
+								for (uint16_t i = 0; i < strLen; i++)
+									codeUnits[i] = strReader.Read16();
+								bytesRead += strLen * 2;
+								std::string s = utf16ToUtf8(codeUnits);
+								if (!s.empty())
+									strings.push_back(s);
+							}
+							for (size_t i = 0; i < strings.size(); i++)
+							{
+								if (i > 0)
+									preview += ", ";
+								if (preview.size() + strings[i].size() > 200)
+								{
+									preview += "...";
+									break;
+								}
+								preview += strings[i];
+							}
+						}
+						catch (...) {}
+					}
+
+					// Collect metadata for this resource leaf
+					std::map<std::string, Ref<Metadata>> entry;
+					entry["type"] = new Metadata(pending.typeName);
+					entry["typeId"] = new Metadata((uint64_t)pending.typeId);
+					entry["name"] = new Metadata(pending.resourceName);
+					entry["nameId"] = new Metadata((uint64_t)pending.nameId);
+					entry["language"] = new Metadata(pending.langName);
+					entry["languageId"] = new Metadata((uint64_t)pending.langId);
+					entry["dataRva"] = new Metadata((uint64_t)dataEntry.dataRva);
+					entry["dataSize"] = new Metadata((uint64_t)dataEntry.dataSize);
+					entry["dataAddress"] = new Metadata((uint64_t)(m_imageBase + dataEntry.dataRva));
+					entry["codepage"] = new Metadata((uint64_t)dataEntry.dataCodePage);
+					entry["preview"] = new Metadata(preview);
+					resourceEntries.push_back(entry);
 				}
 
 				resourceDirectoryTableNum++;
+			}
+
+			// Parse RT_VERSION resource and store version info metadata
+			for (auto& resEntry : resourceEntries)
+			{
+				uint64_t typeId = resEntry["typeId"]->GetUnsignedInteger();
+				if (typeId != 16) // RT_VERSION
+					continue;
+				uint64_t dataAddr = resEntry["dataAddress"]->GetUnsignedInteger();
+				uint64_t dataSize = resEntry["dataSize"]->GetUnsignedInteger();
+				if (dataSize < 6 || dataSize > 65536)
+					break;
+
+				try
+				{
+					BinaryReader vr(GetParentView(), LittleEndian);
+					vr.Seek(RVAToFileOffset(resEntry["dataRva"]->GetUnsignedInteger()));
+					size_t baseOffset = vr.GetOffset();
+
+					uint16_t viLength = vr.Read16();
+					uint16_t viValueLength = vr.Read16();
+					uint16_t viType = vr.Read16();
+					(void)viType;
+
+					// Read and verify "VS_VERSION_INFO" key
+					std::vector<uint16_t> keyChars;
+					for (int i = 0; i < 20; i++)
+					{
+						uint16_t ch = vr.Read16();
+						if (ch == 0) break;
+						keyChars.push_back(ch);
+					}
+					std::string keyStr = utf16ToUtf8(keyChars);
+					if (keyStr != "VS_VERSION_INFO")
+						break;
+
+					// Align to DWORD boundary
+					size_t pos = vr.GetOffset() - baseOffset;
+					if (pos % 4 != 0)
+						vr.SeekRelative(4 - (pos % 4));
+
+					// Parse VS_FIXEDFILEINFO
+					std::map<std::string, Ref<Metadata>> versionInfo;
+					if (viValueLength >= 52)
+					{
+						uint32_t sig = vr.Read32();
+						if (sig == 0xFEEF04BD)
+						{
+							vr.Read32(); // dwStrucVersion
+							uint32_t fileVerMS = vr.Read32();
+							uint32_t fileVerLS = vr.Read32();
+							uint32_t prodVerMS = vr.Read32();
+							uint32_t prodVerLS = vr.Read32();
+
+							std::string fileVer = fmt::format("{}.{}.{}.{}",
+								(fileVerMS >> 16) & 0xFFFF, fileVerMS & 0xFFFF,
+								(fileVerLS >> 16) & 0xFFFF, fileVerLS & 0xFFFF);
+							std::string prodVer = fmt::format("{}.{}.{}.{}",
+								(prodVerMS >> 16) & 0xFFFF, prodVerMS & 0xFFFF,
+								(prodVerLS >> 16) & 0xFFFF, prodVerLS & 0xFFFF);
+
+							versionInfo["FileVersion"] = new Metadata(fileVer);
+							versionInfo["ProductVersion"] = new Metadata(prodVer);
+
+							// Skip rest of VS_FIXEDFILEINFO (7 more DWORDs):
+							// fileFlagsMask, fileFlags, fileOS, fileType, fileSubtype, fileDateMS, fileDateLS
+							for (int i = 0; i < 7; i++)
+								vr.Read32();
+						}
+					}
+
+					// Align after VS_FIXEDFILEINFO
+					pos = vr.GetOffset() - baseOffset;
+					if (pos % 4 != 0)
+						vr.SeekRelative(4 - (pos % 4));
+
+					// Parse StringFileInfo / VarFileInfo children
+					size_t endOffset = baseOffset + std::min((size_t)viLength, (size_t)dataSize);
+					while ((size_t)vr.GetOffset() + 6 < endOffset)
+					{
+						size_t childBase = vr.GetOffset();
+						uint16_t childLength = vr.Read16();
+						uint16_t childValueLength = vr.Read16();
+						uint16_t childType = vr.Read16();
+						(void)childValueLength;
+						(void)childType;
+
+						if (childLength < 6 || childBase + childLength > baseOffset + dataSize)
+							break;
+
+						// Read child key
+						std::vector<uint16_t> childKeyChars;
+						for (int i = 0; i < 30; i++)
+						{
+							if ((size_t)vr.GetOffset() >= childBase + childLength)
+								break;
+							uint16_t ch = vr.Read16();
+							if (ch == 0) break;
+							childKeyChars.push_back(ch);
+						}
+						std::string childKey = utf16ToUtf8(childKeyChars);
+
+						if (childKey == "StringFileInfo")
+						{
+							// Align
+							pos = vr.GetOffset() - baseOffset;
+							if (pos % 4 != 0)
+								vr.SeekRelative(4 - (pos % 4));
+
+							size_t sfiEnd = childBase + childLength;
+							// Parse StringTable(s)
+							while ((size_t)vr.GetOffset() + 6 < sfiEnd)
+							{
+								size_t stBase = vr.GetOffset();
+								uint16_t stLength = vr.Read16();
+								vr.Read16(); // stValueLength
+								vr.Read16(); // stType
+
+								if (stLength < 6 || stBase + stLength > sfiEnd)
+									break;
+
+								// Skip StringTable key (language+codepage like "040904b0")
+								for (int i = 0; i < 12; i++)
+								{
+									if ((size_t)vr.GetOffset() >= stBase + stLength)
+										break;
+									uint16_t ch = vr.Read16();
+									if (ch == 0) break;
+								}
+
+								// Align
+								pos = vr.GetOffset() - baseOffset;
+								if (pos % 4 != 0)
+									vr.SeekRelative(4 - (pos % 4));
+
+								size_t stEnd = stBase + stLength;
+								// Parse individual String entries
+								while ((size_t)vr.GetOffset() + 6 < stEnd)
+								{
+									size_t strBase = vr.GetOffset();
+									uint16_t strLength = vr.Read16();
+									uint16_t strValueLength = vr.Read16();
+									uint16_t strType = vr.Read16();
+									(void)strType;
+
+									if (strLength < 6 || strBase + strLength > stEnd)
+										break;
+
+									// Read key
+									std::vector<uint16_t> strKeyChars;
+									for (int i = 0; i < 80; i++)
+									{
+										if ((size_t)vr.GetOffset() >= strBase + strLength)
+											break;
+										uint16_t ch = vr.Read16();
+										if (ch == 0) break;
+										strKeyChars.push_back(ch);
+									}
+									std::string strKey = utf16ToUtf8(strKeyChars);
+
+									// Align
+									pos = vr.GetOffset() - baseOffset;
+									if (pos % 4 != 0)
+										vr.SeekRelative(4 - (pos % 4));
+
+									// Read value
+									std::string strValue;
+									if (strValueLength > 0 && (size_t)vr.GetOffset() < strBase + strLength)
+									{
+										std::vector<uint16_t> valChars;
+										uint16_t charsToRead = strValueLength;
+										for (uint16_t i = 0; i < charsToRead; i++)
+										{
+											if ((size_t)vr.GetOffset() >= strBase + strLength)
+												break;
+											uint16_t ch = vr.Read16();
+											if (ch == 0) break;
+											valChars.push_back(ch);
+										}
+										strValue = utf16ToUtf8(valChars);
+									}
+
+									if (!strKey.empty() && !strValue.empty())
+										versionInfo[strKey] = new Metadata(strValue);
+
+									// Advance to next String entry
+									vr.Seek(strBase + ((strLength + 3) & ~3));
+								}
+
+								// Advance to next StringTable
+								vr.Seek(stBase + ((stLength + 3) & ~3));
+							}
+						}
+
+						// Advance to next child
+						vr.Seek(childBase + ((childLength + 3) & ~3));
+					}
+
+					if (!versionInfo.empty())
+					{
+						StoreMetadata("PEVersionInfo", new Metadata(versionInfo), true);
+
+						// Set preview on this resource entry
+						std::string verPreview;
+						auto fv = versionInfo.find("FileVersion");
+						if (fv != versionInfo.end())
+							verPreview = fv->second->GetString();
+						auto cn = versionInfo.find("CompanyName");
+						if (cn != versionInfo.end())
+						{
+							if (!verPreview.empty())
+								verPreview += " - ";
+							verPreview += cn->second->GetString();
+						}
+						resEntry["preview"] = new Metadata(verPreview);
+					}
+				}
+				catch (...) {}
+				break; // Only parse first RT_VERSION
+			}
+
+			// Store resource tree as metadata for programmatic access
+			if (!resourceEntries.empty())
+			{
+				std::vector<Ref<Metadata>> metadataArray;
+				metadataArray.reserve(resourceEntries.size());
+				for (auto& entry : resourceEntries)
+					metadataArray.push_back(new Metadata(entry));
+				StoreMetadata("PEResources", new Metadata(metadataArray), true);
 			}
 		}
 	}

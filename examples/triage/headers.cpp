@@ -306,8 +306,19 @@ PEHeaders::PEHeaders(BinaryViewRef data)
 		AddField("Compiler(s) Used", compilersUsed);
 	}
 
+	auto versionInfo = data->QueryMetadata("PEVersionInfo");
+	if (versionInfo && versionInfo->IsKeyValueStore())
+	{
+		for (const auto& [key, value] : versionInfo->GetKeyValueStore())
+		{
+			if (value->IsString() && !value->GetString().empty())
+				AddField(QString::fromStdString(key), QString::fromStdString(value->GetString()));
+		}
+	}
+
 	SetColumns(3);
-	SetRowsPerColumn(9);
+	size_t numFields = GetFields().size();
+	SetRowsPerColumn((numFields + 2) / 3);
 }
 
 
