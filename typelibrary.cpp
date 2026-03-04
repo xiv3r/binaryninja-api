@@ -259,3 +259,9 @@ void TypeLibrary::Finalize()
 {
 	BNFinalizeTypeLibrary(m_object);
 }
+
+
+void TypeLibrary::Register()
+{
+	BNRegisterTypeLibrary(m_object);
+}

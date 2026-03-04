@@ -217,6 +217,11 @@ impl TypeLibrary {
         unsafe { BNFinalizeTypeLibrary(self.as_raw()) }
     }
 
+    /// Make a created or loaded Type Library available for Platforms to use when loading binaries.
+    pub fn register(&self) {
+        unsafe { BNRegisterTypeLibrary(self.as_raw()) }
+    }
+
     /// Retrieves the metadata associated with the given key stored in the type library.
     pub fn query_metadata(&self, key: &str) -> Option<Ref<Metadata>> {
         let key = key.to_cstr();

@@ -20233,6 +20233,11 @@ namespace BinaryNinja {
 
 		*/
 		void Finalize();
+
+		/*! Make a created or loaded Type Library available for Platforms to use when loading binaries.
+
+		*/
+		void Register();
 	};
 
 	class TypeArchive;

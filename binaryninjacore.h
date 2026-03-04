@@ -6829,6 +6829,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNFreeTypeLibraryList(BNTypeLibrary** lib, size_t count);
 
 	BINARYNINJACOREAPI bool BNFinalizeTypeLibrary(BNTypeLibrary* lib);
+	BINARYNINJACOREAPI void BNRegisterTypeLibrary(BNTypeLibrary* lib);
 
 	BINARYNINJACOREAPI BNArchitecture* BNGetTypeLibraryArchitecture(BNTypeLibrary* lib);
 

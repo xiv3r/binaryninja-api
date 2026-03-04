@@ -241,6 +241,12 @@ class TypeLibrary:
 		"""
 		return core.BNFinalizeTypeLibrary(self.handle)
 
+	def register(self) -> None:
+		"""
+		Make a created or loaded Type Library available for Platforms to use when loading binaries.
+		"""
+		core.BNRegisterTypeLibrary(self.handle)
+
 	def query_metadata(self, key: str) -> 'metadata.MetadataValueType':
 		"""
 		`query_metadata` retrieves a metadata associated with the given key stored in the type library
