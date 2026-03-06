@@ -3122,7 +3122,6 @@ bool PEView::Init()
 				uint64_t typeId = resEntry["typeId"]->GetUnsignedInteger();
 				if (typeId != 16) // RT_VERSION
 					continue;
-				uint64_t dataAddr = resEntry["dataAddress"]->GetUnsignedInteger();
 				uint64_t dataSize = resEntry["dataSize"]->GetUnsignedInteger();
 				if (dataSize < 6 || dataSize > 65536)
 					break;
