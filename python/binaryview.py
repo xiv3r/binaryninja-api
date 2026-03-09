@@ -9530,11 +9530,14 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 
 		def __next__(self):
 			while True:
-				if not self.results.empty():
-					return self.results.get()
-
-				if (not self.thread.is_alive()) and self.results.empty():
-					raise StopIteration
+				try:
+					return self.results.get(timeout=0.1)
+				except queue.Empty:
+					if not self.thread.is_alive():
+						try:
+							return self.results.get_nowait()
+						except queue.Empty:
+							raise StopIteration
 
 	@overload
 	def find_all_data(
