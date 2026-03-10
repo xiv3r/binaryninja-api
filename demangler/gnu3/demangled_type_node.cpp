@@ -63,11 +63,12 @@ DemangledTypeNode DemangledTypeNode::IntegerType(size_t width, bool isSigned, co
 }
 
 
-DemangledTypeNode DemangledTypeNode::FloatType(size_t width)
+DemangledTypeNode DemangledTypeNode::FloatType(size_t width, const string& altName)
 {
 	DemangledTypeNode n;
 	n.m_typeClass = FloatTypeClass;
 	n.m_width = width;
+	n.m_altName = altName;
 	return n;
 }
 
@@ -274,7 +275,9 @@ void DemangledTypeNode::AppendBeforeName(string& out, const DemangledTypeNode* p
 		break;
 
 	case FloatTypeClass:
-		switch (m_width)
+		if (!m_altName.empty())
+			out += m_altName;
+		else switch (m_width)
 		{
 		case 2: out += "float16"; break;
 		case 4: out += "float"; break;
@@ -464,8 +467,8 @@ Ref<Type> DemangledTypeNode::Finalize() const
 	case FloatTypeClass:
 	{
 		if (!m_const && !m_volatile)
-			return Type::FloatType(m_width);
-		TypeBuilder tb = TypeBuilder::FloatType(m_width);
+			return Type::FloatType(m_width, m_altName);
+		TypeBuilder tb = TypeBuilder::FloatType(m_width, m_altName);
 		tb.SetConst(m_const);
 		tb.SetVolatile(m_volatile);
 		return tb.Finalize();

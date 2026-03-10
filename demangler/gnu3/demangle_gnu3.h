@@ -51,10 +51,10 @@ public:
 	DemangleGNU3Reader(const _STD_STRING& data);
 	void Reset(const _STD_STRING& data);
 	_STD_STRING PeekString(size_t count=1);
-	bool NextIsOneOf(const _STD_STRING& list);
+#ifdef GNUDEMANGLE_DEBUG
 	_STD_STRING GetRaw();
+#endif
 	_STD_STRING ReadString(size_t count=1);
-	_STD_STRING ReadUntil(char sentinal);
 
 	size_t Length() const { return m_data.length() - m_offset; }
 
@@ -109,6 +109,17 @@ class DemangleGNU3
 	bool m_shouldDeleteReader;
 	bool m_topLevel;
 	bool m_isOperatorOverload;
+	// Forward template reference support (for cv conversion operator types).
+	// When m_permitForwardTemplateRefs is true, DemangleTemplateSubstitution()
+	// returns a placeholder instead of throwing for out-of-bounds template params.
+	// m_pendingForwardRefs records which param indices have placeholders so that
+	// ResolveForwardTemplateRefs() can patch them once template args are known.
+	bool m_permitForwardTemplateRefs;
+	bool m_inLocalName;
+	struct ForwardRef { size_t index; };
+	_STD_VECTOR<ForwardRef> m_pendingForwardRefs;
+	void ResolveForwardTemplateRefs(DemangledTypeNode& type, const _STD_VECTOR<_STD_STRING>& args);
+	static _STD_STRING ForwardRefPlaceholder(size_t index);
 	enum SymbolType { Function, FunctionWithReturn, Data, VTable, Rtti, Name};
 	BN::QualifiedName DemangleBaseUnresolvedName();
 	DemangledTypeNode DemangleUnresolvedType();
@@ -121,7 +132,6 @@ class DemangleGNU3
 	DemangledTypeNode DemangleUnqualifiedName();
 	_STD_STRING DemangleSourceName();
 	_STD_STRING DemangleNumberAsString();
-	_STD_STRING DemangleInitializer();
 	_STD_STRING DemangleExpression();
 	_STD_STRING DemanglePrimaryExpression();
 	DemangledTypeNode DemangleName();
@@ -129,14 +139,13 @@ class DemangleGNU3
 
 	void DemangleCVQualifiers(bool& cnst, bool& vltl, bool& rstrct);
 	DemangledTypeNode DemangleSubstitution();
-	const DemangledTypeNode& DemangleTemplateSubstitution();
-	void DemangleTemplateArgs(_STD_VECTOR<_STD_STRING>& args);
+	DemangledTypeNode DemangleTemplateSubstitution();
+	void DemangleTemplateArgs(_STD_VECTOR<_STD_STRING>& args, bool* hadNonTypeArg = nullptr);
 	DemangledTypeNode DemangleFunction(bool cnst, bool vltl);
 	DemangledTypeNode DemangleType();
 	int64_t DemangleNumber();
-	DemangledTypeNode DemangleNestedName();
+	DemangledTypeNode DemangleNestedName(bool* allTypeTemplateArgs = nullptr);
 	void PushTemplateType(const DemangledTypeNode& type);
-	const DemangledTypeNode& GetTemplateType(size_t ref);
 	void PushType(const DemangledTypeNode& type);
 	const DemangledTypeNode& GetType(size_t ref);
 
@@ -144,12 +153,16 @@ class DemangleGNU3
 	DemangledTypeNode CreateUnknownType(const _STD_STRING& s);
 	static void ExtendTypeName(DemangledTypeNode& type, const _STD_STRING& extend);
 
+#ifdef GNUDEMANGLE_DEBUG
+	const DemangledTypeNode& GetTemplateType(size_t ref);
+	void PrintTables();
+#endif
+
 public:
 	DemangleGNU3(BN::Architecture* arch, const _STD_STRING& mangledName);
 	void Reset(BN::Architecture* arch, const _STD_STRING& mangledName);
 	DemangledTypeNode DemangleSymbol(BN::QualifiedName& varName);
 	BN::QualifiedName GetVarName() const { return m_varName; }
-	void PrintTables();
 };
 
 

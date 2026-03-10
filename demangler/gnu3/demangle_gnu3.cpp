@@ -30,7 +30,7 @@ using namespace std;
 #endif
 
 
-#define MAX_DEMANGLE_LENGTH    4096
+#define MAX_DEMANGLE_LENGTH    262144
 #define hash(x,y) (64 * x + y)
 
 #undef GNUDEMANGLE_DEBUG
@@ -39,11 +39,11 @@ static string _indent = "";
 #define indent() _indent += " ";
 #define dedent() do {if (_indent.size() > 0) _indent = _indent.substr(1);}while(0);
 
-void MyLogDebug(string fmt, ...)
+void MyLogDebug(const char* fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	PerformLog(0, DebugLog, (_indent + fmt).c_str(), args);
+	PerformLog(0, DebugLog, "", 0, (_indent + fmt).c_str(), args);
 	va_end(args);
 }
 #else
@@ -218,17 +218,9 @@ static BNNameType GetNameType(char elm1, char elm2)
 	case hash('d','a'): return OperatorDeleteArrayNameType;     // delete[]
 	case hash('n','w'): return OperatorNewNameType;             // new
 	case hash('n','a'): return OperatorNewArrayNameType;        // new []
-	case hash('C','1'): return ConstructorNameType;
-	case hash('C','2'): return ConstructorNameType;
-	case hash('C','3'): return ConstructorNameType;
-	case hash('C','4'): return ConstructorNameType;
-	case hash('C','5'): return ConstructorNameType;
-	case hash('D','0'): return DestructorNameType;
-	case hash('D','1'): return DestructorNameType;
-	case hash('D','2'): return DestructorNameType;
-	case hash('D','3'): return DestructorNameType;
-	case hash('D','4'): return DestructorNameType;
-	case hash('D','5'): return DestructorNameType;
+	// Note: C1-C5 (constructor) and D0-D5 (destructor) are handled directly
+	// by DemangleUnqualifiedName with their own case blocks, so they never
+	// reach GetNameType.
 	default:
 		return NoNameType;
 	}
@@ -270,22 +262,12 @@ string DemangleGNU3Reader::PeekString(size_t count)
 
 
 
-bool DemangleGNU3Reader::NextIsOneOf(const string& list)
-{
-	char elm = Peek();
-	for (auto a : list)
-	{
-		if (a == elm)
-			return true;
-	}
-	return false;
-}
-
-
+#ifdef GNUDEMANGLE_DEBUG
 string DemangleGNU3Reader::GetRaw()
 {
 	return m_data.substr(m_offset);
 }
+#endif
 
 
 
@@ -300,14 +282,6 @@ string DemangleGNU3Reader::ReadString(size_t count)
 }
 
 
-string DemangleGNU3Reader::ReadUntil(char sentinal)
-{
-	size_t pos = m_data.find_first_of(sentinal, m_offset);
-	if (pos == string::npos)
-		throw DemangleException();
-	return ReadString(pos);
-}
-
 
 
 // ===== DemangleGNU3 implementation =====
@@ -318,7 +292,8 @@ DemangleGNU3::DemangleGNU3(Architecture* arch, const string& mangledName) :
 	m_isParameter(false),
 	m_shouldDeleteReader(true),
 	m_topLevel(true),
-	m_isOperatorOverload(false)
+	m_isOperatorOverload(false),
+	m_permitForwardTemplateRefs(false)
 {
 	MyLogDebug("%s : %s\n", __FUNCTION__, m_reader.GetRaw().c_str());
 }
@@ -340,6 +315,9 @@ void DemangleGNU3::Reset(Architecture* arch, const string& mangledName)
 	m_shouldDeleteReader = true;
 	m_topLevel = true;
 	m_isOperatorOverload = false;
+	m_permitForwardTemplateRefs = false;
+	m_pendingForwardRefs.clear();
+	m_inLocalName = false;
 }
 
 
@@ -376,15 +354,14 @@ void DemangleGNU3::PushTemplateType(const DemangledTypeNode& type)
 }
 
 
+#ifdef GNUDEMANGLE_DEBUG
 const DemangledTypeNode& DemangleGNU3::GetTemplateType(size_t ref)
 {
 	if (ref >= m_templateSubstitute.size())
-	{
-		// PrintTables();
 		throw DemangleException();
-	}
 	return m_templateSubstitute[ref];
 }
+#endif
 
 
 void DemangleGNU3::PushType(const DemangledTypeNode& type)
@@ -396,14 +373,12 @@ void DemangleGNU3::PushType(const DemangledTypeNode& type)
 const DemangledTypeNode& DemangleGNU3::GetType(size_t ref)
 {
 	if (ref >= m_substitute.size())
-	{
-		// PrintTables();
 		throw DemangleException();
-	}
 	return m_substitute[ref];
 }
 
 
+#ifdef GNUDEMANGLE_DEBUG
 void DemangleGNU3::PrintTables()
 {
 	LogDebug("Substitution Table\n");
@@ -418,6 +393,7 @@ void DemangleGNU3::PrintTables()
 		LogDebug("[%d] %s\n", i-1, GetTemplateType(i).GetString().c_str());
 	}
 }
+#endif
 
 
 void DemangleGNU3::DemangleCVQualifiers(bool& cnst, bool& vltl, bool& rstrct)
@@ -492,7 +468,43 @@ DemangledTypeNode DemangleGNU3::DemangleFunction(bool cnst, bool vltl)
 }
 
 
-const DemangledTypeNode& DemangleGNU3::DemangleTemplateSubstitution()
+string DemangleGNU3::ForwardRefPlaceholder(size_t index)
+{
+	return "\x01FWDREF:" + to_string(index) + "\x01";
+}
+
+
+void DemangleGNU3::ResolveForwardTemplateRefs(DemangledTypeNode& type, const vector<string>& args)
+{
+	if (m_pendingForwardRefs.empty())
+		return;
+	auto& segs = type.GetMutableTypeName();
+	bool resolved = false;
+	for (const auto& fr : m_pendingForwardRefs)
+	{
+		string placeholder = ForwardRefPlaceholder(fr.index);
+		string replacement = (fr.index < args.size()) ? args[fr.index] : "auto";
+		for (auto& seg : segs)
+		{
+			size_t pos;
+			while ((pos = seg.find(placeholder)) != string::npos)
+			{
+				seg.replace(pos, placeholder.size(), replacement);
+				resolved = true;
+			}
+		}
+	}
+	// Only clear the pending list when we actually resolved something.  Inner
+	// nested-name 'I' handlers (e.g. template args of types nested inside the
+	// cv-operator result type) may call here with a type that does not contain
+	// the placeholder; we must not discard the pending entry in that case so
+	// that the correct outer 'I' handler can still resolve it.
+	if (resolved)
+		m_pendingForwardRefs.clear();
+}
+
+
+DemangledTypeNode DemangleGNU3::DemangleTemplateSubstitution()
 {
 	indent();
 	MyLogDebug("%s : %s\n", __FUNCTION__, m_reader.GetRaw().c_str());
@@ -524,7 +536,20 @@ const DemangledTypeNode& DemangleGNU3::DemangleTemplateSubstitution()
 		throw DemangleException();
 	}
 	dedent();
-	return GetTemplateType(number);
+
+	if (number < m_templateSubstitute.size())
+		return m_templateSubstitute[number];
+
+	// If forward template references are permitted (e.g. inside a cv conversion
+	// operator type), return a placeholder that will be resolved once the outer
+	// template args are known.
+	if (m_permitForwardTemplateRefs)
+	{
+		m_pendingForwardRefs.push_back({number});
+		return CreateUnknownType(ForwardRefPlaceholder(number));
+	}
+
+	throw DemangleException();
 }
 
 
@@ -627,8 +652,11 @@ DemangledTypeNode DemangleGNU3::DemangleType()
 
 		//Template Substitution
 		type = DemangleTemplateSubstitution();
-		substitute = true;
-		if (m_reader.Peek() == 'I')
+		// In forward-ref mode (cv conversion operator type parsing), do not consume
+		// trailing I<args>E — it belongs to the enclosing nested-name and will be
+		// processed by DemangleNestedName's 'I' case, which resolves forward refs.
+		substitute = !m_permitForwardTemplateRefs;
+		if (!m_permitForwardTemplateRefs && m_reader.Peek() == 'I')
 		{
 			m_reader.Consume();
 			if (substitute)
@@ -703,8 +731,8 @@ DemangledTypeNode DemangleGNU3::DemangleType()
 	case 'v': type = DemangledTypeNode::VoidType(); break;
 	case 'w': type = DemangledTypeNode::IntegerType(4, false, "wchar_t"); break; //TODO: verify
 	case 'b': type = DemangledTypeNode::BoolType(); break;
-	case 'c': type = DemangledTypeNode::IntegerType(1, true); break;
-	case 'a': type = DemangledTypeNode::IntegerType(1, true); break;
+	case 'c': type = DemangledTypeNode::IntegerType(1, true, "char"); break;
+	case 'a': type = DemangledTypeNode::IntegerType(1, true, "signed char"); break;
 	case 'h': type = DemangledTypeNode::IntegerType(1, false); break;
 	case 's': type = DemangledTypeNode::IntegerType(2, true); break;
 	case 't': type = DemangledTypeNode::IntegerType(2, false); break;
@@ -730,15 +758,16 @@ DemangledTypeNode DemangleGNU3::DemangleType()
 		//DemangledTypeNode ptr = DemangledTypeNode::PointerType(m_arch, member, cnst, vltl);
 		//QualifiedName qn({memberName.GetString(), "*"});
 		type = CreateUnknownType(fullName);
+		substitute = true;
 		break;
 	}
 	case 'F': type = DemangleFunction(cnst, vltl); break;
 	case 'D':
 		switch (m_reader.Read())
 		{
-		case 'd': type = DemangledTypeNode::FloatType(8); break;
-		case 'e': type = DemangledTypeNode::FloatType(16); break;
-		case 'f': type = DemangledTypeNode::FloatType(4); break;
+		case 'd': type = DemangledTypeNode::FloatType(8, "decimal64"); break;
+		case 'e': type = DemangledTypeNode::FloatType(16, "decimal128"); break;
+		case 'f': type = DemangledTypeNode::FloatType(4, "decimal32"); break;
 		case 'h': type = DemangledTypeNode::FloatType(2); break;
 		case 'i': type = DemangledTypeNode::IntegerType(4, true, "char32_t"); break;
 		case 's': type = DemangledTypeNode::IntegerType(2, true, "char16_t"); break;
@@ -750,7 +779,12 @@ DemangledTypeNode DemangleGNU3::DemangleType()
 			type = CreateUnknownType(stdNullptrTName);
 			break;
 		}
-		case 'p': type = DemangleType(); break;
+		case 'p':
+		{
+			DemangledTypeNode inner = DemangleType();
+			type = CreateUnknownType(inner.GetString() + "...");
+			break;
+		}
 		case 't':
 		case 'T':
 			type = CreateUnknownType("decltype(" + DemangleExpression() + ")");
@@ -870,13 +904,24 @@ DemangledTypeNode DemangleGNU3::DemangleSubstitution()
 			m_reader.UnRead(1);
 			number = 0;
 		}
-		else if (isdigit(elm))
+		else if (isdigit(elm) || isupper(elm))
 		{
-			number = elm - '0' + 1;
-		}
-		else if (isupper(elm))
-		{
-			number = elm - 'A' + 11;
+			// Seq-id is encoded in base 36 using 0-9 A-Z.
+			// The actual substitution index = base36_value + 1.
+			// This handles both single-char (S0_ ... SZ_) and
+			// multi-char (S10_, S11_, ...) seq-ids.
+			size_t base36 = isdigit(elm) ? (size_t)(elm - '0') : (size_t)(elm - 'A' + 10);
+			while (m_reader.Peek() != '_')
+			{
+				char c = m_reader.Read();
+				if (isdigit(c))
+					base36 = base36 * 36 + (size_t)(c - '0');
+				else if (isupper(c))
+					base36 = base36 * 36 + (size_t)(c - 'A' + 10);
+				else
+					throw DemangleException();
+			}
+			number = base36 + 1;
 		}
 		else
 		{
@@ -890,7 +935,11 @@ DemangledTypeNode DemangleGNU3::DemangleSubstitution()
 		}
 
 		dedent();
-		return GetType(number);
+		const DemangledTypeNode& resolved = GetType(number);
+		const auto& segs = resolved.GetTypeName();
+		if (!segs.empty())
+			m_lastName = segs.back();
+		return resolved;
 	}
 	m_lastName = name.back();
 	dedent();
@@ -938,20 +987,6 @@ int64_t DemangleGNU3::DemangleNumber()
 }
 
 
-string DemangleGNU3::DemangleInitializer()
-{
-	string out;
-	if (m_reader.ReadString(2) != "pi")
-		throw DemangleException();
-	out += "(";
-	while (m_reader.Peek() != 'E')
-		out += DemangleExpression();
-	m_reader.Consume();
-	out += ")";
-	return out;
-}
-
-
 string DemangleGNU3::DemanglePrimaryExpression()
 {
 	indent();
@@ -966,14 +1001,34 @@ string DemangleGNU3::DemanglePrimaryExpression()
 	if (m_reader.PeekString(2) == "_Z")
 	{
 		m_reader.Consume(2);
+		// The embedded _Z... is an independent mangled name with its own
+		// template scope.  Save and clear the template substitution table
+		// so inner T_ / T0_ etc. resolve within this symbol, not the outer
+		// one.  Set m_topLevel = true so template args get pushed properly.
+		auto savedTemplateSubstitute = m_templateSubstitute;
+		m_templateSubstitute.clear();
 		oldTopLevel = m_topLevel;
-		m_topLevel = false;
+		m_topLevel = true;
 		DemangledTypeNode t = DemangleSymbol(tmpList);
 		m_topLevel = oldTopLevel;
-		out += t.GetStringBeforeName();
-		out += tmpList.GetString();
-		out += t.GetStringAfterName();
+		m_templateSubstitute = std::move(savedTemplateSubstitute);
+		out += t.GetTypeAndName(tmpList);
 		dedent()
+		return out;
+	}
+	// LZ<encoding>E: function address template arg (GCC/Clang, without leading underscore)
+	if (m_reader.Peek() == 'Z')
+	{
+		m_reader.Consume(); // 'Z'
+		auto savedTemplateSubstitute2 = m_templateSubstitute;
+		m_templateSubstitute.clear();
+		oldTopLevel = m_topLevel;
+		m_topLevel = true;
+		DemangledTypeNode t2 = DemangleSymbol(tmpList);
+		m_topLevel = oldTopLevel;
+		m_templateSubstitute = std::move(savedTemplateSubstitute2);
+		out += t2.GetTypeAndName(tmpList);
+		dedent();
 		return out;
 	}
 	switch (m_reader.Read())
@@ -1026,7 +1081,7 @@ string DemangleGNU3::DemanglePrimaryExpression()
 	case 'l': out = DemangleNumberAsString() + "l"; break;  //long
 	case 'x': out = DemangleNumberAsString() + "ll"; break;  //long long
 	case 's': out = "(short)" + DemangleNumberAsString(); break; //short
-	case 'n': out = "(__uint128)" + DemangleNumberAsString() + "ull"; break;  //__int128
+	case 'n': out = "(__int128)" + DemangleNumberAsString(); break;  //__int128
 	case 'i': out = DemangleNumberAsString(); break;       // int
 	case 'm': out = DemangleNumberAsString() + "ul"; break;  //unsigned long
 	case 't': out = "(unsigned short)" + DemangleNumberAsString(); break; //unsigned short
@@ -1065,8 +1120,6 @@ string DemangleGNU3::DemangleBinaryExpression(const string& op)
 	const string lhs = "(" + DemangleExpression() + ")";
 	const string rhs = "(" + DemangleExpression() + ")";
 	dedent();
-	if (op == ".")
-		return lhs + op + rhs;
 	return lhs + " " + op + " " + rhs;
 }
 
@@ -1233,6 +1286,13 @@ DemangledTypeNode DemangleGNU3::DemangleUnqualifiedName()
 		string name;
 		name = "'lambda";
 		vector<DemangledTypeNode> lambdaParams;
+		// Generic lambdas encode 'auto' params as T_, T0_, T1_... which reference
+		// the lambda's own operator() template params, not any outer template scope.
+		// Save and replace the template substitution table with 'auto' placeholders.
+		auto savedTemplateSubstitute = m_templateSubstitute;
+		m_templateSubstitute.clear();
+		for (int autoIdx = 0; autoIdx < 16; autoIdx++)
+			m_templateSubstitute.push_back(CreateUnknownType("auto"));
 		do
 		{
 			DemangledTypeNode param = DemangleType();
@@ -1241,6 +1301,7 @@ DemangledTypeNode DemangleGNU3::DemangleUnqualifiedName()
 			lambdaParams.push_back(std::move(param));
 		}while (m_reader.Peek() != 'E');
 		m_reader.Consume();
+		m_templateSubstitute = std::move(savedTemplateSubstitute);
 
 		if (isdigit(m_reader.Peek()))
 		{
@@ -1280,8 +1341,22 @@ DemangledTypeNode DemangleGNU3::DemangleUnqualifiedName()
 		break;
 	}
 	case hash('c','v'): //type (expression)
-		outType = CreateUnknownType("operator " + DemangleType().GetString());
+	{
+		// The conversion operator type may reference template params (T_, T0_, ...)
+		// that aren't yet in m_templateSubstitute (they're defined by a following
+		// I<args>E in the enclosing nested name).  Set m_permitForwardTemplateRefs so
+		// that DemangleTemplateSubstitution() returns a placeholder instead of
+		// throwing, and don't consume trailing I<args>E in the T case of DemangleType.
+		// The outer DemangleNestedName case 'I' will parse those args and call
+		// ResolveForwardTemplateRefs() to patch the placeholders.
+		bool savedPermit = m_permitForwardTemplateRefs;
+		m_pendingForwardRefs.clear();
+		m_permitForwardTemplateRefs = true;
+		DemangledTypeNode cvType = DemangleType();
+		m_permitForwardTemplateRefs = savedPermit;
+		outType = CreateUnknownType("operator " + cvType.GetString());
 		break;
+	}
 	default:
 		m_reader.UnRead(2);
 		if (isdigit(m_reader.Peek()) || m_reader.Read() == 'L')
@@ -1330,6 +1405,7 @@ QualifiedName DemangleGNU3::DemangleBaseUnresolvedName()
 		const string str = m_reader.PeekString(2);
 		if (str == "on")
 		{
+			m_reader.Consume(); m_reader.Consume(); // skip 'o','n' prefix
 			out.push_back(GetOperator(m_reader.Read(), m_reader.Read()));
 			if (m_reader.Peek() == 'I')
 			{
@@ -1388,10 +1464,21 @@ DemangledTypeNode DemangleGNU3::DemangleUnresolvedType()
 			type.SetHasTemplateArguments(true);
 			PushType(type);
 		}
+		else
+		{
+			// Template param used as scope qualifier (e.g. sr T_ name) is a substitution
+			// candidate: the compiler adds it to the main sub table so subsequent
+			// occurrences can use Sn_ instead of T_.
+			PushType(type);
+		}
 	}
 	else if (m_reader.Length() > 2 && (m_reader.PeekString(2) == "Dt" || m_reader.PeekString(2) == "DT"))
 	{
+		m_reader.Consume(); // 'D'
+		m_reader.Consume(); // 't' or 'T'
 		const string name = "decltype(" + DemangleExpression() + ")";
+		if (m_reader.Read() != 'E')
+			throw DemangleException();
 		type = CreateUnknownType(name);
 	}
 	else if (m_reader.Peek() == 'S')
@@ -1525,13 +1612,23 @@ string DemangleGNU3::DemangleExpression()
 	case hash('p','p'): // ++ (postfix in <expression> context)
 	case hash('m','m'): // -- (postfix in <expression> context)
 		return DemangleUnarySuffixExpression(GetOperator(elm1, elm2));
+	case hash('d','t'): // .
+	{
+		const string dtObj = DemangleExpression();
+		const string dtMem = DemangleExpression();
+		return dtObj + "." + dtMem;
+	}
+	case hash('p','t'): // ->
+	{
+		const string ptObj = DemangleExpression();
+		const string ptMem = DemangleExpression();
+		return ptObj + "->" + ptMem;
+	}
 	case hash('l','s'): // <<
 	case hash('r','s'): // >>
 	case hash('a','S'): // =
 	case hash('e','q'): // ==
 	case hash('n','e'): // !=
-	case hash('d','t'): // .
-	case hash('p','t'): // ->
 	case hash('m','l'): // *
 	case hash('m','i'): // -
 	case hash('p','l'): // +
@@ -1570,7 +1667,23 @@ string DemangleGNU3::DemangleExpression()
 		       DemangleExpression() + ":" +
 		       DemangleExpression();
 	case hash('c','l'): // ()
-		return "(" + DemangleExpressionList() + ")";
+	{
+		const string callable = DemangleExpression();
+		string args;
+		bool firstArg = true;
+		m_functionSubstitute.push_back({});
+		while (m_reader.Peek() != 'E')
+		{
+			if (!firstArg) args += ", ";
+			const string e = DemangleExpression();
+			args += e;
+			m_functionSubstitute.back().push_back(CreateUnknownType(e));
+			firstArg = false;
+		}
+		m_functionSubstitute.pop_back();
+		m_reader.Consume(); // 'E'
+		return callable + "(" + args + ")";
+	}
 	case hash('c','v'): //type (expression)
 	{
 		DemangledTypeNode type = DemangleType();
@@ -1604,9 +1717,6 @@ string DemangleGNU3::DemangleExpression()
 		int64_t listNumber = 0;
 		int64_t elementNum = 0;
 		char elm;
-		if (m_functionSubstitute.size() == 0)
-			throw DemangleException();
-
 		if (elm2 == 'L')
 		{
 			// fL <L-1 num> p <CV> [<prm-2 num>] _
@@ -1622,20 +1732,27 @@ string DemangleGNU3::DemangleExpression()
 		if (elm == '_')
 		{
 			m_reader.Consume(1);
-			if ((size_t)elementNum >= m_functionSubstitute[listNumber].size())
+			if ((uint64_t)listNumber >= (uint64_t)m_functionSubstitute.size() ||
+			    (size_t)elementNum >= m_functionSubstitute[listNumber].size())
 			{
-				throw DemangleException();
+				// fp_ used before params are known (e.g., in decltype return type)
+				out = (elementNum == 0) ? "fp" : "fp" + std::to_string(elementNum - 1);
+				break;
 			}
 			type = m_functionSubstitute[listNumber][elementNum];
 		}
 		else if (isdigit(elm) || isupper(elm))
 		{
 			elementNum = DemangleNumber() + 1;
-			if (m_reader.Read() != '_' ||
-			    elementNum < 0 ||
+			if (m_reader.Read() != '_')
+				throw DemangleException();
+			if (elementNum < 0 ||
+			    (uint64_t)listNumber >= (uint64_t)m_functionSubstitute.size() ||
 			    (size_t)elementNum >= m_functionSubstitute[listNumber].size())
 			{
-				throw DemangleException();
+				// fpN_ used before params are known
+				out = "fp" + std::to_string(elementNum - 1);
+				break;
 			}
 			type = m_functionSubstitute[listNumber][elementNum];
 		}
@@ -1669,10 +1786,17 @@ string DemangleGNU3::DemangleExpression()
 		if (m_reader.Peek() == 'N')
 		{
 			m_reader.Consume();
-			out += DemangleUnresolvedType().GetString() + "::";
+			// Standard form: N <unresolved-type> <qualifier-levels>+ E <base>
+			// where <unresolved-type> is T_, Dt, or S.
+			// GCC extension: N <source-name-qualifier>+ E <base>
+			// When the first component is a digit (source name), skip the
+			// unresolved-type and let the loop below handle all qualifiers.
+			if (!isdigit(m_reader.Peek()))
+				out += DemangleUnresolvedType().GetString() + "::";
 			do
 			{
 				out += DemangleSourceName();
+				// Push bare name (before template args) to substitution table.
 				PushType(DemangledTypeNode::NamedType(UnknownNamedTypeClass, _STD_VECTOR<_STD_STRING>{out}));
 				if (m_reader.Peek() == 'I')
 				{
@@ -1681,6 +1805,8 @@ string DemangleGNU3::DemangleExpression()
 					//<tmplate-args>
 					DemangleTemplateArgs(args);
 					out += GetTemplateString(args);
+					// Also push the template instantiation (name+args).
+					PushType(DemangledTypeNode::NamedType(UnknownNamedTypeClass, _STD_VECTOR<_STD_STRING>{out}));
 				}
 				out += "::";
 			}while (m_reader.Peek() != 'E');
@@ -1691,26 +1817,83 @@ string DemangleGNU3::DemangleExpression()
 		}
 		if (isdigit(m_reader.Peek()))
 		{
+			// <unresolved-qualifier-level>+ E <base-unresolved-name>
+			// GCC sometimes omits the explicit qualifier-list 'E' when the last
+			// qualifier ends with template-args (the template-args 'E' serves double
+			// duty). Break out of the loop immediately after any qualifier with
+			// template-args rather than waiting for a standalone 'E'.
+			//
+			// Each qualifier level adds to the substitution table:
+			//   - the bare name (before template-args) as a substitution candidate
+			//   - the template instantiation (name + args) as another candidate
+			// This mirrors how the compiler builds the substitution table during encoding.
+			bool hadTemplateArgs = false;
 			do
 			{
-				out += DemangleSourceName();
+				hadTemplateArgs = false;
+				const string segName = DemangleSourceName();
+				out += segName;
+				// Push bare name to substitution table.
+				PushType(CreateUnknownType(out));
 				if (m_reader.Peek() == 'I')
 				{
 					vector<string> args;
 					m_reader.Consume();
-					//<tmplate-args>
-					DemangleTemplateArgs(args);
+					DemangleTemplateArgs(args); // consumes the trailing 'E'
 					out += GetTemplateString(args);
+					// Also push the template instantiation.
+					PushType(CreateUnknownType(out));
+					hadTemplateArgs = true;
 				}
 				out += "::";
-			}while (m_reader.Peek() != 'E');
-			m_reader.Consume();
+			}while (!hadTemplateArgs && m_reader.Peek() != 'E');
+			// Consume qualifier-list 'E' if present. GCC sometimes omits it when
+			// the last qualifier had template-args whose 'E' served double duty,
+			// so check rather than unconditionally consuming.
+			if (m_reader.Peek() == 'E')
+				m_reader.Consume();
 			out += DemangleBaseUnresolvedName().GetString();
 			return out;
 		}
 		else
 		{
 			out += DemangleUnresolvedType().GetString() + "::";
+			// GCC may encode multi-level scoped names without the 'N' qualifier
+			// prefix, e.g. "sr St 6__and_I<T>E 5value" for std::__and_<T>::value.
+			// Process any digit-started names: if a name has template args AND
+			// another source name follows, it is an intermediate qualifier level;
+			// otherwise it is the final base-unresolved-name.
+			while (isdigit(m_reader.Peek()))
+			{
+				const string segName = DemangleSourceName();
+				if (m_reader.Peek() == 'I')
+				{
+					vector<string> args;
+					m_reader.Consume();
+					DemangleTemplateArgs(args);
+					if (isdigit(m_reader.Peek()))
+					{
+						// Another source name follows — intermediate qualifier.
+						// Push to the substitution table, mirroring what the
+						// N-prefix sr branch does for each nested qualifier.
+						PushType(CreateUnknownType(out + segName + GetTemplateString(args)));
+						out += segName + GetTemplateString(args) + "::";
+					}
+					else
+					{
+						// No more source names — this template-id is the final name.
+						out += segName + GetTemplateString(args);
+						return out;
+					}
+				}
+				else
+				{
+					// Plain source name with no template args — final base name.
+					out += segName;
+					return out;
+				}
+			}
+			// peek is not a digit: fall back for operator-names ("on") / destructor-names ("dn").
 			out += DemangleBaseUnresolvedName().GetString();
 		}
 		return out;
@@ -1731,7 +1914,7 @@ string DemangleGNU3::DemangleExpression()
 }
 
 
-void DemangleGNU3::DemangleTemplateArgs(vector<string>& args)
+void DemangleGNU3::DemangleTemplateArgs(vector<string>& args, bool* hadNonTypeArg)
 {
 	indent();
 	MyLogDebug("%s:: '%s'\n", __FUNCTION__, m_reader.GetRaw().c_str());
@@ -1749,15 +1932,23 @@ void DemangleGNU3::DemangleTemplateArgs(vector<string>& args)
 			args.push_back(expr);
 			tmp = CreateUnknownType(expr);
 			tmpValid = true;
+			if (hadNonTypeArg) *hadNonTypeArg = true;
 			break;
 		case 'X':
 			args.push_back(DemangleExpression());
 			if (m_reader.Read() != 'E')
 				throw DemangleException();
+			if (hadNonTypeArg) *hadNonTypeArg = true;
 			break;
+		case 'I': // GCC sometimes uses I...E for argument packs instead of J...E
 		case 'J':
+		{
+			size_t prevTemplateSize = m_templateSubstitute.size();
 			DemangleTemplateArgs(args);
+			if (m_topLevel && m_templateSubstitute.size() == prevTemplateSize)
+				PushTemplateType(CreateUnknownType("auto"));
 			break;
+		}
 		default:
 			m_reader.UnRead();
 			topLevel = m_topLevel;
@@ -1780,7 +1971,7 @@ void DemangleGNU3::DemangleTemplateArgs(vector<string>& args)
 }
 
 
-DemangledTypeNode DemangleGNU3::DemangleNestedName()
+DemangledTypeNode DemangleGNU3::DemangleNestedName(bool* allTypeTemplateArgs)
 {
 	/*
 	This can be either a qualified name like: "foo::bar::bas"
@@ -1861,7 +2052,16 @@ DemangledTypeNode DemangleGNU3::DemangleNestedName()
 			if (!base)
 				throw DemangleException();
 			vector<string> args;
-			DemangleTemplateArgs(args);
+			bool hadNonType = false;
+			DemangleTemplateArgs(args, allTypeTemplateArgs ? &hadNonType : nullptr);
+			if (allTypeTemplateArgs)
+				*allTypeTemplateArgs = !hadNonType;
+			// Resolve any forward template refs created while parsing a cv
+			// conversion operator type (e.g. cv T_ where T_ wasn't yet known).
+			// Only do this in the outer context (not while still inside the cv
+			// type parsing itself where m_permitForwardTemplateRefs is true).
+			if (!m_permitForwardTemplateRefs)
+				ResolveForwardTemplateRefs(type, args);
 			ExtendTypeName(type, GetTemplateString(args));
 			type.SetHasTemplateArguments(true);
 			isTemplate = true;
@@ -1942,10 +2142,21 @@ DemangledTypeNode DemangleGNU3::DemangleLocalName()
 	MyLogDebug("%s '%s'\n", __FUNCTION__, m_reader.GetRaw().c_str());
 	DemangledTypeNode type;
 	QualifiedName varName;
+	// The local function has its own template scope. Save the outer template
+	// substitution table and set m_topLevel = true so that when the local
+	// function's template args are parsed (e.g. handleMessageDelayed<T, T0, T1>),
+	// they populate m_templateSubstitute and are available for T_/T0_/T1_
+	// references in the function's parameter types.
+	auto savedTemplateSubstitute = m_templateSubstitute;
+	m_templateSubstitute.clear();
 	bool oldTopLevel = m_topLevel;
-	m_topLevel = false;
+	m_topLevel = true;
+	bool savedInLocalName = m_inLocalName;
+	m_inLocalName = true;
 	type = DemangleSymbol(varName);
+	m_inLocalName = savedInLocalName;
 	m_topLevel = oldTopLevel;
+	m_templateSubstitute = std::move(savedTemplateSubstitute);
 
 	if (varName.size() > 0)
 		varName.back() += (type.GetStringAfterName());
@@ -1954,6 +2165,15 @@ DemangledTypeNode DemangleGNU3::DemangleLocalName()
 
 	if (m_reader.Peek() != 's')
 	{
+		// Handle default argument context: d [<number>] _ <name>
+		if (m_reader.Peek() == 'd')
+		{
+			m_reader.Consume();
+			if (isdigit(m_reader.Peek()))
+				DemangleNumber();
+			if (m_reader.Peek() == '_')
+				m_reader.Consume();
+		}
 		//<entity name>
 		DemangledTypeNode tmpType = DemangleName();
 		type = DemangledTypeNode::NamedType(UnknownNamedTypeClass, varName);
@@ -2041,11 +2261,21 @@ DemangledTypeNode DemangleGNU3::DemangleName()
 			DemangleTemplateArgs(args);
 			ExtendTypeName(type, GetTemplateString(args));
 			type.SetHasTemplateArguments(true);
+			// Push the template instantiation (e.g. std::swap<T>) so that the
+			// substitution table matches what the encoder built.  The encoder adds
+			// both the unscoped-template-name (prefix, already pushed above) and
+			// the full template-id (instantiation).
+			PushType(type);
 		}
 		break;
 	case 'N': //<nested-name>
-		type = DemangleNestedName();
+	{
+		bool allTypeArgs = false;
+		type = DemangleNestedName(&allTypeArgs);
+		if (!m_inLocalName && allTypeArgs)
+			PushType(type);
 		break;
+	}
 	case 'Z': //<local-name>
 		type = DemangleLocalName();
 		break;
@@ -2210,6 +2440,8 @@ DemangledTypeNode DemangleGNU3::DemangleSymbol(QualifiedName& varName)
 
 				return type;
 			}
+
+
 
 			// Intel Vector Function ABI:
 			// GV <isa> <mask> <vlen> <vparameters> '_' <routine_name>
@@ -2536,12 +2768,12 @@ DemangledTypeNode DemangleGNU3::DemangleSymbol(QualifiedName& varName)
 
 			// On the off chance some invalid mangled string is passed in.
 			if (varName.size() > 0)
-				varName.back() += ext;
+				varName.back() += " " + ext;
 			break;
 		}
 
 		m_isParameter = true;
-		MyLogDebug("Var_%d: %s\n", i, m_reader.GetRaw().c_str());
+		MyLogDebug("Var: %s\n", m_reader.GetRaw().c_str());
 		if (m_reader.PeekString(2) == "@@")
 			break;
 		DemangledTypeNode param = DemangleType();

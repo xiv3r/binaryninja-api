@@ -72,7 +72,7 @@ public:
 	static DemangledTypeNode VoidType();
 	static DemangledTypeNode BoolType();
 	static DemangledTypeNode IntegerType(size_t width, bool isSigned, const _STD_STRING& altName = "");
-	static DemangledTypeNode FloatType(size_t width);
+	static DemangledTypeNode FloatType(size_t width, const _STD_STRING& altName = "");
 	static DemangledTypeNode VarArgsType();
 	static DemangledTypeNode PointerType(BN::Architecture* arch, DemangledTypeNode child,
 		bool cnst, bool vltl, BNReferenceType refType);
