@@ -35,6 +35,8 @@
 #define _STD_VECTOR std::vector
 #endif
 
+#include "demangled_type_node.h"
+
 class DemangleException: public std::exception
 {
 	_STD_STRING m_message;
@@ -43,47 +45,62 @@ public:
 	virtual const char* what() const noexcept { return m_message.c_str(); }
 };
 
+class DemangleGNU3Reader
+{
+public:
+	DemangleGNU3Reader(const _STD_STRING& data);
+	void Reset(const _STD_STRING& data);
+	_STD_STRING PeekString(size_t count=1);
+	bool NextIsOneOf(const _STD_STRING& list);
+	_STD_STRING GetRaw();
+	_STD_STRING ReadString(size_t count=1);
+	_STD_STRING ReadUntil(char sentinal);
+
+	size_t Length() const { return m_data.length() - m_offset; }
+
+	char Peek()
+	{
+		if (1 > Length())
+			return '\0';
+		return (char)m_data[m_offset];
+	}
+
+	char Read()
+	{
+		if (1 > Length())
+			throw DemangleException();
+		return m_data[m_offset++];
+	}
+
+	void Consume(size_t count=1)
+	{
+		if (count > Length())
+			throw DemangleException();
+		m_offset += count;
+	}
+
+	void UnRead(size_t count=1)
+	{
+		if (count <= m_offset)
+			m_offset -= count;
+	}
+
+private:
+	_STD_STRING m_data;
+	size_t m_offset;
+};
+
+
 class DemangleGNU3
 {
-	class Reader
-	{
-	public:
-		Reader(const _STD_STRING& data);
-		_STD_STRING PeekString(size_t count=1);
-		char Peek();
-		bool NextIsOneOf(const _STD_STRING& list);
-		_STD_STRING GetRaw();
-		char Read();
-		_STD_STRING ReadString(size_t count=1);
-		_STD_STRING ReadUntil(char sentinal);
-		void Consume(size_t count=1);
-		size_t Length() const;
-		void UnRead(size_t count=1);
-	private:
-		_STD_STRING m_data;
-		size_t m_offset;
-	};
-
-	class SubstitutionList
-	{
-		_STD_VECTOR<BN::TypeBuilder> m_typeList;
-	public:
-		SubstitutionList();
-		~SubstitutionList();
-		void PushType(BN::TypeBuilder t);
-		void PopType();
-		const BN::TypeBuilder& GetType(size_t reference) const;
-		void PrintSubstitutionTable() const;
-		size_t Size() const { return m_typeList.size(); }
-		void Clear() { m_typeList.clear(); }
-	};
+	using ParamList = _STD_VECTOR<DemangledTypeNode::Param>;
 
 	BN::QualifiedName m_varName;
-	Reader m_reader;
+	DemangleGNU3Reader m_reader;
 	BN::Architecture* m_arch;
-	_STD_VECTOR<BN::TypeBuilder> m_substitute;
-	_STD_VECTOR<BN::TypeBuilder> m_templateSubstitute;
-	_STD_VECTOR<_STD_VECTOR<BN::TypeBuilder>> m_functionSubstitute;
+	_STD_VECTOR<DemangledTypeNode> m_substitute;
+	_STD_VECTOR<DemangledTypeNode> m_templateSubstitute;
+	_STD_VECTOR<_STD_VECTOR<DemangledTypeNode>> m_functionSubstitute;
 	_STD_STRING m_lastName;
 	BNNameType m_nameType;
 	bool m_localType;
@@ -94,46 +111,53 @@ class DemangleGNU3
 	bool m_isOperatorOverload;
 	enum SymbolType { Function, FunctionWithReturn, Data, VTable, Rtti, Name};
 	BN::QualifiedName DemangleBaseUnresolvedName();
-	BN::TypeBuilder DemangleUnresolvedType();
+	DemangledTypeNode DemangleUnresolvedType();
 	_STD_STRING DemangleUnarySuffixExpression(const _STD_STRING& op);
 	_STD_STRING DemangleUnaryPrefixExpression(const _STD_STRING& op);
 	_STD_STRING DemangleBinaryExpression(const _STD_STRING& op);
 	_STD_STRING DemangleUnaryPrefixType(const _STD_STRING& op);
 	_STD_STRING DemangleTypeString();
 	_STD_STRING DemangleExpressionList();
-	BN::TypeBuilder DemangleUnqualifiedName();
+	DemangledTypeNode DemangleUnqualifiedName();
 	_STD_STRING DemangleSourceName();
 	_STD_STRING DemangleNumberAsString();
 	_STD_STRING DemangleInitializer();
 	_STD_STRING DemangleExpression();
 	_STD_STRING DemanglePrimaryExpression();
-	BN::TypeBuilder DemangleName();
-	BN::TypeBuilder DemangleLocalName();
+	DemangledTypeNode DemangleName();
+	DemangledTypeNode DemangleLocalName();
 
 	void DemangleCVQualifiers(bool& cnst, bool& vltl, bool& rstrct);
-	BN::TypeBuilder DemangleSubstitution();
-	const BN::TypeBuilder& DemangleTemplateSubstitution();
-	void DemangleTemplateArgs(_STD_VECTOR<BN::FunctionParameter>& args);
-	bool DemangleEncoding(BN::Type** type, BN::QualifiedName& outName);
-	BN::TypeBuilder DemangleFunction(bool cnst, bool vltl);
-	BN::TypeBuilder DemangleType();
+	DemangledTypeNode DemangleSubstitution();
+	const DemangledTypeNode& DemangleTemplateSubstitution();
+	void DemangleTemplateArgs(_STD_VECTOR<_STD_STRING>& args);
+	DemangledTypeNode DemangleFunction(bool cnst, bool vltl);
+	DemangledTypeNode DemangleType();
 	int64_t DemangleNumber();
-	BN::TypeBuilder DemangleNestedName();
-	void PushTemplateType(BN::TypeBuilder type);
-	const BN::TypeBuilder& GetTemplateType(size_t ref);
-	void PushType(BN::TypeBuilder type);
-	const BN::TypeBuilder& GetType(size_t ref);
-	static bool DemangleGlobalHeader(_STD_STRING& name, _STD_STRING& header);
+	DemangledTypeNode DemangleNestedName();
+	void PushTemplateType(const DemangledTypeNode& type);
+	const DemangledTypeNode& GetTemplateType(size_t ref);
+	void PushType(const DemangledTypeNode& type);
+	const DemangledTypeNode& GetType(size_t ref);
+
+	DemangledTypeNode CreateUnknownType(const BN::QualifiedName& s);
+	DemangledTypeNode CreateUnknownType(const _STD_STRING& s);
+	static void ExtendTypeName(DemangledTypeNode& type, const _STD_STRING& extend);
 
 public:
 	DemangleGNU3(BN::Architecture* arch, const _STD_STRING& mangledName);
-	BN::TypeBuilder DemangleSymbol(BN::QualifiedName& varName);
+	void Reset(BN::Architecture* arch, const _STD_STRING& mangledName);
+	DemangledTypeNode DemangleSymbol(BN::QualifiedName& varName);
 	BN::QualifiedName GetVarName() const { return m_varName; }
-	static bool IsGNU3MangledString(const _STD_STRING& name);
-
-	// Tread lightly on this landmine; a BinaryView* will be converted to a bool; use an explicit (BN::Ref<BN::BinaryView>)view cast
-	static bool DemangleStringGNU3(BN::Architecture* arch, const _STD_STRING& name, BN::Ref<BN::Type>& outType, BN::QualifiedName& outVarName, const BN::Ref<BN::BinaryView>& view);
-	static bool DemangleStringGNU3(BN::Architecture* arch, const _STD_STRING& name, BN::Ref<BN::Type>& outType, BN::QualifiedName& outVarName, BN::BinaryView* view);
-	static bool DemangleStringGNU3(BN::Architecture* arch, const _STD_STRING& name, BN::Ref<BN::Type>& outType, BN::QualifiedName& outVarName);
 	void PrintTables();
+};
+
+
+class DemangleGNU3Static
+{
+public:
+	static bool IsGNU3MangledString(const _STD_STRING& name);
+	static bool DemangleGlobalHeader(_STD_STRING& name, _STD_STRING& header);
+
+	static bool DemangleStringGNU3(BN::Architecture* arch, const _STD_STRING& name, BN::Ref<BN::Type>& outType, BN::QualifiedName& outVarName);
 };
