@@ -345,3 +345,27 @@ struct BaseClassDescriptor
 
 struct BaseClassDescriptor* __ptr32 __based(start) `type_info::\`RTTI Base Class Array'`[0x1];
 ```
+
+## Custom Attributes
+
+Binary Ninja allows you to add custom attributes to types, which do not affect analysis but can be used by plugins and scripts. You can add these with the `__attr` annotation. Scripts can then query a `Type` object's `annotations` field to see the annotation keys and values.
+
+### Examples
+
+``` C
+typedef int __attr("a") test;
+typedef int __attr("a", "b") test;
+```
+
+```py
+>>> TypeParser.default.parse_type_string('int __attr("a", "b") test', Platform["windows-x86"])[0][1].attributes
+{'a': 'b'}
+```
+
+Attributes on function pointers can be applied to many different places:
+``` C
+typedef void (*__attr("ptr", "attr") test)();      // Applies to the pointer 
+typedef void (__attr("function", "attr")* test)(); // Applies to the function
+typedef __attr("return", "attr") void (* test)();  // Applies to the return type
+typedef void __attr("return", "attr") (* test)();  // Applies to the return type
+```
