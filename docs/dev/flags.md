@@ -1,5 +1,8 @@
 # Binary Ninja Flags
 
+!!! note
+    This is an older guide covering the fundamentals of Binary Ninja's flag system. For a more recent and comprehensive treatment of flags in the context of building a full architecture plugin, see the [Flags section of the Lifting guide](archplatform-lifting.md#flags).
+
 This guide is broken up into three sections.
 
 - Part 1 covers the basics of how architecture modules and flags interact

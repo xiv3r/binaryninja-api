@@ -132,13 +132,16 @@ nav:
         - Writing Plugins: 'dev/plugins.md'
         - Container Transforms: 'dev/containertransforms.md'
         - Automation: 'dev/batch.md'
-        - BNIL / Architectures:
+        - Architecture / Platform:
+            - Part 1&#58; Disassembly: 'dev/archplatform-disassembly.md'
+            - Part 2&#58; Lifting: 'dev/archplatform-lifting.md'
+            - Part 3&#58; Platform Support: 'dev/archplatform-platform.md'
+            - Flag Guide: 'dev/flags.md'
+        - BNIL:
             - BNIL Guide&#58; Overview: 'dev/bnil-overview.md'
             - BNIL Guide&#58; LLIL: 'dev/bnil-llil.md'
             - BNIL Guide&#58; MLIL: 'dev/bnil-mlil.md'
             - BNIL Guide&#58; HLIL: 'dev/bnil-hlil.md'
-            - Architecture & Platform Guide: 'dev/archplatform.md'
-            - Flag Guide: 'dev/flags.md'
             - Modifying ILs: 'dev/bnil-modifying.md'
         - Types:
             - Applying Annotations: 'dev/annotation.md'
