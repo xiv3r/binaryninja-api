@@ -541,6 +541,7 @@ Next, we specify which conditions are used for each combination of Semantic Flag
 ```
 
 This is effectively telling Binary Ninja:
+
 1. When you see a `cc0` Semantic Flag Group test
 2. Look at the relevant flag(s)
     1. `cc0` is the only flag that group reads, as defined in `flags_required_for_semantic_flag_group`
