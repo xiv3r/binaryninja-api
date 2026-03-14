@@ -4,6 +4,8 @@ From the beginning, the most important feature of Binary Ninja has been our API.
 
 Third-party plugins are a paid feature of Binary Ninja, so [you will need a license to the Personal edition or higher](https://binary.ninja/purchase) to write an architecture of your own. Apart from that, plugins are compatible with all paid editions and even with [collaboration support on the Enterprise edition](https://binary.ninja/enterprise/).
 
+The complete source code for the architecture plugin built in this guide is available at [arch_quark on GitHub](https://github.com/Vector35/arch_quark).
+
 # Target
 
 The target of these new tools is the custom VM-based architecture Quark, available as a compilation backend in Binary Ninja's [Shellcode Compiler](https://github.com/Vector35/scc) (SCC). It comes complete with an interpreter, a standard library, and a full compiler suite for creating test programs. Having a toolchain available to produce objects for the target was quite helpful during implementation, as assumptions we make about how the target works can be tested relatively easily, and getting sample binaries was not an issue.

@@ -1,6 +1,6 @@
 # Lifting
 
-Lifting is the critical step to unlocking Binary Ninja's powerful analysis and decompilation. Often the "left as an exercise to the reader" of Binary Ninja custom architecture tutorials, it is both a lengthy process and one with a lot of subtlety. From simple instructions to flags and intrinsics, the lifting process describes the behavior of every instruction. Let's write a lifter for [Quark](archplatform-disassembly.md#target)!
+Lifting is the critical step to unlocking Binary Ninja's powerful analysis and decompilation. Often the "left as an exercise to the reader" of Binary Ninja custom architecture tutorials, it is both a lengthy process and one with a lot of subtlety. From simple instructions to flags and intrinsics, the lifting process describes the behavior of every instruction. Let's write a lifter for [Quark](archplatform-disassembly.md#target)! The complete source code is available at [arch_quark on GitHub](https://github.com/Vector35/arch_quark).
 
 
 To write a lifter, we need to implement `get_instruction_low_level_il`. The lifter needs the same information as the disassembler, so the scaffolding is very similar:
