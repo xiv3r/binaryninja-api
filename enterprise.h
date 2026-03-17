@@ -53,6 +53,14 @@ namespace BinaryNinja
 		bool Initialize();
 
 		/*!
+		    Authenticate to the server with an access token
+		    \param token Token of auth session
+		    \param remember Remember token in keychain
+		    \return True if successful
+		 */
+		bool AuthenticateWithToken(const std::string& token, bool remember);
+
+		/*!
 		    Authenticate to the Enterprise server with username and password
 		    \param username Username to authenticate with
 		    \param password Password to authenticate with

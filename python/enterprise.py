@@ -54,6 +54,19 @@ def is_connected() -> bool:
 	return core.BNIsEnterpriseServerConnected()
 
 
+def authenticate_with_token(token: str, remember: bool = True):
+	"""
+	Authenticate to the server with an access token
+
+	:param str token: Token of auth session.
+	:param bool remember: Remember token in keychain
+	"""
+	if not is_connected():
+		connect()
+	if not core.BNAuthenticateEnterpriseServerWithToken(token, remember):
+		raise RuntimeError(last_error())
+
+
 def authenticate_with_credentials(username: str, password: str, remember: bool = True):
 	"""
 	Authenticate to the Enterprise Server with username/password credentials.
@@ -392,11 +405,20 @@ class LicenseCheckout:
 				except RuntimeError:
 					pass
 
+			if not got_auth and \
+				os.environ.get('BN_ENTERPRISE_TOKEN') is not None:
+				try:
+					authenticate_with_token(os.environ['BN_ENTERPRISE_TOKEN'])
+					got_auth = True
+				except RuntimeError:
+					pass
+
 			if not got_auth:
 				raise RuntimeError(
 					"Could not checkout a license: Not authenticated. Try one of the following: \n"
 					" - Log in and check out a license for an extended time\n"
 					" - Set BN_ENTERPRISE_USERNAME and BN_ENTERPRISE_PASSWORD environment variables\n"
+					" - Set BN_ENTERPRISE_TOKEN environment variable\n"
 					" - Use binaryninja.enterprise.authenticate_with_credentials or authenticate_with_method in your code"
 				)
 

@@ -4065,6 +4065,8 @@ extern "C"
 	BINARYNINJACOREAPI bool BNIsDatabase(const char* filename);
 	BINARYNINJACOREAPI bool BNIsDatabaseFromData(const void* data, size_t len);
 
+	BINARYNINJACOREAPI bool BNAuthenticateEnterpriseServerWithToken(
+	    const char* token, bool remember);
 	BINARYNINJACOREAPI bool BNAuthenticateEnterpriseServerWithCredentials(
 	    const char* username, const char* password, bool remember);
 	BINARYNINJACOREAPI bool BNAuthenticateEnterpriseServerWithMethod(const char* method, bool remember);
