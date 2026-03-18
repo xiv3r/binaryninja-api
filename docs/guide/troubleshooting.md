@@ -97,6 +97,19 @@ Note that the problem is especially exaccerbated by adding a large number of pyt
 
 Some graphics chipsets may experience problems with [scaling](https://github.com/Vector35/binaryninja-api/issues/1529) resulting in the top menu disappearing. In that case, the simplest fix is to set the environment variable `QT_OPENGL=angle`.
 
+#### Miniconda and Miniforge
+
+If you are using [Miniconda](https://docs.anaconda.com/miniconda/) or [Miniforge](https://github.com/conda-forge/miniforge) as your Python distribution on Windows, you must ensure the install path is added to your **user** `PATH` environment variable. By default, neither installer adds itself to `PATH`.
+
+To set the user `PATH` variable:
+
+1. Open **Settings > System > About > Advanced system settings** (or search for "Environment Variables" in the Start menu).
+2. Under **User variables**, select `Path` and click **Edit**.
+3. Click **New** and add the path to your Miniconda or Miniforge installation (e.g. `C:\Users\<username>\miniconda3` or `C:\Users\<username>\miniforge3`).
+4. Click **OK** to save and restart Binary Ninja.
+
+Without these paths set, Binary Ninja will not be able to locate the Python interpreter or install plugin dependencies correctly.
+
 #### VirtualBox and VMWare
 
 If you're using Windows virtual machines within virtualbox or VMWare, you may have trouble with the 3d acceleration drivers. If so, disabling the 3d acceleration is the easiest way to get BN working.
