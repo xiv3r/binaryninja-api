@@ -28,6 +28,12 @@ TransformSession::TransformSession(Ref<BinaryView> initialView, BNTransformSessi
 }
 
 
+TransformSession::TransformSession(Ref<TransformContext> context, BNTransformSessionMode mode, const string& options)
+{
+	m_object = BNCreateTransformSessionFromTransformContextWithMode(context->GetObject(), mode, options.c_str());
+}
+
+
 TransformSession::TransformSession(BNTransformSession* session)
 {
 	m_object = session;

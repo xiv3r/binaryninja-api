@@ -9454,6 +9454,7 @@ namespace BinaryNinja {
 		TransformSession(const std::string& filename, BNTransformSessionMode mode, const std::string& options = "{}");
 		TransformSession(Ref<BinaryView> initialView, const std::string& options = "{}");
 		TransformSession(Ref<BinaryView> initialView, BNTransformSessionMode mode, const std::string& options = "{}");
+		TransformSession(Ref<TransformContext> context, BNTransformSessionMode mode, const std::string& options = "{}");
 		TransformSession(BNTransformSession* session);
 		virtual ~TransformSession();
 

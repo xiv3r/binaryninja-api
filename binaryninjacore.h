@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 161
+#define BN_CURRENT_CORE_ABI_VERSION 162
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -4938,6 +4938,7 @@ extern "C"
 	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionWithMode(const char* filename, BNTransformSessionMode mode, const char* options);
 	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromBinaryView(BNBinaryView* initialView, const char* options);
 	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromBinaryViewWithMode(BNBinaryView* initialView, BNTransformSessionMode mode, const char* options);
+	BINARYNINJACOREAPI BNTransformSession* BNCreateTransformSessionFromTransformContextWithMode(BNTransformContext* context, BNTransformSessionMode mode, const char* options);
 	BINARYNINJACOREAPI BNTransformSession* BNNewTransformSessionReference(BNTransformSession* session);
 	BINARYNINJACOREAPI void BNFreeTransformSession(BNTransformSession* session);
 	BINARYNINJACOREAPI void BNTransformSessionSetInteractive(BNTransformSession* session, bool interactive);
