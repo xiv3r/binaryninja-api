@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 160
+#define BN_CURRENT_CORE_ABI_VERSION 161
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 160
+#define BN_MINIMUM_CORE_ABI_VERSION 161
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -6445,7 +6445,7 @@ extern "C"
 	BINARYNINJACOREAPI uint64_t* BNLowLevelILGetOperandList(
 	    BNLowLevelILFunction* func, size_t expr, size_t operand, size_t* count);
 	BINARYNINJACOREAPI void BNLowLevelILFreeOperandList(uint64_t* operands);
-	BINARYNINJACOREAPI const uint64_t* BNLowLevelILGetOperandPointer(
+	BINARYNINJACOREAPI uint64_t BNLowLevelILGetOperand(
 	    BNLowLevelILFunction* func, size_t offset);
 
 	BINARYNINJACOREAPI size_t BNCacheLowLevelILPossibleValueSet(BNLowLevelILFunction* func, BNPossibleValueSet* pvs);
@@ -6604,7 +6604,7 @@ extern "C"
 	BINARYNINJACOREAPI uint64_t* BNMediumLevelILGetOperandList(
 	    BNMediumLevelILFunction* func, size_t expr, size_t operand, size_t* count);
 	BINARYNINJACOREAPI void BNMediumLevelILFreeOperandList(uint64_t* operands);
-	BINARYNINJACOREAPI const uint64_t* BNMediumLevelILGetOperandPointer(
+	BINARYNINJACOREAPI uint64_t BNMediumLevelILGetOperand(
 	    BNMediumLevelILFunction* func, size_t offset);
 
 	BINARYNINJACOREAPI size_t BNCacheMediumLevelILPossibleValueSet(BNMediumLevelILFunction* func, BNPossibleValueSet* pvs);
@@ -6767,7 +6767,7 @@ extern "C"
 	BINARYNINJACOREAPI uint64_t* BNHighLevelILGetOperandList(
 	    BNHighLevelILFunction* func, size_t expr, size_t operand, size_t* count);
 	BINARYNINJACOREAPI void BNHighLevelILFreeOperandList(uint64_t* operands);
-	BINARYNINJACOREAPI const uint64_t* BNHighLevelILGetOperandPointer(
+	BINARYNINJACOREAPI uint64_t BNHighLevelILGetOperand(
 	    BNHighLevelILFunction* func, size_t offset);
 
 	BINARYNINJACOREAPI size_t BNCacheHighLevelILPossibleValueSet(BNHighLevelILFunction* func, BNPossibleValueSet* pvs);

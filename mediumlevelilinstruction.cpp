@@ -320,14 +320,18 @@ bool MediumLevelILIntegerList::ListIterator::operator<(const ListIterator& a) co
 MediumLevelILIntegerList::ListIterator& MediumLevelILIntegerList::ListIterator::operator++()
 {
 	count--;
-	cur++;
+	offset++;
 	return *this;
 }
 
 
 uint64_t MediumLevelILIntegerList::ListIterator::operator*()
 {
-	return *cur;
+#ifdef BINARYNINJACORE_LIBRARY
+	return function->GetOperand(offset);
+#else
+	return BNMediumLevelILGetOperand(function->GetObject(), offset);
+#endif
 }
 
 
@@ -335,11 +339,7 @@ MediumLevelILIntegerList::MediumLevelILIntegerList(
     MediumLevelILFunction* func, size_t offset, size_t count)
 {
 	m_start.function = func;
-#ifdef BINARYNINJACORE_LIBRARY
-	m_start.cur = func->GetOperandPointer(offset);
-#else
-	m_start.cur = BNMediumLevelILGetOperandPointer(func->GetObject(), offset);
-#endif
+	m_start.offset = offset;
 	m_start.count = count;
 }
 
@@ -354,7 +354,7 @@ MediumLevelILIntegerList::const_iterator MediumLevelILIntegerList::end() const
 {
 	const_iterator result;
 	result.function = m_start.function;
-	result.cur = m_start.cur + m_start.count;
+	result.offset = m_start.offset + m_start.count;
 	result.count = 0;
 	return result;
 }
@@ -370,7 +370,11 @@ uint64_t MediumLevelILIntegerList::operator[](size_t i) const
 {
 	if (i >= size())
 		throw MediumLevelILInstructionAccessException();
-	return m_start.cur[i];
+#ifdef BINARYNINJACORE_LIBRARY
+	return m_start.function->GetOperand(m_start.offset + i);
+#else
+	return BNMediumLevelILGetOperand(m_start.function->GetObject(), m_start.offset + i);
+#endif
 }
 
 

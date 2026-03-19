@@ -288,14 +288,18 @@ bool HighLevelILIntegerList::ListIterator::operator<(const ListIterator& a) cons
 HighLevelILIntegerList::ListIterator& HighLevelILIntegerList::ListIterator::operator++()
 {
 	count--;
-	cur++;
+	offset++;
 	return *this;
 }
 
 
 uint64_t HighLevelILIntegerList::ListIterator::operator*()
 {
-	return *cur;
+#ifdef BINARYNINJACORE_LIBRARY
+	return function->GetOperand(offset);
+#else
+	return BNHighLevelILGetOperand(function->GetObject(), offset);
+#endif
 }
 
 
@@ -303,11 +307,7 @@ HighLevelILIntegerList::HighLevelILIntegerList(
     HighLevelILFunction* func, size_t offset, size_t count)
 {
 	m_start.function = func;
-#ifdef BINARYNINJACORE_LIBRARY
-	m_start.cur = func->GetOperandPointer(offset);
-#else
-	m_start.cur = BNHighLevelILGetOperandPointer(func->GetObject(), offset);
-#endif
+	m_start.offset = offset;
 	m_start.count = count;
 }
 
@@ -322,7 +322,7 @@ HighLevelILIntegerList::const_iterator HighLevelILIntegerList::end() const
 {
 	const_iterator result;
 	result.function = m_start.function;
-	result.cur = m_start.cur + m_start.count;
+	result.offset = m_start.offset + m_start.count;
 	result.count = 0;
 	return result;
 }
@@ -338,7 +338,11 @@ uint64_t HighLevelILIntegerList::operator[](size_t i) const
 {
 	if (i >= size())
 		throw HighLevelILInstructionAccessException();
-	return m_start.cur[i];
+#ifdef BINARYNINJACORE_LIBRARY
+	return m_start.function->GetOperand(m_start.offset + i);
+#else
+	return BNHighLevelILGetOperand(m_start.function->GetObject(), m_start.offset + i);
+#endif
 }
 
 

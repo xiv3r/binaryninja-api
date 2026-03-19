@@ -385,7 +385,7 @@ namespace BinaryNinja
 #else
 			Ref<LowLevelILFunction> function;
 #endif
-			const uint64_t* cur;
+			size_t offset;
 			size_t count;
 
 			bool operator==(const ListIterator& a) const;
