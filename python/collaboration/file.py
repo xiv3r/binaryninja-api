@@ -466,7 +466,7 @@ class RemoteFile:
 		"""
 		if isinstance(bv_or_db, BinaryView):
 			if not bv_or_db.file.has_database:
-				raise RuntimeError("Cannot pull non-database view")
+				raise RuntimeError("Cannot push non-database view")
 			db = bv_or_db.file.database
 		else:
 			db = bv_or_db
