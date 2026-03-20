@@ -177,7 +177,7 @@ def get_local_snapshot_for_remote(snapshot: snapshot.CollabSnapshot, database: D
 	:raises RuntimeError: If there was an error
 	"""
 	value = core.BNSnapshotHandle()
-	if not core.BNCollaborationGetLocalSnapshotFromRemote(snapshot._handle, ctypes.cast(database.handle, core.BNSnapshotHandle), value):
+	if not core.BNCollaborationGetLocalSnapshotFromRemote(snapshot._handle, ctypes.cast(database.handle, core.BNDatabaseHandle), value):
 		raise RuntimeError(util._last_error())
 	if not value:
 		return None
