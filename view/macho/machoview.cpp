@@ -2712,6 +2712,17 @@ Ref<Symbol> MachoView::DefineMachoSymbol(
 			}
 		}
 
+		if ((type == ExternalSymbol || type == ImportAddressSymbol)
+			&& (name.find("_objc_retain_x") != std::string::npos || name.find("_objc_release_x") != std::string::npos))
+		{
+			auto x = name.rfind('x');
+			auto num = name.substr(x + 1);
+
+			auto cc = GetDefaultArchitecture()->GetCallingConventionByName("apple-arm64-objc-fast-arc-" + num);
+			if (auto idType = GetTypeByName({"id"}); cc && idType)
+				typeRef = Type::FunctionType(idType, cc, {{"obj", idType}});
+		}
+
 		return std::pair<Ref<Symbol>, Ref<Type>>(
 			new Symbol(type, shortName, fullName, rawName, addr, binding, nameSpace), typeRef);
 	};
