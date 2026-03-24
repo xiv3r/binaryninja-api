@@ -107,7 +107,7 @@ fn process_instruction(
     };
 
     let mut function_changed = false;
-    if adjust_call_type::process_call(bv, func, insn, &selector, message_send_type).is_ok() {
+    if adjust_call_type::process_call(bv, func, ssa, insn, &selector, message_send_type).is_ok() {
         function_changed = true;
     }
 
@@ -166,7 +166,7 @@ fn selector_from_call(
         return None;
     };
 
-    let raw_selector = ssa.get_ssa_register_value(&reg.source_reg())?.value as u64;
+    let raw_selector = ssa.get_ssa_register_value(reg.source_reg())?.value as u64;
     if raw_selector == 0 {
         return None;
     }

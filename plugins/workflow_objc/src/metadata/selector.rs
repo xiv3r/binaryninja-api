@@ -23,6 +23,19 @@ impl Selector {
         Ok(Selector { name, addr })
     }
 
+    /// Returns true if this selector belongs to the `init` method family.
+    ///
+    /// Per the ObjC ARC spec, a selector is in the init family if it starts with
+    /// "init" and the next character is either uppercase or absent (e.g. `init`,
+    /// `initWithFrame:`, but NOT `initialize` or `initials`).
+    pub fn is_init_family(&self) -> bool {
+        if let Some(rest) = self.name.strip_prefix("init") {
+            rest.is_empty() || rest.starts_with(|c: char| c.is_ascii_uppercase() || c == ':')
+        } else {
+            false
+        }
+    }
+
     pub fn argument_labels(&self) -> Vec<String> {
         if !self.name.contains(':') {
             return vec![];

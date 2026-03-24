@@ -39,8 +39,7 @@ fn return_type_for_super_init(call: &util::Call, view: &BinaryView) -> Option<Re
         util::match_constant_pointer_or_load_of_constant_pointer(&call.call.params[1])?;
     let selector = Selector::from_address(view, selector_addr).ok()?;
 
-    // TODO: This will match `initialize` and `initiate` which are not init methods.
-    if !selector.name.starts_with("init") {
+    if !selector.is_init_family() {
         return None;
     }
 
