@@ -1365,6 +1365,7 @@ BinaryView::BinaryView(const std::string& typeName, FileMetadata* file, BinaryVi
 	view.isRelocatable = IsRelocatableCallback;
 	view.getAddressSize = GetAddressSizeCallback;
 	view.save = SaveCallback;
+	view.onAfterSnapshotDataApplied = OnAfterSnapshotDataAppliedCallback;
 	m_file = file;
 	AddRefForRegistration();
 	m_object = BNCreateCustomBinaryView(
@@ -1385,6 +1386,13 @@ bool BinaryView::InitCallback(void* ctxt)
 {
 	CallbackRef<BinaryView> view(ctxt);
 	return view->Init();
+}
+
+
+void BinaryView::OnAfterSnapshotDataAppliedCallback(void* ctxt)
+{
+	CallbackRef<BinaryView> view(ctxt);
+	view->OnAfterSnapshotDataApplied();
 }
 
 

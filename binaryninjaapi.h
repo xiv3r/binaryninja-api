@@ -5773,6 +5773,15 @@ namespace BinaryNinja {
 		void PerformDefineRelocation(Architecture* arch, BNRelocationInfo& info, uint64_t target, uint64_t reloc);
 		void PerformDefineRelocation(Architecture* arch, BNRelocationInfo& info, Ref<Symbol> sym, uint64_t reloc);
 
+		/*! OnAfterSnapshotDataApplied is called when loading a view from a database, after snapshot data has been applied to it.
+		
+		    \note This method **may** be overridden by custom BinaryViews.
+
+			\warning This method **must not** be called directly.
+
+		*/
+		virtual void OnAfterSnapshotDataApplied() {}
+
 	  public:
 		void NotifyDataWritten(uint64_t offset, size_t len);
 		void NotifyDataInserted(uint64_t offset, size_t len);
@@ -5780,6 +5789,7 @@ namespace BinaryNinja {
 
 	  private:
 		static bool InitCallback(void* ctxt);
+		static void OnAfterSnapshotDataAppliedCallback(void* ctxt);
 		static void FreeCallback(void* ctxt);
 		static size_t ReadCallback(void* ctxt, void* dest, uint64_t offset, size_t len);
 		static size_t WriteCallback(void* ctxt, uint64_t offset, const void* src, size_t len);

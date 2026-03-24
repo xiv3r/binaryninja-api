@@ -460,6 +460,7 @@ pub unsafe trait CustomBinaryView: 'static + BinaryViewBase + Sync + Sized {
 
     fn new(handle: &BinaryView, args: &Self::Args) -> Result<Self>;
     fn init(&mut self, args: Self::Args) -> Result<()>;
+    fn on_after_snapshot_data_applied(&mut self) {}
 }
 
 /// Represents a partially initialized custom `BinaryView` that should be returned to the core
@@ -596,6 +597,18 @@ impl<'a, T: CustomBinaryViewType> CustomViewBuilder<'a, T> {
                         tracing::error!("CustomBinaryView::new failed; custom view returned Err");
                         false
                     }
+                }
+            })
+        }
+
+        extern "C" fn cb_on_after_snapshot_data_applied<V>(ctxt: *mut c_void)
+        where
+            V: CustomBinaryView,
+        {
+            ffi_wrap!("BinaryViewBase::onAfterSnapshotDataApplied", unsafe {
+                let context = &mut *(ctxt as *mut CustomViewContext<V>);
+                if let CustomViewContextState::Initialized { view } = &mut context.state {
+                    view.on_after_snapshot_data_applied();
                 }
             })
         }
@@ -890,6 +903,7 @@ impl<'a, T: CustomBinaryViewType> CustomViewBuilder<'a, T> {
             isRelocatable: Some(cb_relocatable::<V>),
             getAddressSize: Some(cb_address_size::<V>),
             save: Some(cb_save::<V>),
+            onAfterSnapshotDataApplied: Some(cb_on_after_snapshot_data_applied::<V>),
         };
 
         let view_name = view_name.to_cstr();
