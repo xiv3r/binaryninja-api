@@ -21,13 +21,16 @@ Importing IDA IDB (`.idb`) and TIL (`.til`) files into Binary Ninja allows you t
 
 There are two ways through the UI to import IDB and TIL files:
 
-1. Prior to opening the binary, selecting _Open with Options_, allows you to set the IDB file you want to import with the _External Debug Info File_ setting (`analysis.debugInfo.external`).
-2. After opening a binary, selecting _Import Debug Info from External File_ (`Analysis\\Import Debug Info from External File...`) allows you to apply IDB/TIL files after analysis has already started.
+1. Prior to opening the binary, selecting _Open with Options_, allows you to set the IDB file you want to import with the _IDB File_ setting (`analysis.idb.autoLoadFile`).
+2. After opening a binary, selecting _Load IDB File_ (`Plugins\\Load IDB File`) allows you to apply IDB/TIL files after analysis has already started.
 
 The following data will be imported:
 
 - Function information (name, comments, function type)
 - Type information
+- Section information
+- Data variables
+- Symbols
 
 ## Keybindings
 
