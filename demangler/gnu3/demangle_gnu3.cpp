@@ -226,17 +226,47 @@ static BNNameType GetNameType(char elm1, char elm2)
 	}
 }
 
-static int8_t HexToDec(char c)
+
+
+
+// Decode a big-endian hex string into a float or double.
+// Returns the decimal string representation, or the raw hex with a type
+// prefix if decoding fails or the result is NaN/Inf.
+static string DecodeHexFloat(const string& hex, size_t byteCount)
 {
-	if (isdigit(c))
+	if (hex.size() != byteCount * 2)
+		return hex;
+
+	// Parse big-endian hex into an integer, then reinterpret as float/double
+	uint64_t bits = 0;
+	for (size_t i = 0; i < hex.size(); i++)
 	{
-		return c - '0';
+		char c = hex[i];
+		uint64_t nibble;
+		if (c >= '0' && c <= '9')      nibble = c - '0';
+		else if (c >= 'a' && c <= 'f') nibble = c - 'a' + 10;
+		else if (c >= 'A' && c <= 'F') nibble = c - 'A' + 10;
+		else return hex;
+		bits = (bits << 4) | nibble;
 	}
-	else if(islower(c) && c <= 'f')
+
+	if (byteCount == 4)
 	{
-		return c - 'a' + 10;
+		union { uint32_t i; float f; } u;
+		u.i = (uint32_t)bits;
+		if (std::isnan(u.f) || std::isinf(u.f))
+			return "(float)" + hex;
+		return to_string(u.f);
 	}
-	return -1;
+	else if (byteCount == 8)
+	{
+		union { uint64_t i; double d; } u;
+		u.i = bits;
+		if (std::isnan(u.d) || std::isinf(u.d))
+			return "(double)" + hex;
+		return to_string(u.d);
+	}
+	return hex;
 }
 
 
@@ -994,8 +1024,6 @@ string DemangleGNU3::DemanglePrimaryExpression()
 	char elm1 = '\0';
 	string out;
 	QualifiedName tmpList;
-	string valueString;
-	float f; double d; long double ld;
 	bool oldTopLevel;
 	//expr-primary
 	if (m_reader.PeekString(2) == "_Z")
@@ -1042,41 +1070,17 @@ string DemangleGNU3::DemanglePrimaryExpression()
 		else
 			throw DemangleException();
 		break;
-	case 'd': //double
-		valueString = m_reader.ReadString(8);
-
-		for (size_t i = 0; i < valueString.size(); i+=2)
-		{
-			((unsigned char*)&d)[i/2] = (HexToDec(valueString[i]) << 16) + HexToDec(valueString[i+1]);
-		}
-		out += to_string(d);
+	case 'd': //double (16 hex chars = 8 bytes)
+		out += DecodeHexFloat(m_reader.ReadString(16), 8);
 		break;
-	case 'e': //long double
-		valueString = m_reader.ReadString(10);
-
-		for (size_t i = 0; i < valueString.size(); i+=2)
-		{
-			((unsigned char*)&ld)[i/2] = (HexToDec(valueString[i]) << 16) + HexToDec(valueString[i+1]);
-		}
-		out += to_string(ld);
+	case 'e': //long double (20 hex chars = 10 bytes, platform-dependent layout)
+		out += "(long double)" + m_reader.ReadString(20);
 		break;
-	case 'f': //float
-		valueString = m_reader.ReadString(4);
-
-		for (size_t i = 0; i < valueString.size(); i+=2)
-		{
-			((unsigned char*)&f)[i/2] = (HexToDec(valueString[i]) << 16) + HexToDec(valueString[i+1]);
-		}
-		out += to_string(f);
+	case 'f': //float (8 hex chars = 4 bytes)
+		out += DecodeHexFloat(m_reader.ReadString(8), 4);
 		break;
-	case 'g': //float_128
-		valueString = m_reader.ReadString(16); //We read 16 but then just throw away
-
-		for (size_t i = 0; i < 10; i+=2)
-		{
-			((unsigned char*)&ld)[i/2] = (HexToDec(valueString[i]) << 16) + HexToDec(valueString[i+1]);
-		}
-		out += to_string(ld);
+	case 'g': //float_128 (32 hex chars = 16 bytes)
+		out += "(__float128)" + m_reader.ReadString(32);
 		break;
 	case 'l': out = DemangleNumberAsString() + "l"; break;  //long
 	case 'x': out = DemangleNumberAsString() + "ll"; break;  //long long
