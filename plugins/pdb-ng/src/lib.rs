@@ -495,12 +495,12 @@ impl PDBParser {
 
                 match ask.as_str() {
                     "true" => {},
-                    "ask" => {
+                    "ask" if binaryninja::is_ui_enabled() => {
                         if interaction::show_message_box(
                             "No PDB Information",
                             "This file does not look like it was compiled with a PDB, so your PDB might not correctly apply to the analysis. Do you want to load it anyway?",
                             MessageBoxButtonSet::YesNoButtonSet,
-                            binaryninja::interaction::MessageBoxIcon::QuestionIcon
+                            interaction::MessageBoxIcon::QuestionIcon
                         ) == MessageBoxButtonResult::NoButton {
                             return Err(anyhow!("User cancelled missing info load"));
                         }
