@@ -5221,7 +5221,7 @@ class BinaryView:
 		"""
 		if length is None:
 			return [ModificationStatus(core.BNGetModification(self.handle, addr))]
-		data = (ctypes.c_int * length)()
+		data = (ctypes.c_ubyte * length)()
 		length = core.BNGetModificationArray(self.handle, addr, data, length)
 		return [ModificationStatus(a) for a in data[:length]]
 
