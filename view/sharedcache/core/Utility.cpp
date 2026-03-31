@@ -39,6 +39,9 @@ int64_t readSLEB128(const uint8_t*& current, const uint8_t* end)
 
 uint64_t readLEB128(const uint8_t*& current, const uint8_t* end)
 {
+	if (current == nullptr)
+		return -1;
+
 	uint64_t result = 0;
 	int bit = 0;
 	do
