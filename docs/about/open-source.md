@@ -43,6 +43,7 @@ The previous tools are used in the generation of our documentation, but are not 
     - [JSON for Modern C++] ([JSON for Modern C++ license] - MIT)
     - [zstd] ([zstd license] - BSD)
     - [openssl] ([openssl license] - Apache 2.0)
+    - [sentry-native] ([sentry-native license] - MIT)
 
 * Other
     - [yasm] ([yasm license] - 2-clause BSD) used for assembling x86 and x64
@@ -196,3 +197,5 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [Ghidra DB FFI license]: https://github.com/Vector35/ghidra-db-ffi/blob/main/LICENSE
 [GraalVM CE]: https://github.com/oracle/graal/
 [GraalVM CE license]: https://github.com/oracle/graal/blob/master/LICENSE
+[sentry-native]: https://github.com/getsentry/sentry-native
+[sentry-native license]: https://github.com/getsentry/sentry-native/blob/master/LICENSE
