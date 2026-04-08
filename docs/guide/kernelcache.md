@@ -7,16 +7,13 @@ Our support for `kernelcache` is largely open source. The supporting code can be
 
 ## Support Matrix
 
-List of supported features for the given `kernelcache` targets:
+Kernel caches from these platforms, architectures, and OS versions can be loaded:
 
-| Platform | Arch   | Versions | Features                    |
-|----------|--------|----------|-----------------------------|
-| macOS    | x86_64 | 11 - 26  | Core, Objective-C           |
-| macOS    | arm64  | 11 - 26  | Core, Objective-C           |
-| iOS      | arm64  | 14 - 26  | Core, Objective-C           |
-
-- **Core**: Core functionality, such as loading, navigating, and analyzing `kernelcache` files.
-- **Objective-C**: Support for analyzing Objective-C information and symbols within the `kernelcache`.
+| Platform | Arch   | Versions |
+|----------|--------|----------|
+| macOS    | x86_64 | 11 - 27  |
+| macOS    | arm64  | 11 - 27  |
+| iOS      | arm64  | 16 - 27  |
 
 ???+ Note "Note"
     This plugin currently only supports `kernelcache` files in the `MH_FILESET` format.
