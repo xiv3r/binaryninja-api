@@ -483,7 +483,7 @@ FunctionLifterContext::FunctionLifterContext(LowLevelILFunction* func, BNFunctio
 	m_blocks.reserve(context->basicBlockCount);
 	for (size_t i = 0; i < context->basicBlockCount; i++)
 	{
-		m_blocks.emplace_back(new BasicBlock(context->basicBlocks[i]));
+		m_blocks.emplace_back(new BasicBlock(BNNewBasicBlockReference(context->basicBlocks[i])));
 	}
 
 	for (size_t i = 0; i < context->noReturnCallsCount; i++)
