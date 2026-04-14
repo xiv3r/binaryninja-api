@@ -878,16 +878,16 @@ void Remote::PullGroups(ProgressFunction progress)
 }
 
 
-Ref<CollabGroup> Remote::CreateGroup(const std::string& name, const std::vector<std::string>& usernames)
+Ref<CollabGroup> Remote::CreateGroup(const std::string& name, const std::vector<Ref<CollabUser>>& users)
 {
-	const char** cstrNames = new const char*[usernames.size()];
-	for (size_t i = 0; i < usernames.size(); i++)
+	BNCollaborationUser** cUsers = new BNCollaborationUser*[users.size()];
+	for (size_t i = 0; i < users.size(); i++)
 	{
-		cstrNames[i] = usernames[i].c_str();
+		cUsers[i] = users[i]->m_object;
 	}
 
-	BNCollaborationGroup* group = BNRemoteCreateGroup(m_object, name.c_str(), cstrNames, usernames.size());
-	delete[] cstrNames;
+	BNCollaborationGroup* group = BNRemoteCreateGroup(m_object, name.c_str(), cUsers, users.size());
+	delete[] cUsers;
 	if (!group)
 		return nullptr;
 	return new CollabGroup(group);
@@ -1076,22 +1076,38 @@ void CollabGroup::SetName(const std::string& name)
 }
 
 
-void CollabGroup::SetUsernames(const std::vector<std::string>& usernames)
+std::vector<Ref<CollabUser>> CollabGroup::GetUsers()
 {
-	const char** cNames = new const char*[usernames.size()];
-	for (size_t i = 0; i < usernames.size(); i++)
+	size_t count = 0;
+	BNCollaborationUser** users = BNCollaborationGroupGetUsers(m_object, &count);
+	std::vector<Ref<CollabUser>> out;
+	out.reserve(count);
+	for (size_t i = 0; i < count; i++)
 	{
-		cNames[i] = usernames[i].c_str();
+		out.push_back(new CollabUser(BNNewCollaborationUserReference(users[i])));
 	}
-
-	BNCollaborationGroupSetUsernames(m_object, cNames, usernames.size());
-	delete[] cNames;
+	BNFreeCollaborationUserList(users, count);
+	return out;
 }
 
 
-bool CollabGroup::ContainsUser(const std::string& username)
+void CollabGroup::SetUsers(const std::vector<Ref<CollabUser>>& users)
 {
-	return BNCollaborationGroupContainsUser(m_object, username.c_str());
+	size_t count = users.size();
+	BNCollaborationUser** cUsers = new BNCollaborationUser*[count];
+	for (size_t i = 0; i < count; i++)
+	{
+		cUsers[i] = users[i]->m_object;
+	}
+
+	BNCollaborationGroupSetUsers(m_object, cUsers, count);
+	delete[] cUsers;
+}
+
+
+bool CollabGroup::ContainsUser(Ref<CollabUser> user)
+{
+	return BNCollaborationGroupContainsUser(m_object, user->m_object);
 }
 
 
@@ -1566,21 +1582,21 @@ void RemoteProject::DeletePermission(Ref<CollabPermission> permission)
 }
 
 
-bool RemoteProject::CanUserView(const std::string& username)
+bool RemoteProject::CanUserView(Ref<CollabUser> user)
 {
-	return BNRemoteProjectCanUserView(m_object, username.c_str());
+	return BNRemoteProjectCanUserView(m_object, user->m_object);
 }
 
 
-bool RemoteProject::CanUserEdit(const std::string& username)
+bool RemoteProject::CanUserEdit(Ref<CollabUser> user)
 {
-	return BNRemoteProjectCanUserEdit(m_object, username.c_str());
+	return BNRemoteProjectCanUserEdit(m_object, user->m_object);
 }
 
 
-bool RemoteProject::CanUserAdmin(const std::string& username)
+bool RemoteProject::CanUserAdmin(Ref<CollabUser> user)
 {
-	return BNRemoteProjectCanUserAdmin(m_object, username.c_str());
+	return BNRemoteProjectCanUserAdmin(m_object, user->m_object);
 }
 
 

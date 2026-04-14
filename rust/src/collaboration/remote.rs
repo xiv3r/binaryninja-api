@@ -515,21 +515,20 @@ impl Remote {
     /// # Arguments
     ///
     /// * `name` - Group name
-    /// * `usernames` - List of usernames of users in the group
-    pub fn create_group<I>(&self, name: &str, usernames: I) -> Result<Ref<RemoteGroup>, ()>
+    /// * `users` - List of users in the group
+    pub fn create_group<I>(&self, name: &str, users: I) -> Result<Ref<RemoteGroup>, ()>
     where
-        I: IntoIterator<Item = String>,
+        I: IntoIterator<Item = Ref<RemoteUser>>,
     {
         let name = name.to_cstr();
-        let usernames: Vec<_> = usernames.into_iter().map(|s| s.to_cstr()).collect();
-        let mut username_ptrs: Vec<_> = usernames.iter().map(|s| s.as_ptr()).collect();
+        let mut user_ptrs: Vec<_> = users.into_iter().map(|s| s.handle.as_ptr()).collect();
 
         let value = unsafe {
             BNRemoteCreateGroup(
                 self.handle.as_ptr(),
                 name.as_ptr(),
-                username_ptrs.as_mut_ptr(),
-                username_ptrs.len(),
+                user_ptrs.as_mut_ptr(),
+                user_ptrs.len(),
             )
         };
         NonNull::new(value)

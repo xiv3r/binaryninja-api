@@ -5780,7 +5780,7 @@ namespace BinaryNinja {
 		void PerformDefineRelocation(Architecture* arch, BNRelocationInfo& info, Ref<Symbol> sym, uint64_t reloc);
 
 		/*! OnAfterSnapshotDataApplied is called when loading a view from a database, after snapshot data has been applied to it.
-		
+
 		    \note This method **may** be overridden by custom BinaryViews.
 
 			\warning This method **must not** be called directly.
@@ -22511,9 +22511,9 @@ namespace BinaryNinja::Collaboration
 		uint64_t GetId();
 		std::string GetName();
 		void SetName(const std::string& name);
-		void SetUsernames(const std::vector<std::string>& usernames);
-		bool ContainsUser(const std::string& username);
-
+		std::vector<Ref<CollabUser>> GetUsers();
+		void SetUsers(const std::vector<Ref<CollabUser>>& users);
+		bool ContainsUser(Ref<CollabUser> user);
 	};
 
 	/*!
@@ -22694,10 +22694,11 @@ namespace BinaryNinja::Collaboration
 		/*!
 			Create a new group on the remote (and pull it)
 			\param name Group name
+			\param users List of users in group
 			\return Reference to the created group
 			\throws RemoteException If there is an error in any request or if the remote is not connected
 		*/
-		Ref<CollabGroup> CreateGroup(const std::string& name, const std::vector<std::string>& usernames);
+		Ref<CollabGroup> CreateGroup(const std::string& name, const std::vector<Ref<CollabUser>>& users = {});
 
 
 		/*!
@@ -23145,9 +23146,9 @@ namespace BinaryNinja::Collaboration
 		Ref<CollabPermission> CreateUserPermission(const std::string& userId, BNCollaborationPermissionLevel level, ProgressFunction progress = {});
 		void PushPermission(Ref<CollabPermission> permission, const std::vector<std::pair<std::string, std::string>>& extraFields = {});
 		void DeletePermission(Ref<CollabPermission> permission);
-		bool CanUserView(const std::string& username);
-		bool CanUserEdit(const std::string& username);
-		bool CanUserAdmin(const std::string& username);
+		bool CanUserView(Ref<CollabUser> user);
+		bool CanUserEdit(Ref<CollabUser> user);
+		bool CanUserAdmin(Ref<CollabUser> user);
 	};
 
 	class AnalysisMergeConflict : public CoreRefCountObject<BNAnalysisMergeConflict, BNNewAnalysisMergeConflictReference, BNFreeAnalysisMergeConflict>

@@ -12,6 +12,7 @@ use super::{
 };
 
 use crate::binary_view::{BinaryView, BinaryViewExt};
+use crate::collaboration::RemoteUser;
 use crate::database::Database;
 use crate::file_metadata::FileMetadata;
 use crate::progress::{NoProgressCallback, ProgressCallback};
@@ -761,34 +762,31 @@ impl RemoteProject {
         success.then_some(()).ok_or(())
     }
 
-    /// Determine if a user is in any of the view/edit/admin groups.
+    /// Determine if a user has view permission (either directly or from a group)
     ///
     /// # Arguments
     ///
-    /// * `username` - Username of user to check
-    pub fn can_user_view(&self, username: &str) -> bool {
-        let username = username.to_cstr();
-        unsafe { BNRemoteProjectCanUserView(self.handle.as_ptr(), username.as_ptr()) }
+    /// * `user` - User to check
+    pub fn can_user_view(&self, user: Ref<RemoteUser>) -> bool {
+        unsafe { BNRemoteProjectCanUserView(self.handle.as_ptr(), user.handle.as_ptr()) }
     }
 
-    /// Determine if a user is in any of the edit/admin groups.
+    /// Determine if a user has edit permission (either directly or from a group)
     ///
     /// # Arguments
     ///
-    /// * `username` - Username of user to check
-    pub fn can_user_edit(&self, username: &str) -> bool {
-        let username = username.to_cstr();
-        unsafe { BNRemoteProjectCanUserEdit(self.handle.as_ptr(), username.as_ptr()) }
+    /// * `user` - User to check
+    pub fn can_user_edit(&self, user: Ref<RemoteUser>) -> bool {
+        unsafe { BNRemoteProjectCanUserEdit(self.handle.as_ptr(), user.handle.as_ptr()) }
     }
 
-    /// Determine if a user is in the admin group.
+    /// Determine if a user has admin permission (either directly or from a group)
     ///
     /// # Arguments
     ///
-    /// * `username` - Username of user to check
-    pub fn can_user_admin(&self, username: &str) -> bool {
-        let username = username.to_cstr();
-        unsafe { BNRemoteProjectCanUserAdmin(self.handle.as_ptr(), username.as_ptr()) }
+    /// * `user` - User to check
+    pub fn can_user_admin(&self, user: Ref<RemoteUser>) -> bool {
+        unsafe { BNRemoteProjectCanUserAdmin(self.handle.as_ptr(), user.handle.as_ptr()) }
     }
 
     /// Get the default directory path for a remote Project. This is based off
