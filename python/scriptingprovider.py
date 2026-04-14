@@ -152,6 +152,8 @@ class ScriptingInstance:
 			self._cb.setCurrentAddress = self._cb.setCurrentAddress.__class__(self._set_current_address)
 			self._cb.setCurrentSelection = self._cb.setCurrentSelection.__class__(self._set_current_selection)
 			self._cb.completeInput = self._cb.completeInput.__class__(self._complete_input)
+			self._cb.canCompleteArguments = self._cb.canCompleteArguments.__class__(self._can_complete_arguments)
+			self._cb.completeArguments = self._cb.completeArguments.__class__(self._complete_arguments)
 			self._cb.stop = self._cb.stop.__class__(self._stop)
 			self._completed_input = None
 			self.handle = core.BNInitScriptingInstance(provider.handle, self._cb)
@@ -264,6 +266,29 @@ class ScriptingInstance:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._complete_input")
 			return core.BNAllocString("")
 
+	def _can_complete_arguments(self, ctx, text):
+		try:
+			if not isinstance(text, str):
+				text = text.decode("utf-8")
+			return self.perform_can_complete_arguments(text)
+		except Exception:
+			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._can_complete_arguments")
+			return False
+
+	def _complete_arguments(self, ctx, text, argument_start):
+		try:
+			if not isinstance(text, str):
+				text = text.decode("utf-8")
+			result, start = self.perform_complete_arguments(text)
+			argument_start[0] = start
+			if result is None:
+				return None
+			return core.BNAllocString(result)
+		except Exception:
+			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._complete_arguments")
+			argument_start[0] = 0
+			return None
+
 	def _stop(self, ctxt):
 		try:
 			self.perform_stop()
@@ -304,6 +329,14 @@ class ScriptingInstance:
 
 	@abc.abstractmethod
 	def perform_complete_input(self, text: str, state) -> str:
+		return NotImplemented
+
+	@abc.abstractmethod
+	def perform_can_complete_arguments(self, text: str) -> bool:
+		return NotImplemented
+
+	@abc.abstractmethod
+	def perform_complete_arguments(self, text: str) -> Tuple[Optional[str], int]:
 		return NotImplemented
 
 	@abc.abstractmethod
@@ -359,6 +392,14 @@ class ScriptingInstance:
 
 	def complete_input(self, text, state):
 		return core.BNScriptingInstanceCompleteInput(self.handle, text, state)
+
+	def can_complete_arguments(self, text):
+		return core.BNScriptingInstanceCanCompleteArguments(self.handle, text)
+
+	def complete_arguments(self, text):
+		argument_start = ctypes.c_ulonglong()
+		result = core.BNScriptingInstanceCompleteArguments(self.handle, text, argument_start)
+		return result, argument_start.value
 
 	def stop(self):
 		core.BNStopScriptingInstance(self.handle)
@@ -1039,6 +1080,24 @@ from binaryninja import *
 			return ""
 		return result
 
+	@abc.abstractmethod
+	def perform_can_complete_arguments(self, text: str) -> bool:
+		try:
+			self.interpreter.update_locals()
+		except Exception:
+			traceback.print_exc()
+		return self.interpreter.completer.can_complete_arguments(text)
+
+	@abc.abstractmethod
+	def perform_complete_arguments(self, text: str) -> Tuple[Optional[str], int]:
+		try:
+			self.interpreter.update_locals()
+		except Exception:
+			traceback.print_exc()
+		result = self.interpreter.completer.complete_arguments(text)
+		if result[0] is None:
+			return None, 0
+		return result
 
 class PythonScriptingProvider(ScriptingProvider):
 	name = "Python"

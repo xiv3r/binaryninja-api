@@ -18938,6 +18938,8 @@ namespace BinaryNinja {
 		static void SetCurrentSelectionCallback(void* ctxt, uint64_t begin, uint64_t end);
 		static char* CompleteInputCallback(void* ctxt, const char* text, uint64_t state);
 		static void StopCallback(void* ctxt);
+		static bool CanCompleteArgumentsCallback(void* ctxt, const char* text);
+		static char* CompleteArgumentsCallback(void* ctx, const char* text, uint64_t* argumentStart);
 
 		virtual void DestroyInstance();
 
@@ -18953,6 +18955,8 @@ namespace BinaryNinja {
 		virtual void SetCurrentSelection(uint64_t begin, uint64_t end);
 		virtual std::string CompleteInput(const std::string& text, uint64_t state);
 		virtual void Stop();
+		virtual bool CanCompleteArguments(const std::string& text);
+		virtual std::pair<std::string, uint64_t> CompleteArguments(const std::string& text);
 
 		void Output(const std::string& text);
 		void Warning(const std::string& text);
@@ -18987,6 +18991,8 @@ namespace BinaryNinja {
 		virtual void SetCurrentSelection(uint64_t begin, uint64_t end) override;
 		virtual std::string CompleteInput(const std::string& text, uint64_t state) override;
 		virtual void Stop() override;
+		virtual bool CanCompleteArguments(const std::string& text) override;
+		virtual std::pair<std::string, uint64_t> CompleteArguments(const std::string& text) override;
 	};
 
 	/*!

@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 167
+#define BN_CURRENT_CORE_ABI_VERSION 168
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 166
+#define BN_MINIMUM_CORE_ABI_VERSION 168
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -3122,6 +3122,8 @@ extern "C"
 		void (*setCurrentSelection)(void* ctxt, uint64_t begin, uint64_t end);
 		char* (*completeInput)(void* ctxt, const char* text, uint64_t state);
 		void (*stop)(void* ctxt);
+		bool (*canCompleteArguments)(void* ctx, const char* text);
+		char* (*completeArguments)(void* ctxt, const char* text, uint64_t* argumentStart);
 	} BNScriptingInstanceCallbacks;
 
 	typedef struct BNScriptingProviderCallbacks
@@ -7841,6 +7843,8 @@ extern "C"
 	    BNScriptingInstance* instance, uint64_t begin, uint64_t end);
 	BINARYNINJACOREAPI char* BNScriptingInstanceCompleteInput(
 	    BNScriptingInstance* instance, const char* text, uint64_t state);
+	BINARYNINJACOREAPI bool BNScriptingInstanceCanCompleteArguments(BNScriptingInstance* instance, const char* text);
+	BINARYNINJACOREAPI char* BNScriptingInstanceCompleteArguments(BNScriptingInstance* instance, const char* text, uint64_t* argumentStart);
 	BINARYNINJACOREAPI void BNStopScriptingInstance(BNScriptingInstance* instance);
 	BINARYNINJACOREAPI size_t BNFuzzyMatchSingle(const char* target, const char* query);
 
