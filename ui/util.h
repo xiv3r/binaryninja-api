@@ -30,6 +30,18 @@ std::optional<BinaryNinja::PossibleValueSet> BINARYNINJAUIAPI getPossibleValueSe
 std::optional<BinaryNinja::PossibleValueSet> BINARYNINJAUIAPI getPossibleValueSetForILToken(View* view, HighlightTokenState token);
 std::optional<uint64_t> BINARYNINJAUIAPI getAddressOfILTokenExpr(View* view, HighlightTokenState token);
 
+// Resolve the address of the call instruction that the user is currently on,
+// given the active function, architecture, IL view, highlight, and cursor
+// position. This is the address of the calling instruction itself, not the
+// call target.
+std::optional<uint64_t> BINARYNINJAUIAPI getCallInstructionAddress(
+    FunctionRef function,
+    ArchitectureRef arch,
+    BNFunctionGraphType viewType,
+    const HighlightTokenState& highlight,
+    uint64_t cursorAddress,
+    size_t cursorInstrIndex);
+
 template <typename T>
 std::optional<T> visitILInstructionForToken(View* view, const HighlightTokenState& token,
 		const std::function<std::optional<T>(BinaryNinja::LowLevelILInstruction&)>& llil,
