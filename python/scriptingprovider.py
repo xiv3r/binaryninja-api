@@ -53,6 +53,7 @@ from .pluginmanager import RepositoryManager
 from .enums import ScriptingProviderExecuteResult, ScriptingProviderInputReadyState
 from .settings import Settings
 from .enums import SettingsScope
+import json
 
 _WARNING_REGEX = re.compile(r'^\S+:\d+: \w+Warning: ')
 
@@ -1086,12 +1087,8 @@ class PythonScriptingProvider(ScriptingProvider):
 			plugin = repo[module]
 
 			if not force and self.apiName not in plugin.api:
-				raise ValueError(f"Plugin API name is not {self.name}")
+				raise ValueError(f"Plugin '{plugin.name}' API name '{plugin.api}' is not {self.name}")
 
-			if not force and core.core_platform not in plugin.install_platforms:
-				raise ValueError(
-				    f"Current platform {core.core_platform} isn't in list of valid platforms for this plugin {plugin.install_platforms}"
-				)
 			if not plugin.installed:
 				plugin.installed = True
 
@@ -1218,8 +1215,13 @@ class PythonScriptingProvider(ScriptingProvider):
 
 	def _install_modules(self, ctx, _modules: bytes) -> bool:
 		# This callback should not be called directly
-		modules = _modules.decode("utf-8")
-		if len(modules.strip()) == 0:
+		dependencies_json = json.loads(_modules.decode("utf-8"))
+		modules = ""
+		if "pip" in dependencies_json:
+			if len(dependencies_json["pip"].strip()) == 0:
+				return True
+			modules = [line.split('#', 1)[0].strip() for line in dependencies_json["pip"].split('\n') if line.split('#', 1)[0].strip()]
+		if len(modules) == 0:
 			return True
 		python_lib = settings.Settings().get_string("python.interpreter")
 		python_bin_override = settings.Settings().get_string("python.binaryOverride")
@@ -1267,7 +1269,7 @@ class PythonScriptingProvider(ScriptingProvider):
 			) / f"python{sys.version_info.major}{sys.version_info.minor}" / "site-packages"
 			site_package_dir.mkdir(parents=True, exist_ok=True)
 			args.extend(["--target", str(site_package_dir)])
-		args.extend(list(filter(len, modules.split("\n"))))
+		args.extend(list(filter(len, modules)))
 		logger.log_info(f"Running pip {args}")
 		status, result = self._run_args(args, env=python_env)
 		if status:

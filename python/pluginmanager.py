@@ -29,9 +29,9 @@ from . import deprecation
 from .enums import PluginType
 
 
-class RepoPlugin:
+class Extension:
 	"""
-	``RepoPlugin`` is mostly read-only, however you can install/uninstall enable/disable plugins. RepoPlugins are
+	``Extension`` is mostly read-only, however you can install/uninstall enable/disable plugins. Extensions are
 	created by parsing the plugins.json in a plugin repository.
 	"""
 	def __init__(self, handle: 'core.BNRepoPluginHandle'):
@@ -70,10 +70,10 @@ class RepoPlugin:
 		"""Boolean True if the plugin is installed, False otherwise"""
 		return core.BNPluginIsInstalled(self.handle)
 
-	def install(self) -> bool:
+	def install(self, version_id=None) -> bool:
 		"""Attempt to install the given plugin"""
 		self.install_dependencies()
-		return core.BNPluginInstall(self.handle)
+		return core.BNPluginInstall(self.handle, version_id)
 
 	def uninstall(self) -> bool:
 		"""Attempt to uninstall the given plugin"""
@@ -83,7 +83,7 @@ class RepoPlugin:
 	def installed(self, state: bool):
 		if state:
 			self.install_dependencies()
-			core.BNPluginInstall(self.handle)
+			core.BNPluginInstall(self.handle, None)
 		else:
 			core.BNPluginUninstall(self.handle)
 
@@ -126,14 +126,16 @@ class RepoPlugin:
 			core.BNFreePluginPlatforms(platforms, count.value)
 
 	@property
+	@deprecation.deprecated(deprecated_in="5.3", details='Use :py:attr:`current_version` in combination with :py:attr:`versions` instead.')
 	def description(self) -> Optional[str]:
 		"""String short description of the plugin"""
 		return core.BNPluginGetDescription(self.handle)
 
 	@property
+	@deprecation.deprecated(deprecated_in="5.3", details='This field will be removed.')
 	def license_text(self) -> Optional[str]:
 		"""String complete license text for the given plugin"""
-		return core.BNPluginGetLicenseText(self.handle)
+		return ''
 
 	@property
 	def long_description(self) -> Optional[str]:
@@ -185,6 +187,7 @@ class RepoPlugin:
 		return core.BNPluginGetProjectUrl(self.handle)
 
 	@property
+	@deprecation.deprecated(deprecated_in="5.3", details='Use :py:attr:`current_version` in combination with :py:attr:`versions` instead.')
 	def package_url(self) -> Optional[str]:
 		"""String URL of the plugin's zip file"""
 		return core.BNPluginGetPackageUrl(self.handle)
@@ -200,9 +203,17 @@ class RepoPlugin:
 		return core.BNPluginGetAuthor(self.handle)
 
 	@property
+	@deprecation.deprecated(deprecated_in="5.3", details='Use :py:attr:`current_version` in combination with :py:attr:`versions` instead.')
 	def version(self) -> Optional[str]:
 		"""String version of the plugin"""
-		return core.BNPluginGetVersion(self.handle)
+		version: core.BNPluginVersion = core.BNPluginGetCurrentVersion(self.handle)
+		try:
+			version_string = version.versionString
+		except AttributeError:
+			version_string = ""
+		finally:
+			core.BNPluginFreeVersion(version)
+		return version_string
 
 	@property
 	def install_platforms(self) -> List[str]:
@@ -259,6 +270,7 @@ class RepoPlugin:
 		return core.BNPluginAreDependenciesBeingInstalled(self.handle)
 
 	@property
+	@deprecation.deprecated(deprecated_in="5.3", details='This field will be removed.')
 	def project_data(self) -> Dict:
 		"""Gets a json object of the project data field"""
 		data = core.BNPluginGetProjectData(self.handle)
@@ -266,9 +278,16 @@ class RepoPlugin:
 		return json.loads(data)
 
 	@property
+	@deprecation.deprecated(deprecated_in="5.3", details='Use :py:attr:`versions` in combination with :py:attr:`current_version` to check for updates instead.')
 	def last_update(self) -> date:
 		"""Returns a datetime object representing the plugins last update"""
 		return datetime.fromtimestamp(core.BNPluginGetLastUpdate(self.handle))
+
+
+@deprecation.deprecated(deprecated_in="5.3", details='Use :py:class:`binaryninja.Extension` instead.')
+class RepoPlugin(Extension):
+	def __init__(self, handle: 'core.BNRepoPluginHandle'):
+		super().__init__(handle)
 
 
 class Repository:
@@ -313,8 +332,8 @@ class Repository:
 		return result
 
 	@property
-	def plugins(self) -> List[RepoPlugin]:
-		"""List of RepoPlugin objects contained within this repository"""
+	def plugins(self) -> List[Extension]:
+		"""List of Extension objects contained within this repository"""
 		pluginlist = []
 		count = ctypes.c_ulonglong(0)
 		result = core.BNRepositoryGetPlugins(self.handle, count)
@@ -323,7 +342,7 @@ class Repository:
 			for i in range(count.value):
 				plugin_ref = core.BNNewPluginReference(result[i])
 				assert plugin_ref is not None, "core.BNNewPluginReference returned None"
-				pluginlist.append(RepoPlugin(plugin_ref))
+				pluginlist.append(Extension(plugin_ref))
 			return pluginlist
 		finally:
 			core.BNFreeRepositoryPluginList(result)
@@ -337,7 +356,6 @@ class RepositoryManager:
 	"""
 	def __init__(self):
 		binaryninja._init_plugins()
-		self.handle = core.BNGetRepositoryManager()
 
 	def __getitem__(self, repo_path: str) -> Repository:
 		for repo in self.repositories:
@@ -347,14 +365,14 @@ class RepositoryManager:
 
 	def check_for_updates(self) -> bool:
 		"""Check for updates for all managed Repository objects"""
-		return core.BNRepositoryManagerCheckForUpdates(self.handle)
+		return core.BNRepositoryManagerCheckForUpdates()
 
 	@property
 	def repositories(self) -> List[Repository]:
 		"""List of Repository objects being managed"""
 		result = []
 		count = ctypes.c_ulonglong(0)
-		repos = core.BNRepositoryManagerGetRepositories(self.handle, count)
+		repos = core.BNRepositoryManagerGetRepositories(count)
 		assert repos is not None, "core.BNRepositoryManagerGetRepositories returned None"
 		try:
 			for i in range(count.value):
@@ -366,8 +384,8 @@ class RepositoryManager:
 			core.BNFreeRepositoryManagerRepositoriesList(repos)
 
 	@property
-	def plugins(self) -> Dict[str, List[RepoPlugin]]:
-		"""List of all RepoPlugins in each repository"""
+	def plugins(self) -> Dict[str, List[Extension]]:
+		"""List of all Extensions in each repository"""
 		plugin_list = {}
 		for repo in self.repositories:
 			plugin_list[repo.path] = repo.plugins
@@ -376,7 +394,7 @@ class RepositoryManager:
 	@property
 	def default_repository(self) -> Repository:
 		"""Gets the default Repository"""
-		repo_handle = core.BNRepositoryManagerGetDefaultRepository(self.handle)
+		repo_handle = core.BNRepositoryManagerGetDefaultRepository()
 		assert repo_handle is not None, "core.BNRepositoryManagerGetDefaultRepository returned None"
 		repo_handle_ref = core.BNNewRepositoryReference(repo_handle)
 		assert repo_handle_ref is not None, "core.BNNewRepositoryReference returned None"
@@ -406,4 +424,4 @@ class RepositoryManager:
 		if not isinstance(url, str) or not isinstance(repopath, str):
 			raise ValueError("Expected url or repopath to be of type str.")
 
-		return core.BNRepositoryManagerAddRepository(self.handle, url, repopath)
+		return core.BNRepositoryManagerAddRepository(url, repopath)
