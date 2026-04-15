@@ -363,7 +363,7 @@ class LicenseCheckout:
 		if not is_initialized():
 			try:
 				initialize()
-			except:
+			except Exception:
 				# Named/computer licenses don't need this flow at all
 				if not is_floating_license():
 					return

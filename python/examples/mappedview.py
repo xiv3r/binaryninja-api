@@ -143,7 +143,7 @@ class MappedView(BinaryView):
 			# Note: This MappedView (Python) BinaryView implementation is incomplete. It ignores platform, section, and segment settings.
 			# It's preferred that values saved in the settings system be imageBase agnostic.
 			return True
-		except:
+		except Exception:
 			log_error(traceback.format_exc())
 			return False
 

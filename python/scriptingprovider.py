@@ -98,26 +98,26 @@ class ScriptingOutputListener:
 	def _output(self, ctxt, text):
 		try:
 			self.notify_output(text)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingOutputListener._output")
 
 	def _warning(self, ctxt, text):
 		try:
 			self.notify_warning(text)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingOutputListener._warning")
 
 
 	def _error(self, ctxt, text):
 		try:
 			self.notify_error(text)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingOutputListener._error")
 
 	def _input_ready_state_changed(self, ctxt, state):
 		try:
 			self.notify_input_ready_state_changed(state)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingOutputListener._input_ready_state_changed")
 
 	def notify_output(self, text):
@@ -167,40 +167,40 @@ class ScriptingInstance:
 	def _external_ref_taken(self, ctxt):
 		try:
 			self.__class__._registered_instances.append(self)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._external_ref_taken")
 
 	def _external_ref_released(self, ctxt):
 		try:
 			self.__class__._registered_instances.remove(self)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._external_ref_released")
 
 	def _execute_script_input(self, ctxt, text):
 		try:
 			return self.perform_execute_script_input(text)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._execute_script_input")
 			return ScriptingProviderExecuteResult.InvalidScriptInput
 
 	def _execute_script_input_from_filename(self, ctxt, filename):
 		try:
 			return self.perform_execute_script_input_from_filename(filename)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._execute_script_input_from_filename")
 			return ScriptingProviderExecuteResult.InvalidScriptInput
 
 	def _cancel_script_input(self, ctxt):
 		try:
 			return self.perform_cancel_script_input()
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._cancel_script_input")
 			return ScriptingProviderExecuteResult.ScriptExecutionCancelled
 
 	def _release_binary_view(self, ctxt, view):
 		try:
 			binaryview.BinaryView._cache_remove(view)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._release_binary_view")
 
 	def _set_current_binary_view(self, ctxt, view):
@@ -211,7 +211,7 @@ class ScriptingInstance:
 			else:
 				view = None
 			self.perform_set_current_binary_view(view)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._set_current_binary_view")
 
 	def _set_current_function(self, ctxt, func):
@@ -221,7 +221,7 @@ class ScriptingInstance:
 			else:
 				func = None
 			self.perform_set_current_function(func)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._set_current_function")
 
 	def _set_current_basic_block(self, ctxt, block):
@@ -240,19 +240,19 @@ class ScriptingInstance:
 			else:
 				block = None
 			self.perform_set_current_basic_block(block)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._set_current_basic_block")
 
 	def _set_current_address(self, ctxt, addr):
 		try:
 			self.perform_set_current_address(addr)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._set_current_address")
 
 	def _set_current_selection(self, ctxt, begin, end):
 		try:
 			self.perform_set_current_selection(begin, end)
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._set_current_selection")
 
 	def _complete_input(self, ctxt, text, state):
@@ -260,14 +260,14 @@ class ScriptingInstance:
 			if not isinstance(text, str):
 				text = text.decode("utf-8")
 			return core.BNAllocString(self.perform_complete_input(text, state))
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._complete_input")
 			return core.BNAllocString("")
 
 	def _stop(self, ctxt):
 		try:
 			self.perform_stop()
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingInstance._stop")
 
 	@abc.abstractmethod
@@ -448,7 +448,7 @@ class ScriptingProvider(metaclass=_ScriptingProviderMetaclass):
 			script_instance = core.BNNewScriptingInstanceReference(result.handle)
 			assert script_instance is not None, "core.BNNewScriptingInstanceReference returned None"
 			return ctypes.cast(script_instance, ctypes.c_void_p).value
-		except:
+		except Exception:
 			logger.log_error_for_exception("Unhandled Python exception in ScriptingProvider._create_instance")
 			return None
 
@@ -660,7 +660,7 @@ def bninspect(code_, globals_, locals_):
 				else:
 					print(doc)
 					return
-		except:
+		except Exception:
 			pass
 
 		doc = inspect.getdoc(value)
@@ -676,7 +676,7 @@ def bninspect(code_, globals_, locals_):
 			return
 
 		print(f"No documentation found for {code_}")
-	except:
+	except Exception:
 		# Hide exceptions so the normal execution can report them
 		pass
 
@@ -795,7 +795,7 @@ from binaryninja import *
 					try:
 						try:
 							self.update_locals()
-						except:
+						except Exception:
 							traceback.print_exc()
 
 						if isinstance(_code, (lambda: 0).__code__.__class__):
@@ -820,7 +820,7 @@ from binaryninja import *
 							value, scope = Settings().get_bool_with_scope("python.updateAnalysisAfterCommand")
 							if scope == SettingsScope.SettingsInvalidScope or value:
 								self.active_view.update_analysis()
-					except:
+					except Exception:
 						traceback.print_exc()
 					finally:
 						PythonScriptingInstance._interpreter.value = None
@@ -863,7 +863,7 @@ from binaryninja import *
 
 				try:
 					value = var.get_value(self.instance)
-				except:
+				except Exception:
 					value = None
 				self.locals[name] = value
 				self.cached_locals[name] = value
@@ -883,7 +883,7 @@ from binaryninja import *
 
 				try:
 					var.set_value(self.instance, old_value, new_value)
-				except:
+				except Exception:
 					sys.stderr.write(f"Exception thrown trying to update variable:\n")
 					traceback.print_exc(file=sys.stderr)
 
@@ -950,7 +950,7 @@ from binaryninja import *
 				result = code.compile_command(text)
 			else:
 				result = code.compile_command(text.decode("utf-8"))
-		except:
+		except Exception:
 			result = False
 
 		if result is None:
@@ -1008,7 +1008,7 @@ from binaryninja import *
 		if view is None:
 			try:
 				self.interpreter.update_locals()
-			except:
+			except Exception:
 				traceback.print_exc()
 
 	@abc.abstractmethod
@@ -1032,7 +1032,7 @@ from binaryninja import *
 	def perform_complete_input(self, text, state):
 		try:
 			self.interpreter.update_locals()
-		except:
+		except Exception:
 			traceback.print_exc()
 		result = self.interpreter.completer.complete(text, state)
 		if result is None:

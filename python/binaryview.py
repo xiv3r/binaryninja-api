@@ -706,7 +706,7 @@ class AnalysisCompletionEvent:
 				self.callback(self)  # type: ignore
 			else:
 				self.callback()  # type: ignore
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in AnalysisCompletionEvent._notify")
 
 	def _empty_callback(self):
@@ -769,7 +769,7 @@ class BinaryViewEvent:
 			file_metadata = filemetadata.FileMetadata(handle=core.BNGetFileForView(view))
 			view_obj = BinaryView(file_metadata=file_metadata, handle=core.BNNewViewReference(view))
 			callback(view_obj)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryViewEvent._notify")
 
 
@@ -1004,31 +1004,31 @@ class BinaryDataNotificationCallbacks:
 	def _data_inserted(self, ctxt, view: core.BNBinaryView, offset: int, length: int) -> None:
 		try:
 			self._notify.data_inserted(self._view, offset, length)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._data_inserted")
 
 	def _data_removed(self, ctxt, view: core.BNBinaryView, offset: int, length: int) -> None:
 		try:
 			self._notify.data_removed(self._view, offset, length)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._data_removed")
 
 	def _function_added(self, ctxt, view: core.BNBinaryView, func: core.BNFunctionHandle) -> None:
 		try:
 			self._notify.function_added(self._view, _function.Function(self._view, core.BNNewFunctionReference(func)))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._function_added")
 
 	def _function_removed(self, ctxt, view: core.BNBinaryView, func: core.BNFunctionHandle) -> None:
 		try:
 			self._notify.function_removed(self._view, _function.Function(self._view, core.BNNewFunctionReference(func)))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._function_removed")
 
 	def _function_updated(self, ctxt, view: core.BNBinaryView, func: core.BNFunctionHandle) -> None:
 		try:
 			self._notify.function_updated(self._view, _function.Function(self._view, core.BNNewFunctionReference(func)))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._function_updated")
 
 	def _function_update_requested(self, ctxt, view: core.BNBinaryView, func: core.BNFunctionHandle) -> None:
@@ -1036,31 +1036,31 @@ class BinaryDataNotificationCallbacks:
 			self._notify.function_update_requested(
 			    self._view, _function.Function(self._view, core.BNNewFunctionReference(func))
 			)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._function_update_requested")
 
 	def _data_var_added(self, ctxt, view: core.BNBinaryView, var: core.BNDataVariableHandle) -> None:
 		try:
 			self._notify.data_var_added(self._view, DataVariable.from_core_struct(var[0], self._view))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._data_var_added")
 
 	def _data_var_removed(self, ctxt, view: core.BNBinaryView, var: core.BNDataVariableHandle) -> None:
 		try:
 			self._notify.data_var_removed(self._view, DataVariable.from_core_struct(var[0], self._view))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._data_var_removed")
 
 	def _data_var_updated(self, ctxt, view: core.BNBinaryView, var: core.BNDataVariableHandle) -> None:
 		try:
 			self._notify.data_var_updated(self._view, DataVariable.from_core_struct(var[0], self._view))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._data_var_updated")
 
 	def _data_metadata_updated(self, ctxt, view: core.BNBinaryView, offset: int) -> None:
 		try:
 			self._notify.data_metadata_updated(self._view, offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._data_metadata_updated")
 
 	def _tag_type_updated(self, ctxt, view: core.BNBinaryView, tag_type: core.BNTagTypeHandle) -> None:
@@ -1068,7 +1068,7 @@ class BinaryDataNotificationCallbacks:
 			core_tag_type = core.BNNewTagTypeReference(tag_type)
 			assert core_tag_type is not None, "core.BNNewTagTypeReference returned None"
 			self._notify.tag_type_updated(self._view, TagType(core_tag_type))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._tag_type_updated")
 
 	def _tag_added(self, ctxt, view: core.BNBinaryView, tag_ref: core.BNTagReferenceHandle) -> None:
@@ -1089,7 +1089,7 @@ class BinaryDataNotificationCallbacks:
 				func = _function.Function(self._view, core.BNNewFunctionReference(tag_ref[0].func))
 			addr = tag_ref[0].addr
 			self._notify.tag_added(self._view, tag, ref_type, auto_defined, arch, func, addr)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._tag_added")
 
 	def _tag_updated(self, ctxt, view: core.BNBinaryView, tag_ref: core.BNTagReferenceHandle) -> None:
@@ -1110,7 +1110,7 @@ class BinaryDataNotificationCallbacks:
 				func = _function.Function(self._view, core.BNNewFunctionReference(tag_ref[0].func))
 			addr = tag_ref[0].addr
 			self._notify.tag_updated(self._view, tag, ref_type, auto_defined, arch, func, addr)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._tag_updated")
 
 	def _tag_removed(self, ctxt, view: core.BNBinaryView, tag_ref: core.BNTagReferenceHandle) -> None:
@@ -1131,7 +1131,7 @@ class BinaryDataNotificationCallbacks:
 				func = _function.Function(self._view, core.BNNewFunctionReference(tag_ref[0].func))
 			addr = tag_ref[0].addr
 			self._notify.tag_removed(self._view, tag, ref_type, auto_defined, arch, func, addr)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._tag_removed")
 
 	def _symbol_added(self, ctxt, view: core.BNBinaryView, sym: core.BNSymbol) -> None:
@@ -1139,7 +1139,7 @@ class BinaryDataNotificationCallbacks:
 			_handle = core.BNNewSymbolReference(sym)
 			assert _handle is not None, "core.BNNewSymbolReference returned None"
 			self._notify.symbol_added(self._view, _types.CoreSymbol(_handle))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._symbol_added")
 
 	def _symbol_updated(self, ctxt, view: core.BNBinaryView, sym: core.BNSymbol) -> None:
@@ -1147,7 +1147,7 @@ class BinaryDataNotificationCallbacks:
 			_handle = core.BNNewSymbolReference(sym)
 			assert _handle is not None, "core.BNNewSymbolReference returned None"
 			self._notify.symbol_updated(self._view, _types.CoreSymbol(_handle))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._symbol_updated")
 
 	def _symbol_removed(self, ctxt, view: core.BNBinaryView, sym: core.BNSymbol) -> None:
@@ -1155,31 +1155,31 @@ class BinaryDataNotificationCallbacks:
 			_handle = core.BNNewSymbolReference(sym)
 			assert _handle is not None, "core.BNNewSymbolReference returned None"
 			self._notify.symbol_removed(self._view, _types.CoreSymbol(_handle))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._symbol_removed")
 
 	def _string_found(self, ctxt, view: core.BNBinaryView, string_type: int, offset: int, length: int) -> None:
 		try:
 			self._notify.string_found(self._view, StringType(string_type), offset, length)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._string_found")
 
 	def _string_removed(self, ctxt, view: core.BNBinaryView, string_type: int, offset: int, length: int) -> None:
 		try:
 			self._notify.string_removed(self._view, StringType(string_type), offset, length)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._string_removed")
 
 	def _derived_string_found(self, ctxt, view: core.BNBinaryView, string) -> None:
 		try:
 			self._notify.derived_string_found(self._view, DerivedString._from_core_struct(string[0], False))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._derived_string_found")
 
 	def _derived_string_removed(self, ctxt, view: core.BNBinaryView, string) -> None:
 		try:
 			self._notify.derived_string_removed(self._view, DerivedString._from_core_struct(string[0], False))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._derived_string_removed")
 
 	def _type_defined(self, ctxt, view: core.BNBinaryView, name: str, type_obj: '_types.Type') -> None:
@@ -1189,7 +1189,7 @@ class BinaryDataNotificationCallbacks:
 			    self._view, qualified_name,
 			    _types.Type.create(core.BNNewTypeReference(type_obj), platform=self._view.platform)
 			)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_defined")
 
 	def _type_undefined(self, ctxt, view: core.BNBinaryView, name: str, type_obj: '_types.Type') -> None:
@@ -1199,7 +1199,7 @@ class BinaryDataNotificationCallbacks:
 			    self._view, qualified_name,
 			    _types.Type.create(core.BNNewTypeReference(type_obj), platform=self._view.platform)
 			)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_undefined")
 
 	def _type_ref_changed(self, ctxt, view: core.BNBinaryView, name: str, type_obj: '_types.Type') -> None:
@@ -1209,14 +1209,14 @@ class BinaryDataNotificationCallbacks:
 			    self._view, qualified_name,
 			    _types.Type.create(core.BNNewTypeReference(type_obj), platform=self._view.platform)
 			)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_ref_changed")
 
 	def _type_field_ref_changed(self, ctxt, view: core.BNBinaryView, name: str, offset: int) -> None:
 		try:
 			qualified_name = _types.QualifiedName._from_core_struct(name[0])
 			self._notify.type_field_ref_changed(self._view, qualified_name, offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_field_ref_changed")
 
 	def _segment_added(self, ctxt, view: core.BNBinaryView, segment_obj: core.BNSegment) -> None:
@@ -1225,7 +1225,7 @@ class BinaryDataNotificationCallbacks:
 			assert segment_handle is not None, "core.BNNewSegmentReference returned None"
 			result = Segment(segment_handle)
 			self._notify.segment_added(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._segment_added")
 
 	def _segment_updated(self, ctxt, view: core.BNBinaryView, segment_obj: core.BNSegment) -> None:
@@ -1234,7 +1234,7 @@ class BinaryDataNotificationCallbacks:
 			assert segment_handle is not None, "core.BNNewSegmentReference returned None"
 			result = Segment(segment_handle)
 			self._notify.segment_updated(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._segment_updated")
 
 	def _segment_removed(self, ctxt, view: core.BNBinaryView, segment_obj: core.BNSegment) -> None:
@@ -1243,7 +1243,7 @@ class BinaryDataNotificationCallbacks:
 			assert segment_handle is not None, "core.BNNewSegmentReference returned None"
 			result = Segment(segment_handle)
 			self._notify.segment_removed(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._segment_removed")
 
 	def _section_added(self, ctxt, view: core.BNBinaryView, section_obj: core.BNSection) -> None:
@@ -1252,7 +1252,7 @@ class BinaryDataNotificationCallbacks:
 			assert section_handle is not None, "core.BNNewSectionReference returned None"
 			result = Section(section_handle)
 			self._notify.section_added(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._section_added")
 
 	def _section_updated(self, ctxt, view: core.BNBinaryView, section_obj: core.BNSection) -> None:
@@ -1261,7 +1261,7 @@ class BinaryDataNotificationCallbacks:
 			assert section_handle is not None, "core.BNNewSectionReference returned None"
 			result = Section(section_handle)
 			self._notify.section_updated(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._section_updated")
 
 	def _section_removed(self, ctxt, view: core.BNBinaryView, section_obj: core.BNSection) -> None:
@@ -1270,7 +1270,7 @@ class BinaryDataNotificationCallbacks:
 			assert section_handle is not None, "core.BNNewSectionReference returned None"
 			result = Section(section_handle)
 			self._notify.section_removed(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._section_removed")
 
 	def _component_added(self, ctxt, view: core.BNBinaryView, _component: core.BNComponent):
@@ -1279,7 +1279,7 @@ class BinaryDataNotificationCallbacks:
 			assert component_handle is not None, "core.BNNewComponentReference returned None"
 			result = component.Component(component_handle)
 			self._notify.component_added(self._view, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_added")
 
 	def _component_removed(self, ctxt, view: core.BNBinaryView, formerParent: core.BNComponent, _component: core.BNComponent):
@@ -1291,7 +1291,7 @@ class BinaryDataNotificationCallbacks:
 			assert component_handle is not None, "core.BNNewComponentReference returned None"
 			result = component.Component(component_handle)
 			self._notify.component_removed(self._view, formerParentResult, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_removed")
 
 	def _component_name_updated(self, ctxt, view: core.BNBinaryView, previous_name: str, _component: core.BNComponent):
@@ -1300,7 +1300,7 @@ class BinaryDataNotificationCallbacks:
 			assert component_handle is not None, "core.BNNewComponentReference returned None"
 			result = component.Component(component_handle)
 			self._notify.component_name_updated(self._view, previous_name, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_name_updated")
 
 	def _component_moved(self, ctxt, view: core.BNBinaryView, formerParent: core.BNComponent,
@@ -1316,7 +1316,7 @@ class BinaryDataNotificationCallbacks:
 			assert component_handle is not None, "core.BNNewComponentReference returned None"
 			result = component.Component(component_handle)
 			self._notify.component_moved(self._view, formerParentResult, newParentResult, result)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_moved")
 
 	def _component_function_added(self, ctxt, view: core.BNBinaryView, _component: core.BNComponent,
@@ -1329,7 +1329,7 @@ class BinaryDataNotificationCallbacks:
 			assert function_handle is not None, "core.BNNewFunctionReference returned None"
 			function = _function.Function(self._view, function_handle)
 			self._notify.component_function_added(self._view, result, function)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_function_added")
 
 	def _component_function_removed(self, ctxt, view: core.BNBinaryView, _component: core.BNComponent,
@@ -1342,7 +1342,7 @@ class BinaryDataNotificationCallbacks:
 			assert function_handle is not None, "core.BNNewFunctionReference returned None"
 			function = _function.Function(self._view, function_handle)
 			self._notify.component_function_removed(self._view, result, function)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_function_removed")
 
 	def _component_data_variable_added(self, ctxt, view: core.BNBinaryView, _component: core.BNComponent,
@@ -1352,7 +1352,7 @@ class BinaryDataNotificationCallbacks:
 			assert component_handle is not None, "core.BNNewComponentReference returned None"
 			result = component.Component(component_handle)
 			self._notify.component_data_var_added(self._view, result, DataVariable.from_core_struct(var, self._view))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_data_variable_added")
 
 	def _component_data_variable_removed(self, ctxt, view: core.BNBinaryView, _component: core.BNComponent,
@@ -1362,54 +1362,54 @@ class BinaryDataNotificationCallbacks:
 			assert component_handle is not None, "core.BNNewComponentReference returned None"
 			result = component.Component(component_handle)
 			self._notify.component_data_var_removed(self._view, result, DataVariable.from_core_struct(var, self._view))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._component_data_variable_removed")
 
 	def _type_archive_attached(self, ctxt, view: core.BNBinaryView, id: ctypes.c_char_p, path: ctypes.c_char_p):
 		try:
 			self._notify.type_archive_attached(self._view, core.pyNativeStr(id), core.pyNativeStr(path))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_archive_attached")
 
 	def _type_archive_detached(self, ctxt, view: core.BNBinaryView, id: ctypes.c_char_p, path: ctypes.c_char_p):
 		try:
 			self._notify.type_archive_detached(self._view, core.pyNativeStr(id), core.pyNativeStr(path))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_archive_detached")
 
 	def _type_archive_connected(self, ctxt, view: core.BNBinaryView, archive: core.BNTypeArchive):
 		try:
 			py_archive = typearchive.TypeArchive(handle=core.BNNewTypeArchiveReference(archive))
 			self._notify.type_archive_connected(self._view, py_archive)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_archive_connected")
 
 	def _type_archive_disconnected(self, ctxt, view: core.BNBinaryView, archive: core.BNTypeArchive):
 		try:
 			py_archive = typearchive.TypeArchive(handle=core.BNNewTypeArchiveReference(archive))
 			self._notify.type_archive_disconnected(self._view, py_archive)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._type_archive_disconnected")
 
 	def _undo_entry_added(self, ctxt, view: core.BNBinaryView, entry: core.BNUndoEntry):
 		try:
 			py_entry = undo.UndoEntry(handle=core.BNNewUndoEntryReference(entry))
 			self._notify.undo_entry_added(self._view, py_entry)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._undo_entry_added")
 
 	def _undo_entry_taken(self, ctxt, view: core.BNBinaryView, entry: core.BNUndoEntry):
 		try:
 			py_entry = undo.UndoEntry(handle=core.BNNewUndoEntryReference(entry))
 			self._notify.undo_entry_taken(self._view, py_entry)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._undo_entry_taken")
 
 	def _redo_entry_taken(self, ctxt, view: core.BNBinaryView, entry: core.BNUndoEntry):
 		try:
 			py_entry = undo.UndoEntry(handle=core.BNNewUndoEntryReference(entry))
 			self._notify.redo_entry_taken(self._view, py_entry)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._redo_entry_taken")
 
 	def _rebased(self, ctxt, old_view: core.BNBinaryView, new_view: core.BNBinaryView):
@@ -1417,7 +1417,7 @@ class BinaryDataNotificationCallbacks:
 			file_metadata = filemetadata.FileMetadata(handle=core.BNGetFileForView(new_view))
 			new_view_obj = BinaryView(file_metadata=file_metadata, handle=core.BNNewViewReference(new_view))
 			self._notify.rebased(self._view, new_view_obj)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryDataNotificationCallbacks._rebased")
 
 	@property
@@ -1572,7 +1572,7 @@ class BinaryViewType(metaclass=_BinaryViewTypeMetaclass):
 					handle = core.BNNewPlatformReference(plat.handle)
 					assert handle is not None, "core.BNNewPlatformReference returned None"
 					return ctypes.cast(handle, ctypes.c_void_p).value
-			except:
+			except Exception:
 				binaryninja.log_error_for_exception("Unhandled Python exception in BinaryViewType.register_platform_recognizer")
 			return None
 
@@ -3352,7 +3352,7 @@ class BinaryView:
 			view_handle = core.BNNewViewReference(view.handle)
 			assert view_handle is not None, "core.BNNewViewReference returned None"
 			return ctypes.cast(view_handle, ctypes.c_void_p).value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._create")
 			return None
 
@@ -3367,7 +3367,7 @@ class BinaryView:
 			view_handle = core.BNNewViewReference(view.handle)
 			assert view_handle is not None, "core.BNNewViewReference returned None"
 			return ctypes.cast(view_handle, ctypes.c_void_p).value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._parse")
 			return None
 
@@ -3376,7 +3376,7 @@ class BinaryView:
 		try:
 			# I'm not sure whats going on here even so I've suppressed the linter warning
 			return cls.is_valid_for_data(BinaryView(handle=core.BNNewViewReference(data)))  # type: ignore
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_valid_for_data")
 			return False
 
@@ -3389,7 +3389,7 @@ class BinaryView:
 
 		try:
 			return cls.is_deprecated()  # type: ignore
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_deprecated")
 			return False
 
@@ -3400,7 +3400,7 @@ class BinaryView:
 
 		try:
 			return cls.is_force_loadable()  # type: ignore
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_force_loadable")
 			return False
 
@@ -3417,7 +3417,7 @@ class BinaryView:
 				return ctypes.cast(settings_handle, ctypes.c_void_p).value
 			else:
 				return None
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_load_settings_for_data")
 			return None
 
@@ -4331,20 +4331,20 @@ class BinaryView:
 	def _init(self, ctxt):
 		try:
 			return self.init()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._init")
 			return False
 
 	def _external_ref_taken(self, ctxt):
 		try:
 			self.__class__._registered_instances.append(self)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._external_ref_taken")
 
 	def _external_ref_released(self, ctxt):
 		try:
 			self.__class__._registered_instances.remove(self)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._external_ref_released")
 
 	def _read(self, ctxt, dest, offset, length):
@@ -4356,7 +4356,7 @@ class BinaryView:
 				data = data[0:length]
 			ctypes.memmove(dest, data, len(data))
 			return len(data)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._read")
 			return 0
 
@@ -4365,7 +4365,7 @@ class BinaryView:
 			data = ctypes.create_string_buffer(length)
 			ctypes.memmove(data, src, length)
 			return self.perform_write(offset, data.raw)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._write")
 			return 0
 
@@ -4374,119 +4374,119 @@ class BinaryView:
 			data = ctypes.create_string_buffer(length)
 			ctypes.memmove(data, src, length)
 			return self.perform_insert(offset, data.raw)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._insert")
 			return 0
 
 	def _remove(self, ctxt, offset, length):
 		try:
 			return self.perform_remove(offset, length)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._remove")
 			return 0
 
 	def _get_modification(self, ctxt, offset):
 		try:
 			return self.perform_get_modification(offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_modification")
 			return ModificationStatus.Original
 
 	def _is_valid_offset(self, ctxt, offset):
 		try:
 			return self.perform_is_valid_offset(offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_valid_offset")
 			return False
 
 	def _is_offset_readable(self, ctxt, offset):
 		try:
 			return self.perform_is_offset_readable(offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_offset_readable")
 			return False
 
 	def _is_offset_writable(self, ctxt, offset):
 		try:
 			return self.perform_is_offset_writable(offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_offset_writable")
 			return False
 
 	def _is_offset_executable(self, ctxt, offset):
 		try:
 			return self.perform_is_offset_executable(offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_offset_executable")
 			return False
 
 	def _get_next_valid_offset(self, ctxt, offset):
 		try:
 			return self.perform_get_next_valid_offset(offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_next_valid_offset")
 			return offset
 
 	def _get_start(self, ctxt):
 		try:
 			return self.perform_get_start()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_start")
 			return 0
 
 	def _get_length(self, ctxt):
 		try:
 			return self.perform_get_length()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_length")
 			return 0
 
 	def _get_entry_point(self, ctxt):
 		try:
 			return self.perform_get_entry_point()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_entry_point")
 			return 0
 
 	def _is_executable(self, ctxt):
 		try:
 			return self.perform_is_executable()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_executable")
 			return False
 
 	def _get_default_endianness(self, ctxt):
 		try:
 			return self.perform_get_default_endianness()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_default_endianness")
 			return Endianness.LittleEndian
 
 	def _is_relocatable(self, ctxt):
 		try:
 			return self.perform_is_relocatable()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._is_relocatable")
 			return False
 
 	def _get_address_size(self, ctxt):
 		try:
 			return self.perform_get_address_size()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._get_address_size")
 			return 8
 
 	def _save(self, ctxt, file_accessor):
 		try:
 			return self.perform_save(fileaccessor.CoreFileAccessor(file_accessor))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._save")
 			return False
 
 	def _on_after_snapshot_data_applied(self, ctxt):
 		try:
 			self.perform_on_after_snapshot_data_applied()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in BinaryView._on_after_snapshot_data_applied")
 
 	def perform_on_after_snapshot_data_applied(self) -> None:
@@ -5811,7 +5811,7 @@ class BinaryView:
 		if len(addresses) == 0 and name.startswith("sub_"):
 			try:
 				addresses = [int(name[4:], 16)]
-			except:
+			except Exception:
 				addresses = []
 		for address in addresses:
 			for fn in self.get_functions_at(address):

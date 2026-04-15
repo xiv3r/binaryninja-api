@@ -77,7 +77,7 @@ class WebsocketClient(object):
 			if self in self.__class__._registered_clients:
 				self.__class__._registered_clients.remove(self)
 			self.perform_destroy_client()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in WebsocketClient._destroy_client")
 
 	def _connect(self, ctxt, host, header_count, header_keys, header_values):
@@ -97,7 +97,7 @@ class WebsocketClient(object):
 			data_bytes = (ctypes.c_char * len).from_buffer(data)
 			self.perform_write(data_bytes)
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in WebsocketClient._write")
 			return False
 
@@ -298,7 +298,7 @@ class WebsocketProvider(metaclass=_WebsocketProviderMetaclass):
 			if result is None:
 				return None
 			return ctypes.cast(core.BNNewWebsocketClientReference(result.handle), ctypes.c_void_p).value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in WebsocketProvider._create_instance")
 			return None
 

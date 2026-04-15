@@ -113,7 +113,7 @@ class DataRenderer:
 	def _free_object(self, ctxt):
 		try:
 			self.perform_free_object(ctxt)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DataRenderer._free_object")
 
 	def _is_valid_for_data(self, ctxt, view, addr, type, context, ctxCount):
@@ -127,7 +127,7 @@ class DataRenderer:
 				    TypeContext(types.Type.create(core.BNNewTypeReference(context[i].type)), context[i].offset)
 				)
 			return self.perform_is_valid_for_data(ctxt, view, addr, type, pycontext)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DataRenderer._is_valid_for_data")
 			return False
 
@@ -175,7 +175,7 @@ class DataRenderer:
 				self.line_buf[i].tokens = function.InstructionTextToken._get_core_struct(line.tokens)
 
 			return ctypes.cast(self.line_buf, ctypes.c_void_p).value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DataRenderer._get_lines_for_data")
 			return None
 

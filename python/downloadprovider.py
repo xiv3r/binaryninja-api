@@ -75,13 +75,13 @@ class DownloadInstance(object):
 			if self in self.__class__._registered_instances:
 				self.__class__._registered_instances.remove(self)
 			self.perform_destroy_instance()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DownloadInstance._destroy_instance")
 
 	def _perform_request(self, ctxt, url):
 		try:
 			return self.perform_request(url)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DownloadInstance._perform_request")
 			return -1
 
@@ -136,7 +136,7 @@ class DownloadInstance(object):
 			else:
 				out_response[0] = None
 			return 0 if py_response is not None else -1
-		except:
+		except Exception:
 			out_response[0] = None
 			log_error_for_exception("Unhandled Python exception in DownloadInstance._perform_custom_request")
 			return -1
@@ -168,7 +168,7 @@ class DownloadInstance(object):
 			self._data = self._data[bytes_len:]
 
 			return bytes_len
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DownloadInstance._read_callback")
 			return 0
 
@@ -177,7 +177,7 @@ class DownloadInstance(object):
 			str_bytes = ctypes.string_at(data, len)
 			self._response = self._response + str_bytes
 			return len
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DownloadInstance._write_callback")
 			return 0
 
@@ -314,7 +314,7 @@ class DownloadProvider(metaclass=_DownloadProviderMetaclass):
 			download_instance = core.BNNewDownloadInstanceReference(result.handle)
 			assert download_instance is not None, "core.BNNewDownloadInstanceReference returned None"
 			return ctypes.cast(download_instance, ctypes.c_void_p).value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in DownloadProvider._create_instance")
 			return None
 
@@ -332,7 +332,7 @@ try:
 	if sys.platform != "win32":
 		try:
 			from requests import pyopenssl  # type: ignore
-		except:
+		except Exception:
 			pass
 	elif core.BNIsUIEnabled():
 		try:
@@ -365,7 +365,7 @@ try:
 			# TODO FIXME remove asap when windows patch/hotfix (hopefully) gets released
 			import _ssl
 			_ssl.RAND_status()
-		except:
+		except Exception:
 			pass
 
 	class PythonDownloadInstance(DownloadInstance):
@@ -403,7 +403,7 @@ try:
 			except requests.RequestException as e:
 				core.BNSetErrorForDownloadInstance(self.handle, e.__class__.__name__)
 				return -1
-			except:
+			except Exception:
 				core.BNSetErrorForDownloadInstance(self.handle, "Unknown Exception!")
 				log_error_for_exception("Unhandled Python exception in PythonDownloadInstance.perform_request")
 				return -1
@@ -506,7 +506,7 @@ if not _loaded and (sys.platform != "win32"):
 					core.BNSetErrorForDownloadInstance(self.handle, e.__class__.__name__)
 					log_error_for_exception(str(e))
 					return -1
-				except:
+				except Exception:
 					core.BNSetErrorForDownloadInstance(self.handle, "Unknown Exception!")
 					log_error_for_exception("Unhandled Python exception in PythonDownloadInstance.perform_request")
 					return -1

@@ -100,7 +100,7 @@ class SecretsProvider(metaclass=_SecretsProviderMetaclass):
 	def _has_data(self, ctxt, key: str) -> bool:
 		try:
 			return self.perform_has_data(key)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in SecretsProvider._has_data")
 			return False
 
@@ -108,21 +108,21 @@ class SecretsProvider(metaclass=_SecretsProviderMetaclass):
 		try:
 			data = self.perform_get_data(key)
 			return core.BNAllocString(data)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in SecretsProvider._get_data")
 			return None
 
 	def _store_data(self, ctxt, key: str, data: str) -> bool:
 		try:
 			return self.perform_store_data(key, data)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in SecretsProvider._store_data")
 			return False
 
 	def _delete_data(self, ctxt, key: str) -> bool:
 		try:
 			return self.perform_delete_data(key)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in SecretsProvider._delete_data")
 			return False
 

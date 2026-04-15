@@ -62,7 +62,7 @@ def fuzzy_match(target, query):
 def fnsignature(obj):
 	try:
 		sig = str(inspect.signature(obj))
-	except:
+	except Exception:
 		sig = "()"
 	return sig
 

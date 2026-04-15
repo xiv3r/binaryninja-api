@@ -133,7 +133,7 @@ class RenderLayer(metaclass=_RenderLayerMetaclass):
 	def _apply_to_flow_graph(self, ctxt, graph):
 		try:
 			self.apply_to_flow_graph(binaryninja.FlowGraph(handle=core.BNNewFlowGraphReference(graph)))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in RenderLayer._apply_to_flow_graph")
 
 	def _apply_to_linear_view_object(self, ctxt, obj, prev, next, in_lines, in_line_count, out_lines, out_line_count):
@@ -155,7 +155,7 @@ class RenderLayer(metaclass=_RenderLayerMetaclass):
 			out_lines_ptr = ctypes.cast(out_lines_buf, ctypes.c_void_p)
 			out_lines[0] = out_lines_buf
 			self._pending_lines[out_lines_ptr.value] = (out_lines_ptr.value, out_lines_buf)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in RenderLayer._apply_to_linear_view_object")
 			out_lines[0] = None
 			out_line_count[0] = 0
@@ -167,7 +167,7 @@ class RenderLayer(metaclass=_RenderLayerMetaclass):
 				if buf.value not in self._pending_lines:
 					raise ValueError("freeing lines list that wasn't allocated")
 				del self._pending_lines[buf.value]
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in RenderLayer._free_lines")
 
 	def apply_to_disassembly_block(

@@ -212,7 +212,7 @@ class Transform(metaclass=_TransformMetaClass):
 			result = ctypes.cast(param_buf, ctypes.c_void_p)
 			self._pending_param_lists[result.value] = (result, param_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Transform._get_parameters")
 			count[0] = 0
 			return None
@@ -223,7 +223,7 @@ class Transform(metaclass=_TransformMetaClass):
 			if buf.value not in self._pending_param_lists:
 				raise ValueError("freeing parameter list that wasn't allocated")
 			del self._pending_param_lists[buf.value]
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Transform._free_parameters")
 
 	def _decode(self, ctxt, input_buf, output_buf, params, count):
@@ -239,7 +239,7 @@ class Transform(metaclass=_TransformMetaClass):
 			result = bytes(result)
 			core.BNSetDataBufferContents(output_buf, result, len(result))
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Transform._decode")
 			return False
 
@@ -256,7 +256,7 @@ class Transform(metaclass=_TransformMetaClass):
 			result = bytes(result)
 			core.BNSetDataBufferContents(output_buf, result, len(result))
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Transform._encode")
 			return False
 
@@ -269,7 +269,7 @@ class Transform(metaclass=_TransformMetaClass):
 				param_map[params[i].name] = bytes(data)
 			result = self.perform_decode_with_context(context_obj, param_map)
 			return result if result is not None else False
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Transform._decode_with_context")
 			return False
 
@@ -277,7 +277,7 @@ class Transform(metaclass=_TransformMetaClass):
 		try:
 			input_obj = binaryview.BinaryView(handle=input)
 			return self.can_decode(input_obj)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Transform._can_decode")
 			return False
 

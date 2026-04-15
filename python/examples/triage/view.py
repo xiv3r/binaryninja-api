@@ -48,7 +48,7 @@ class TriageView(QScrollArea, View):
 				hdr = headers.PEHeaders(self.data)
 			elif self.data.view_type != "Raw":
 				hdr = headers.GenericHeaders(self.data)
-		except:
+		except Exception:
 			log.log_error(traceback.format_exc())
 
 		if hdr is not None:

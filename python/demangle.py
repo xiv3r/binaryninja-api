@@ -388,7 +388,7 @@ class Demangler(metaclass=_DemanglerMetaclass):
 	def _is_mangled_string(self, ctxt, name):
 		try:
 			return self.is_mangled_string(core.pyNativeStr(name))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Demangler._is_mangled_string")
 			return False
 
@@ -414,14 +414,14 @@ class Demangler(metaclass=_DemanglerMetaclass):
 				out_type[0] = None
 			out_var_name[0] = Demangler._cached_name
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Demangler._demangle")
 			return False
 
 	def _free_var_name(self, ctxt, name):
 		try:
 			Demangler._cached_name = None
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Demangler._free_var_name")
 
 	def is_mangled_string(self, name: str) -> bool:

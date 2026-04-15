@@ -32,7 +32,7 @@ def print_remote_info(remote: Remote, extended=False):
 	try:
 		if not remote.is_connected:
 			remote.connect()
-	except:
+	except Exception:
 		pass
 	if extended:
 		print(f"Name: {remote.name}\n"

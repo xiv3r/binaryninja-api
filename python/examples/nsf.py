@@ -134,7 +134,7 @@ class NSFView(BinaryView):
 			self.define_auto_symbol(Symbol(SymbolType.DataSymbol, 0x4017, "JOY2"))
 
 			return True
-		except:
+		except Exception:
 			log_error(traceback.format_exc())
 			return False
 

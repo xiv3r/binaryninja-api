@@ -216,7 +216,7 @@ class LineFormatter(metaclass=_LineFormatterMetaClass):
                 self.line_buf[i].tokens = function.InstructionTextToken._get_core_struct(line.tokens)
 
             return ctypes.cast(self.line_buf, ctypes.c_void_p).value
-        except:
+        except Exception:
             log_error(traceback.format_exc())
             out_count[0] = 0
             return None

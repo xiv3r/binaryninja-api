@@ -3893,7 +3893,7 @@ class DisassemblyTextLine:
 		if il_func is not None and struct.instrIndex < len(il_func):
 			try:
 				il_instr = il_func[struct.instrIndex]
-			except:
+			except Exception:
 				il_instr = None
 		tokens = InstructionTextToken._from_core_struct(struct.tokens, struct.count)
 

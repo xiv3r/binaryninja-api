@@ -95,7 +95,7 @@ class UpdateProgressCallback:
 			if self.func is not None:
 				return self.func(progress, total)
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in update progress callback")
 
 	@property

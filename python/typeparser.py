@@ -271,7 +271,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 			TypeParser._cached_string = core.cstr(result_py)
 			result[0] = TypeParser._cached_string
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypeParser._get_option_text")
 			return False
 
@@ -314,7 +314,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 				errors[0] = errors_out
 
 			return output_py is not None
-		except:
+		except Exception:
 			errorCount[0] = 0
 			log_error_for_exception("Unhandled Python exception in TypeParser._preprocess_source")
 			return False
@@ -362,7 +362,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 				errors[0] = errors_out
 
 			return result_py is not None
-		except:
+		except Exception:
 			result[0].typeCount = 0
 			result[0].variableCount = 0
 			result[0].functionCount = 0
@@ -399,7 +399,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 				errors[0] = errors_out
 
 			return result_py is not None
-		except:
+		except Exception:
 			errorCount[0] = 0
 			log_error_for_exception("Unhandled Python exception in TypeParser._parse_type_string")
 			return False
@@ -410,7 +410,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 		try:
 			TypeParser._cached_string = None
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypeParser._free_string")
 			return False
 
@@ -427,7 +427,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 					core.BNFreeType(TypeParser._cached_result.functions[i].type)
 			TypeParser._cached_result = None
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypeParser._free_result")
 			return False
 
@@ -437,7 +437,7 @@ class TypeParser(metaclass=_TypeParserMetaclass):
 		try:
 			TypeParser._cached_error = None
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypeParser._free_error_list")
 			return False
 

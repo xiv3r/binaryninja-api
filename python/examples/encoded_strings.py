@@ -31,7 +31,7 @@ class EncodedStringRecognizer(StringRecognizer):
                 try:
                     values = bytes.fromhex(type.target.attributes[name])
                     decoder = self.__class__.decoders[name]
-                except:
+                except Exception:
                     return None
         if values is None or decoder is None:
             return None

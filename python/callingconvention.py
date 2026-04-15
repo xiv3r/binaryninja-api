@@ -259,7 +259,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_caller_saved_regs")
 			count[0] = 0
 			return None
@@ -274,7 +274,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_callee_saved_regs")
 			count[0] = 0
 			return None
@@ -289,7 +289,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_int_arg_regs")
 			count[0] = 0
 			return None
@@ -304,7 +304,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_float_arg_regs")
 			count[0] = 0
 			return None
@@ -319,7 +319,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_required_arg_regs")
 			count[0] = 0
 			return None
@@ -334,7 +334,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_required_clobbered_regs")
 			count[0] = 0
 			return None
@@ -345,41 +345,41 @@ class CallingConvention:
 			if buf.value not in self._pending_reg_lists:
 				raise ValueError("freeing register list that wasn't allocated")
 			del self._pending_reg_lists[buf.value]
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._free_register_list")
 
 	def _arg_regs_share_index(self, ctxt):
 		try:
 			return self.__class__.arg_regs_share_index
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._arg_regs_share_index")
 			return False
 
 	def _arg_regs_used_for_varargs(self, ctxt):
 		try:
 			return self.__class__.arg_regs_for_varargs
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._arg_regs_used_for_varargs")
 			return False
 
 	def _stack_reserved_for_arg_regs(self, ctxt):
 		try:
 			return self.__class__.stack_reserved_for_arg_regs
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._stack_reserved_for_arg_regs")
 			return False
 
 	def _stack_adjusted_on_return(self, ctxt):
 		try:
 			return self.__class__.stack_adjusted_on_return
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._stack_adjusted_on_return")
 			return False
 
 	def _eligible_for_heuristics(self, ctxt):
 		try:
 			return self.__class__.eligible_for_heuristics
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._eligible_for_heuristics")
 			return False
 
@@ -390,7 +390,7 @@ class CallingConvention:
 
 		try:
 			return self.arch.regs[self.__class__.int_return_reg].index
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_int_return_reg")
 			return False
 
@@ -399,7 +399,7 @@ class CallingConvention:
 			if self.__class__.high_int_return_reg is None:
 				return 0xffffffff
 			return self.arch.regs[self.__class__.high_int_return_reg].index
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_high_int_return_reg")
 			return False
 
@@ -408,7 +408,7 @@ class CallingConvention:
 			if self.__class__.float_return_reg is None:
 				return 0xffffffff
 			return self.arch.regs[self.__class__.float_return_reg].index
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_float_return_reg")
 			return False
 
@@ -417,7 +417,7 @@ class CallingConvention:
 			if self.__class__.global_pointer_reg is None:
 				return 0xffffffff
 			return self.arch.regs[self.__class__.global_pointer_reg].index
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_global_pointer_reg")
 			return False
 
@@ -431,7 +431,7 @@ class CallingConvention:
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_implicitly_defined_regs")
 			count[0] = 0
 			return None
@@ -441,7 +441,7 @@ class CallingConvention:
 			func_obj = function.Function(handle=core.BNNewFunctionReference(func))
 			reg_name = self.arch.get_reg_name(reg)
 			api_obj = self.perform_get_incoming_reg_value(reg_name, func_obj)._to_core_struct()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_incoming_reg_value")
 			api_obj = variable.Undetermined()._to_core_struct()
 		result[0].state = api_obj.state
@@ -452,7 +452,7 @@ class CallingConvention:
 			func_obj = function.Function(handle=core.BNNewFunctionReference(func))
 			flag_name = self.arch.get_flag_name(flag)
 			api_obj = self.perform_get_incoming_flag_value(flag_name, func_obj)._to_core_struct()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_incoming_flag_value")
 			api_obj = variable.Undetermined()._to_core_struct()
 		result[0].state = api_obj.state
@@ -469,7 +469,7 @@ class CallingConvention:
 			result[0].type = out_var.source_type
 			result[0].index = out_var.index
 			result[0].storage = out_var.storage
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_incoming_var_for_parameter_var")
 			result[0].type = in_var[0].type
 			result[0].index = in_var[0].index
@@ -486,7 +486,7 @@ class CallingConvention:
 			result[0].type = out_var.source_type
 			result[0].index = out_var.index
 			result[0].storage = out_var.storage
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in CallingConvention._get_parameter_var_for_incoming_var")
 			result[0].type = in_var[0].type
 			result[0].index = in_var[0].index

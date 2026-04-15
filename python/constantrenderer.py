@@ -105,7 +105,7 @@ class ConstantRenderer(metaclass=_ConstantRendererMetaClass):
 			hlil = highlevelil.HighLevelILFunction(handle=core.BNNewHighLevelILFunctionReference(hlil))
 			type = types.Type.create(handle=core.BNNewTypeReference(type))
 			return self.is_valid_for_type(hlil, type)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in ConstantRenderer._is_valid_for_type")
 			return False
 
@@ -118,7 +118,7 @@ class ConstantRenderer(metaclass=_ConstantRendererMetaClass):
 				settings = function.DisassemblySettings(core.BNNewDisassemblySettingsReference(settings))
 			instr = hlil.get_expr(highlevelil.ExpressionIndex(expr))
 			return self.render_constant(instr, type, val, tokens, settings, precedence)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in ConstantRenderer._render_constant_pointer")
 			return False
 
@@ -132,7 +132,7 @@ class ConstantRenderer(metaclass=_ConstantRendererMetaClass):
 			symbol_display = enums.SymbolDisplayType(symbol_display)
 			instr = hlil.get_expr(highlevelil.ExpressionIndex(expr))
 			return self.render_constant_pointer(instr, type, val, tokens, settings, symbol_display, precedence)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in ConstantRenderer._render_constant_pointer")
 			return False
 

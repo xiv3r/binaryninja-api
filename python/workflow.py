@@ -498,7 +498,7 @@ class Activity(object):
 		try:
 			if self.action is not None:
 				self.action(AnalysisContext(ac))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Activity._action")
 
 	def __del__(self):

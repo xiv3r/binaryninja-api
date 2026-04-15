@@ -50,7 +50,7 @@ class NavigationHandler:
 	def _get_current_view(self, ctxt: Any):
 		try:
 			view = self.get_current_view()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in NavigationHandler._get_current_view")
 			view = ""
 		return core.BNAllocString(view)
@@ -58,14 +58,14 @@ class NavigationHandler:
 	def _get_current_offset(self, ctxt: Any) -> int:
 		try:
 			return self.get_current_offset()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in NavigationHandler._get_current_offset")
 			return 0
 
 	def _navigate(self, ctxt: Any, view: ViewName, offset: int) -> bool:
 		try:
 			return self.navigate(view, offset)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in NavigationHandler._navigate")
 			return False
 
@@ -390,7 +390,7 @@ class FileMetadata:
 		try:
 			yield state
 			self.commit_undo_actions(state)
-		except:
+		except Exception:
 			self.revert_undo_actions(state)
 			raise
 

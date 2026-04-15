@@ -691,7 +691,7 @@ class NESView(BinaryView):
 							self.add_function(addr)
 
 			return True
-		except:
+		except Exception:
 			log_error(traceback.format_exc())
 			return False
 

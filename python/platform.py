@@ -176,7 +176,7 @@ class Platform(metaclass=_PlatformMetaClass):
 		try:
 			view_obj = binaryview.BinaryView(handle=core.BNNewViewReference(view))
 			self.view_init(view_obj)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Platform._view_init")
 
 	def _get_global_regs(self, ctxt, count):
@@ -189,7 +189,7 @@ class Platform(metaclass=_PlatformMetaClass):
 			result = ctypes.cast(reg_buf, ctypes.c_void_p)
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Platform._get_global_regs")
 			count[0] = 0
 			return None
@@ -200,7 +200,7 @@ class Platform(metaclass=_PlatformMetaClass):
 			if buf.value not in self._pending_reg_lists:
 				raise ValueError("freeing register list that wasn't allocated")
 			del self._pending_reg_lists[buf.value]
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Platform._free_register_list")
 
 	def _get_global_reg_type(self, ctxt, reg):
@@ -211,14 +211,14 @@ class Platform(metaclass=_PlatformMetaClass):
 				handle = core.BNNewTypeReference(type_obj.handle)
 				return ctypes.cast(handle, ctypes.c_void_p).value
 			return None
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Platform._get_global_reg_type")
 			return None
 
 	def _get_address_size(self, ctxt):
 		try:
 			return self.address_size
-		except:
+		except Exception:
 			return self.arch.address_size
 
 	def _adjust_type_parser_input(
@@ -270,7 +270,7 @@ class Platform(metaclass=_PlatformMetaClass):
 			self._pending_parser_input_lists[source_file_names_ptr.value] = (source_file_names_ptr.value, source_file_names_buf)
 			self._pending_parser_input_lists[source_file_values_ptr.value] = (source_file_values_ptr.value, source_file_values_buf)
 
-		except:
+		except Exception:
 			arguments_out[0] = None
 			arguments_len_out[0] = 0
 			source_file_names_out[0] = None
@@ -305,7 +305,7 @@ class Platform(metaclass=_PlatformMetaClass):
 				if buf.value not in self._pending_parser_input_lists:
 					raise ValueError("freeing source_file_values list that wasn't allocated")
 				del self._pending_parser_input_lists[buf.value]
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in Platform._free_type_parser_input")
 
 	def adjust_type_parser_input(

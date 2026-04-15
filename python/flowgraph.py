@@ -358,7 +358,7 @@ class FlowGraphLayoutRequest:
 		try:
 			if self.on_complete is not None:
 				self.on_complete()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraphLayoutRequest._complete")
 
 	@property
@@ -474,19 +474,19 @@ class FlowGraph:
 	def _prepare_for_layout(self, ctxt):
 		try:
 			self.prepare_for_layout()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraph._prepare_for_layout")
 
 	def _populate_nodes(self, ctxt):
 		try:
 			self.populate_nodes()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraph._populate_nodes")
 
 	def _complete_layout(self, ctxt):
 		try:
 			self.complete_layout()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraph._complete_layout")
 
 	def _update(self, ctxt):
@@ -497,20 +497,20 @@ class FlowGraph:
 			flow_graph = core.BNNewFlowGraphReference(graph.handle)
 			assert flow_graph is not None, "core.BNNewFlowGraphReference returned None"
 			return ctypes.cast(flow_graph, ctypes.c_void_p).value
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraph._update")
 			return None
 
 	def _external_ref_taken(self, ctxt):
 		try:
 			self.__class__._registered_instances.append(self)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraph._external_ref_taken")
 
 	def _external_ref_released(self, ctxt):
 		try:
 			self.__class__._registered_instances.remove(self)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraph._external_ref_released")
 
 	def finish_prepare_for_layout(self):
@@ -951,7 +951,7 @@ class FlowGraphLayout:
 			for i in range(node_handle_count):
 				nodes.append(FlowGraphNode(graph=graph, handle=node_handles[i]))
 			return self.layout(graph, nodes)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FlowGraphLayout._layout")
 			return False
 

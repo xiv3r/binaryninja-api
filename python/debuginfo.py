@@ -119,7 +119,7 @@ class _DebugInfoParserMetaClass(type):
 			file_metadata = filemetadata.FileMetadata(handle=core.BNGetFileForView(view))
 			view_obj = binaryview.BinaryView(file_metadata=file_metadata, handle=core.BNNewViewReference(view))
 			return callback(view_obj)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in _DebugInfoParserMetaClass._is_valid")
 			return False
 
@@ -136,7 +136,7 @@ class _DebugInfoParserMetaClass(type):
 			parser_ref = core.BNNewDebugInfoReference(debug_info)
 			assert parser_ref is not None, "core.BNNewDebugInfoReference returned None"
 			return callback(DebugInfo(parser_ref), view_obj, debug_view_obj, progress)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in _DebugInfoParserMetaClass._parse_info")
 			return False
 

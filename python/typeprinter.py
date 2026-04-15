@@ -144,7 +144,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			result_count[0] = len(result_py)
 
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_tokens")
 			return False
 
@@ -165,7 +165,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			result_count[0] = len(result_py)
 
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_tokens_before_name")
 			return False
 
@@ -186,7 +186,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			result_count[0] = len(result_py)
 
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_tokens_after_name")
 			return False
 
@@ -202,7 +202,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			TypePrinter._cached_string = core.cstr(result_py)
 			result[0] = TypePrinter._cached_string
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_string")
 			return False
 
@@ -218,7 +218,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			TypePrinter._cached_string = core.cstr(result_py)
 			result[0] = TypePrinter._cached_string
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_string_before_name")
 			return False
 
@@ -234,7 +234,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			TypePrinter._cached_string = core.cstr(result_py)
 			result[0] = TypePrinter._cached_string
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_string_after_name")
 			return False
 
@@ -253,7 +253,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			result_count[0] = len(result_py)
 
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._get_type_lines")
 			return False
 
@@ -274,7 +274,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 			TypePrinter._cached_string = core.cstr(result_py)
 			result[0] = TypePrinter._cached_string
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._print_all_types")
 			return False
 
@@ -282,7 +282,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 		try:
 			TypePrinter._cached_tokens = None
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._free_tokens")
 			return False
 
@@ -290,7 +290,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 		try:
 			TypePrinter._cached_string = None
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._free_string")
 			return False
 
@@ -301,7 +301,7 @@ class TypePrinter(metaclass=_TypePrinterMetaclass):
 				core.BNFreeType(line.rootType)
 			TypePrinter._cached_lines = None
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in TypePrinter._free_lines")
 			return False
 

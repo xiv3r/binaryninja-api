@@ -49,7 +49,7 @@ class FileAccessor:
 	def _get_length(self, ctxt):
 		try:
 			return self.get_length()
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FileAccessor._get_length")
 			return 0
 
@@ -62,7 +62,7 @@ class FileAccessor:
 				data = data[0:length]
 			ctypes.memmove(dest, data, len(data))
 			return len(data)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FileAccessor._read")
 			return 0
 
@@ -71,7 +71,7 @@ class FileAccessor:
 			data = ctypes.create_string_buffer(length)
 			ctypes.memmove(data, src, length)
 			return self.write(offset, data.raw)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in FileAccessor._write")
 			return 0
 

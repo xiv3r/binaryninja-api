@@ -572,7 +572,7 @@ class InteractionHandler:
 			else:
 				view = None
 			self.show_plain_text_report(view, title, contents)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._show_plain_text_report")
 
 	def _show_markdown_report(self, ctxt, view, title, contents, plaintext):
@@ -582,7 +582,7 @@ class InteractionHandler:
 			else:
 				view = None
 			self.show_markdown_report(view, title, contents, plaintext)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._show_markdown_report")
 
 	def _show_html_report(self, ctxt, view, title, contents, plaintext):
@@ -592,7 +592,7 @@ class InteractionHandler:
 			else:
 				view = None
 			self.show_html_report(view, title, contents, plaintext)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._show_html_report")
 
 	def _show_graph_report(self, ctxt, view, title, graph):
@@ -602,13 +602,13 @@ class InteractionHandler:
 			else:
 				view = None
 			self.show_graph_report(view, title, flowgraph.CoreFlowGraph(core.BNNewFlowGraphReference(graph)))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._show_graph_report")
 
 	def _show_report_collection(self, ctxt, title, reports):
 		try:
 			self.show_report_collection(title, ReportCollection(core.BNNewReportCollectionReference(reports)))
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._show_report_collection")
 
 	def _get_text_line_input(self, ctxt, result, prompt, title):
@@ -618,7 +618,7 @@ class InteractionHandler:
 				return False
 			result[0] = core.BNAllocString(str(value))
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_text_line_input")
 
 	def _get_int_input(self, ctxt, result, prompt, title):
@@ -628,7 +628,7 @@ class InteractionHandler:
 				return False
 			result[0] = value
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_int_input")
 
 	def _get_address_input(self, ctxt, result, prompt, title, view, current_address):
@@ -642,7 +642,7 @@ class InteractionHandler:
 				return False
 			result[0] = value
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_address_input")
 
 	def _get_choice_input(self, ctxt, result, prompt, title, choice_buf, count):
@@ -655,7 +655,7 @@ class InteractionHandler:
 				return False
 			result[0] = value
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_choice_input")
 
 	def _get_large_choice_input(self, ctxt, result, prompt, title, choice_buf, count):
@@ -668,7 +668,7 @@ class InteractionHandler:
 				return False
 			result[0] = value
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_large_choice_input")
 
 	def _get_open_filename_input(self, ctxt, result, prompt, ext):
@@ -678,7 +678,7 @@ class InteractionHandler:
 				return False
 			result[0] = core.BNAllocString(str(value))
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_open_filename_input")
 
 	def _get_save_filename_input(self, ctxt, result, prompt, ext, default_name):
@@ -688,7 +688,7 @@ class InteractionHandler:
 				return False
 			result[0] = core.BNAllocString(str(value))
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_save_filename_input")
 
 	def _get_directory_name_input(self, ctxt, result, prompt, default_name):
@@ -698,7 +698,7 @@ class InteractionHandler:
 				return False
 			result[0] = core.BNAllocString(str(value))
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_directory_name_input")
 
 	def _get_checkbox_input(self, ctxt, result, prompt, default_choice):
@@ -708,7 +708,7 @@ class InteractionHandler:
 				return False
 			result[0] = value
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_checkbox_input")
 
 	def _get_form_input(self, ctxt, fields, count, title):
@@ -789,19 +789,19 @@ class InteractionHandler:
 			for i in range(0, count):
 				field_objs[i]._fill_core_result(fields[i])
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._get_form_input")
 
 	def _show_message_box(self, ctxt, title, text, buttons, icon):
 		try:
 			return self.show_message_box(title, text, buttons, icon)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._show_message_box")
 
 	def _open_url(self, ctxt, url):
 		try:
 			return self.open_url(url)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._open_url")
 			return False
 
@@ -812,7 +812,7 @@ class InteractionHandler:
 				task(task_ctxt, progress_c, None)
 
 			return self.run_progress_dialog(title, can_cancel, py_task)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in InteractionHandler._run_progress_dialog")
 			return False
 
@@ -842,7 +842,7 @@ class InteractionHandler:
 				return False
 			try:
 				return int(text)
-			except:
+			except Exception:
 				continue
 
 	def get_address_input(self, prompt, title, view, current_address):

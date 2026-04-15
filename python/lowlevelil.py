@@ -698,7 +698,7 @@ class LowLevelILInstruction(BaseILInstruction):
 			for hlil_expr in mlil_expr.hlils:
 				try:
 					result.add(hlil_expr)
-				except:
+				except Exception:
 					assert False, f"mlil_expr.hlils returned list of lists: {hlil_expr} {type(hlil_expr)}"
 		return list(result)
 
@@ -4194,7 +4194,7 @@ class LowLevelILFunction:
 		                     The function should have the following signature:
 
 		                     expr_handler(new_func: LowLevelILFunction, old_block: LowLevelILBasicBlock, old_instr: LowLevelILInstruction) -> ExpressionIndex
-		                    
+
 		                     Where:
 		                         - **new_func** (*LowLevelILFunction*): New function to receive translated instructions
 		                         - **old_block** (*LowLevelILBasicBlock*): Original block containing old_instr
@@ -5252,7 +5252,7 @@ class LowLevelILFunction:
 
 	def call(self, dest: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
-		``call`` returns an expression which (on architectures without a link register) first pushes the address of the 
+		``call`` returns an expression which (on architectures without a link register) first pushes the address of the
 		next instruction onto the stack then jumps (branches) to the expression ``dest``
 
 		:param ExpressionIndex dest: the expression to call

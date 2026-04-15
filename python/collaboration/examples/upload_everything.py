@@ -107,7 +107,7 @@ def main():
 				with TqdmProgress(desc="", leave=False) as t:
 					with binaryninja.load(file, update_analysis=False, progress_func=lambda cur, max: t.progress(cur, max)) as bv:
 						project.upload_new_file(bv.file, folder, progress=lambda cur, max: t.progress(cur, max))
-			except:
+			except Exception:
 				tqdm.write(traceback.format_exc())
 
 

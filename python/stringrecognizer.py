@@ -203,7 +203,7 @@ class StringRecognizer(metaclass=_StringRecognizerMetaClass):
 			hlil = highlevelil.HighLevelILFunction(handle=core.BNNewHighLevelILFunctionReference(hlil))
 			type = types.Type.create(handle=core.BNNewTypeReference(type))
 			return self.is_valid_for_type(hlil, type)
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in StringRecognizer._is_valid_for_type")
 			return False
 
@@ -217,7 +217,7 @@ class StringRecognizer(metaclass=_StringRecognizerMetaClass):
 				return False
 			result[0] = ref._to_core_struct(True)
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in StringRecognizer._recognize_constant")
 			return False
 
@@ -231,7 +231,7 @@ class StringRecognizer(metaclass=_StringRecognizerMetaClass):
 				return False
 			result[0] = ref._to_core_struct(True)
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in StringRecognizer._recognize_constant_pointer")
 			return False
 
@@ -245,7 +245,7 @@ class StringRecognizer(metaclass=_StringRecognizerMetaClass):
 				return False
 			result[0] = ref._to_core_struct(True)
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in StringRecognizer._recognize_extern_pointer")
 			return False
 
@@ -259,7 +259,7 @@ class StringRecognizer(metaclass=_StringRecognizerMetaClass):
 				return False
 			result[0] = ref._to_core_struct(True)
 			return True
-		except:
+		except Exception:
 			log_error_for_exception("Unhandled Python exception in StringRecognizer._recognize_import")
 			return False
 
