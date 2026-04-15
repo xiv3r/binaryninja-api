@@ -618,7 +618,7 @@ class LanguageRepresentationFunction:
 			for i in range(0, count.value):
 				addr = lines[i].addr
 				if lines[i].instrIndex != 0xffffffffffffffff:
-					il_instr = instr.function[lines[i].instrIndex]  # type: ignore
+					il_instr = block.function[lines[i].instrIndex]
 				else:
 					il_instr = None
 				color = highlight.HighlightColor._from_core_struct(lines[i].highlight)
