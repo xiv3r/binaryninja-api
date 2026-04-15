@@ -7,7 +7,7 @@ using namespace std;
 	do \
 	{ \
 		char* contents = (char*)(s); \
-		string result(contents); \
+		string result(contents ? contents : ""); \
 		BNFreeString(contents); \
 		return result; \
 	} while (0)
@@ -387,10 +387,16 @@ bool RepositoryManager::AddRepository(const std::string& url,
 
 Ref<Repository> RepositoryManager::GetRepositoryByPath(const std::string& repoPath)
 {
-	return new Repository(BNRepositoryGetRepositoryByPath(repoPath.c_str()));
+	BNRepository* repo = BNRepositoryGetRepositoryByPath(repoPath.c_str());
+	if (!repo)
+		return nullptr;
+	return new Repository(repo);
 }
 
 Ref<Repository> RepositoryManager::GetDefaultRepository()
 {
-	return new Repository(BNRepositoryManagerGetDefaultRepository());
+	BNRepository* repo = BNRepositoryManagerGetDefaultRepository();
+	if (!repo)
+		return nullptr;
+	return new Repository(repo);
 }
