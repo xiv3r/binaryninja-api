@@ -352,7 +352,10 @@ vector<Ref<Extension>> Repository::GetPlugins() const
 
 Ref<Extension> Repository::GetPluginByPath(const string& pluginPath)
 {
-	return new Extension(BNRepositoryGetPluginByPath(m_object, pluginPath.c_str()));
+	BNPlugin* plugin = BNRepositoryGetPluginByPath(m_object, pluginPath.c_str());
+	if (!plugin)
+		return nullptr;
+	return new Extension(plugin);
 }
 
 string Repository::GetFullPath() const
