@@ -136,6 +136,12 @@ std::optional<DerivedString> StringRecognizer::RecognizeImport(const HighLevelIL
 }
 
 
+std::optional<DerivedString> StringRecognizer::RecognizeConstantData(const HighLevelILInstruction&)
+{
+	return std::nullopt;
+}
+
+
 void StringRecognizer::Register(StringRecognizer* recognizer)
 {
 	BNCustomStringRecognizer callbacks;
@@ -145,6 +151,7 @@ void StringRecognizer::Register(StringRecognizer* recognizer)
 	callbacks.recognizeConstantPointer = RecognizeConstantPointerCallback;
 	callbacks.recognizeExternPointer = RecognizeExternPointerCallback;
 	callbacks.recognizeImport = RecognizeImportCallback;
+	callbacks.recognizeConstantData = RecognizeConstantDataCallback;
 
 	recognizer->AddRefForRegistration();
 	recognizer->m_object = BNRegisterStringRecognizer(recognizer->m_nameForRegister.c_str(), &callbacks);
@@ -213,6 +220,20 @@ bool StringRecognizer::RecognizeImportCallback(
 	HighLevelILInstruction instr = hlilObj->GetExpr(expr);
 	Ref<Type> typeObj = new Type(BNNewTypeReference(type));
 	auto str = recognizer->RecognizeImport(instr, typeObj, val);
+	if (!str.has_value())
+		return false;
+	*result = str->ToAPIObject(true);
+	return true;
+}
+
+
+bool StringRecognizer::RecognizeConstantDataCallback(
+	void* ctxt, BNHighLevelILFunction* hlil, size_t expr, BNDerivedString* result)
+{
+	StringRecognizer* recognizer = (StringRecognizer*)ctxt;
+	Ref<HighLevelILFunction> hlilObj = new HighLevelILFunction(BNNewHighLevelILFunctionReference(hlil));
+	HighLevelILInstruction instr = hlilObj->GetExpr(expr);
+	auto str = recognizer->RecognizeConstantData(instr);
 	if (!str.has_value())
 		return false;
 	*result = str->ToAPIObject(true);
@@ -295,6 +316,16 @@ std::optional<DerivedString> CoreStringRecognizer::RecognizeImport(
 	BNDerivedString str;
 	if (!BNStringRecognizerRecognizeImport(m_object, instr.function->GetObject(), instr.exprIndex,
 		type->GetObject(), val, &str))
+		return std::nullopt;
+	return DerivedString::FromAPIObject(&str, true);
+}
+
+
+std::optional<DerivedString> CoreStringRecognizer::RecognizeConstantData(
+	const HighLevelILInstruction& instr)
+{
+	BNDerivedString str;
+	if (!BNStringRecognizerRecognizeConstantData(m_object, instr.function->GetObject(), instr.exprIndex, &str))
 		return std::nullopt;
 	return DerivedString::FromAPIObject(&str, true);
 }

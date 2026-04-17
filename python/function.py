@@ -1938,7 +1938,7 @@ class Function:
 	def get_constant_data_and_builtin(
 			self, state: RegisterValueType, value: int, size: int = 0
 	) -> Tuple[databuffer.DataBuffer, BuiltinType]:
-		builtin = ctypes.c_int()
+		builtin = ctypes.c_ubyte()
 		db = databuffer.DataBuffer(
 			handle=core.BNGetConstantData(self.handle, state, value, size, ctypes.byref(builtin)))
 		return db, BuiltinType(builtin.value)
