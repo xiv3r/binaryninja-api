@@ -1594,7 +1594,15 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         data: &DefRangeFramePointerRelativeSymbol,
     ) -> Result<Option<ParsedSymbol>> {
         self.log(|| format!("Got DefRangeFramePointerRelative symbol: {:?}", data));
-        Ok(None)
+        Ok(Some(ParsedSymbol::Location(ParsedLocation {
+            location: Variable {
+                ty: VariableSourceType::StackVariableSourceType,
+                index: 0,
+                storage: data.offset as i64,
+            },
+            base_relative: true,
+            stack_relative: false,
+        })))
     }
 
     fn handle_def_range_frame_pointer_relative_full_scope_symbol(
@@ -1608,7 +1616,15 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                 data
             )
         });
-        Ok(None)
+        Ok(Some(ParsedSymbol::Location(ParsedLocation {
+            location: Variable {
+                ty: VariableSourceType::StackVariableSourceType,
+                index: 0,
+                storage: data.offset as i64,
+            },
+            base_relative: true,
+            stack_relative: false,
+        })))
     }
 
     fn handle_def_range_sub_field_register_symbol(
@@ -1626,7 +1642,31 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         data: &DefRangeRegisterRelativeSymbol,
     ) -> Result<Option<ParsedSymbol>> {
         self.log(|| format!("Got DefRangeRegisterRelative symbol: {:?}", data));
-        Ok(None)
+        match self.lookup_register(data.base_register) {
+            Some(X86(X86Register::EBP)) | Some(AMD64(AMD64Register::RBP)) => {
+                Ok(Some(ParsedSymbol::Location(ParsedLocation {
+                    location: Variable {
+                        ty: VariableSourceType::StackVariableSourceType,
+                        index: 0,
+                        storage: data.offset_base_pointer as i64,
+                    },
+                    base_relative: true,
+                    stack_relative: false,
+                })))
+            }
+            Some(X86(X86Register::ESP)) | Some(AMD64(AMD64Register::RSP)) => {
+                Ok(Some(ParsedSymbol::Location(ParsedLocation {
+                    location: Variable {
+                        ty: VariableSourceType::StackVariableSourceType,
+                        index: 0,
+                        storage: data.offset_base_pointer as i64,
+                    },
+                    base_relative: false,
+                    stack_relative: true,
+                })))
+            }
+            _ => Ok(None),
+        }
     }
 
     fn handle_base_pointer_relative_symbol(
@@ -1678,9 +1718,29 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                     is_param,
                     ..
                 })) => {
+                    // Adjust RSP-relative locations to RSP_entry-relative before param detection
+                    let adjusted_storage: Vec<ParsedLocation> = storage
+                        .iter()
+                        .map(|loc| {
+                            if loc.stack_relative {
+                                ParsedLocation {
+                                    location: Variable {
+                                        storage: loc.location.storage
+                                            - data.frame_byte_count as i64,
+                                        ..loc.location
+                                    },
+                                    stack_relative: false,
+                                    ..*loc
+                                }
+                            } else {
+                                *loc
+                            }
+                        })
+                        .collect();
+
                     // See if the parameter really is a parameter. Sometimes they don't say they are
                     let mut really_is_param = *is_param;
-                    for loc in storage.iter() {
+                    for loc in adjusted_storage.iter() {
                         match loc.location {
                             Variable {
                                 ty: VariableSourceType::RegisterVariableSourceType,
@@ -1711,7 +1771,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                     let var = ParsedVariable {
                         name: name.clone(),
                         type_: type_.clone(),
-                        storage: storage.clone(),
+                        storage: adjusted_storage,
                         is_param: really_is_param,
                     };
                     if really_is_param {
