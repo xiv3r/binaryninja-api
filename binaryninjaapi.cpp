@@ -207,31 +207,30 @@ string BinaryNinja::GetVersionString()
 }
 
 
-VersionInfo BinaryNinja::GetVersionInfo()
+static VersionInfo VersionInfoFromCoreStruct(const BNVersionInfo& result)
 {
-	BNVersionInfo result = BNGetVersionInfo();
 	VersionInfo info;
 	info.major = result.major;
 	info.minor = result.minor;
 	info.build = result.build;
-	info.channel = "";
-	if (result.channel)
-		info.channel = result.channel;
+	info.channel = result.channel ? result.channel : "";
+	return info;
+}
+
+
+VersionInfo BinaryNinja::GetVersionInfo()
+{
+	BNVersionInfo result = BNGetVersionInfo();
+	VersionInfo info = VersionInfoFromCoreStruct(result);
 	BNFreeString(result.channel);
 	return info;
 }
 
 
-VersionInfo ParseVersionString(const string &version)
+VersionInfo BinaryNinja::ParseVersionString(const string &version)
 {
 	BNVersionInfo result = BNParseVersionString(version.c_str());
-	VersionInfo info;
-	info.major = result.major;
-	info.minor = result.minor;
-	info.build = result.build;
-	info.channel = "";
-	if (result.channel)
-		info.channel = result.channel;
+	VersionInfo info = VersionInfoFromCoreStruct(result);
 	BNFreeString(result.channel);
 	return info;
 }

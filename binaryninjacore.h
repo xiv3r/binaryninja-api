@@ -354,6 +354,20 @@ extern "C"
 	typedef struct BNStringRecognizer BNStringRecognizer;
 	typedef struct BNCustomStringType BNCustomStringType;
 
+	typedef struct BNVersionInfo {
+		uint32_t major;
+		uint32_t minor;
+		uint32_t build;
+		char* channel;
+	} BNVersionInfo;
+
+	typedef struct BNPluginVersionPlatform
+	{
+		char* name;
+		char* downloadUrl;
+		char* untrackedDownloadUrl;
+	} BNPluginVersionPlatform;
+
 	typedef struct BNPluginVersion
 	{
 		char* id;
@@ -362,6 +376,8 @@ extern "C"
 		char* changelog;
 
 		uint64_t minimumClientVersion;
+		BNPluginVersionPlatform* platforms;
+		size_t platformCount;
 		char* created;
 
 	} BNPluginVersion;
@@ -2742,13 +2758,6 @@ extern "C"
 		char* description;
 		char* latestVersion;
 	} BNUpdateChannel;
-
-	typedef struct BNVersionInfo {
-		uint32_t major;
-		uint32_t minor;
-		uint32_t build;
-		char* channel;
-	} BNVersionInfo;
 
 	typedef struct BNChangelogEntry {
 		BNVersionInfo version;

@@ -20,6 +20,7 @@
 
 import ctypes
 import json
+from dataclasses import dataclass
 from datetime import datetime, date
 from typing import List, Dict, Optional
 
@@ -27,6 +28,24 @@ import binaryninja
 from . import _binaryninjacore as core
 from . import deprecation
 from .enums import PluginType
+
+
+@dataclass(frozen=True)
+class ExtensionVersionPlatform:
+	name: str
+	download_url: str
+	untracked_download_url: str
+
+
+@dataclass(frozen=True)
+class ExtensionVersion:
+	id: str
+	version: str
+	long_description: str
+	changelog: str
+	minimum_client_version: int
+	platforms: List[ExtensionVersionPlatform]
+	created: str
 
 
 class Extension:
@@ -152,13 +171,23 @@ class Extension:
 	def minimum_version_info(self) -> 'binaryninja.CoreVersionInfo':
 		"""Minimum version info the plugin was tested on"""
 		core_version_info = core.BNPluginGetMinimumVersionInfo(self.handle)
-		return binaryninja.CoreVersionInfo(core_version_info.major, core_version_info.minor, core_version_info.build)
+		return binaryninja.CoreVersionInfo(
+			core_version_info.major,
+			core_version_info.minor,
+			core_version_info.build,
+			core_version_info.channel or ""
+		)
 
 	@property
 	def maximum_version_info(self) -> 'binaryninja.CoreVersionInfo':
 		"""Maximum version info the plugin will support"""
 		core_version_info = core.BNPluginGetMaximumVersionInfo(self.handle)
-		return binaryninja.CoreVersionInfo(core_version_info.major, core_version_info.minor, core_version_info.build)
+		return binaryninja.CoreVersionInfo(
+			core_version_info.major,
+			core_version_info.minor,
+			core_version_info.build,
+			core_version_info.channel or ""
+		)
 
 	@property
 	def name(self) -> str:
@@ -206,14 +235,65 @@ class Extension:
 	@deprecation.deprecated(deprecated_in="5.3", details='Use :py:attr:`current_version` in combination with :py:attr:`versions` instead.')
 	def version(self) -> Optional[str]:
 		"""String version of the plugin"""
+		return self.current_version.version
+
+	@property
+	def current_version(self) -> ExtensionVersion:
+		"""Current version metadata for the plugin"""
 		version: core.BNPluginVersion = core.BNPluginGetCurrentVersion(self.handle)
 		try:
-			version_string = version.versionString
-		except AttributeError:
-			version_string = ""
+			platforms = []
+			for i in range(version.platformCount):
+				platform = version.platforms[i]
+				platforms.append(ExtensionVersionPlatform(
+					name=platform.name or "",
+					download_url=platform.downloadUrl or "",
+					untracked_download_url=platform.untrackedDownloadUrl or ""
+				))
+			return ExtensionVersion(
+				id=version.id or "",
+				version=version.versionString or "",
+				long_description=version.longDescription or "",
+				changelog=version.changelog or "",
+				minimum_client_version=version.minimumClientVersion,
+				platforms=platforms,
+				created=version.created or ""
+			)
 		finally:
 			core.BNPluginFreeVersion(version)
-		return version_string
+
+	@property
+	def versions(self) -> List[ExtensionVersion]:
+		"""Version metadata for all available plugin versions"""
+		result = []
+		count = ctypes.c_ulonglong(0)
+		versions = core.BNPluginGetVersions(self.handle, count)
+		try:
+			if versions is None:
+				return result
+			for i in range(count.value):
+				version = versions[i]
+				platforms = []
+				for j in range(version.platformCount):
+					platform = version.platforms[j]
+					platforms.append(ExtensionVersionPlatform(
+						name=platform.name or "",
+						download_url=platform.downloadUrl or "",
+						untracked_download_url=platform.untrackedDownloadUrl or ""
+					))
+				result.append(ExtensionVersion(
+					id=version.id or "",
+					version=version.versionString or "",
+					long_description=version.longDescription or "",
+					changelog=version.changelog or "",
+					minimum_client_version=version.minimumClientVersion,
+					platforms=platforms,
+					created=version.created or ""
+				))
+			return result
+		finally:
+			if versions is not None:
+				core.BNFreePluginVersions(versions, count.value)
 
 	@property
 	def install_platforms(self) -> List[str]:

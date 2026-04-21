@@ -1,12 +1,71 @@
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
 use crate::repository::{PluginStatus, PluginType};
-use crate::string::{BnString, IntoCStr};
+use crate::string::{raw_to_string, BnString, IntoCStr};
 use crate::VersionInfo;
 use binaryninjacore_sys::*;
 use std::ffi::c_char;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::ptr::NonNull;
+use std::slice;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExtensionVersionPlatform {
+    pub name: String,
+    pub download_url: String,
+    pub untracked_download_url: String,
+}
+
+impl ExtensionVersionPlatform {
+    pub(crate) fn from_raw(value: &BNPluginVersionPlatform) -> Self {
+        Self {
+            name: raw_to_string(value.name as *mut _).unwrap_or_default(),
+            download_url: raw_to_string(value.downloadUrl as *mut _).unwrap_or_default(),
+            untracked_download_url: raw_to_string(value.untrackedDownloadUrl as *mut _)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExtensionVersion {
+    pub id: String,
+    pub version: String,
+    pub long_description: String,
+    pub changelog: String,
+    pub minimum_client_version: u64,
+    pub platforms: Vec<ExtensionVersionPlatform>,
+    pub created: String,
+}
+
+impl ExtensionVersion {
+    pub(crate) fn from_raw(value: &BNPluginVersion) -> Self {
+        let platforms = if value.platforms.is_null() || value.platformCount == 0 {
+            Vec::new()
+        } else {
+            unsafe { slice::from_raw_parts(value.platforms, value.platformCount) }
+                .iter()
+                .map(ExtensionVersionPlatform::from_raw)
+                .collect()
+        };
+
+        Self {
+            id: raw_to_string(value.id as *mut _).unwrap_or_default(),
+            version: raw_to_string(value.versionString as *mut _).unwrap_or_default(),
+            long_description: raw_to_string(value.longDescription as *mut _).unwrap_or_default(),
+            changelog: raw_to_string(value.changelog as *mut _).unwrap_or_default(),
+            minimum_client_version: value.minimumClientVersion,
+            platforms,
+            created: raw_to_string(value.created as *mut _).unwrap_or_default(),
+        }
+    }
+
+    pub(crate) fn from_owned_raw(value: BNPluginVersion) -> Self {
+        let owned = Self::from_raw(&value);
+        unsafe { BNPluginFreeVersion(value) };
+        owned
+    }
+}
 
 #[repr(transparent)]
 pub struct Extension {
@@ -54,6 +113,20 @@ impl Extension {
     pub fn maximum_version_info(&self) -> VersionInfo {
         let result = unsafe { BNPluginGetMaximumVersionInfo(self.handle.as_ptr()) };
         VersionInfo::from_owned_raw(result)
+    }
+
+    /// Metadata for all available versions of this plugin
+    pub fn versions(&self) -> Array<ExtensionVersion> {
+        let mut count = 0;
+        let result = unsafe { BNPluginGetVersions(self.handle.as_ptr(), &mut count) };
+        assert!(!result.is_null());
+        unsafe { Array::new(result, count, ()) }
+    }
+
+    /// Metadata for the currently selected version of this plugin
+    pub fn current_version(&self) -> ExtensionVersion {
+        let result = unsafe { BNPluginGetCurrentVersion(self.handle.as_ptr()) };
+        ExtensionVersion::from_owned_raw(result)
     }
 
     /// String plugin name
@@ -272,5 +345,21 @@ unsafe impl CoreArrayProviderInner for Extension {
 
     unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, context: &'a Self::Context) -> Self::Wrapped<'a> {
         Guard::new(Self::from_raw(NonNull::new(*raw).unwrap()), context)
+    }
+}
+
+impl CoreArrayProvider for ExtensionVersion {
+    type Raw = BNPluginVersion;
+    type Context = ();
+    type Wrapped<'a> = Self;
+}
+
+unsafe impl CoreArrayProviderInner for ExtensionVersion {
+    unsafe fn free(raw: *mut Self::Raw, count: usize, _context: &Self::Context) {
+        BNFreePluginVersions(raw, count)
+    }
+
+    unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, _context: &'a Self::Context) -> Self::Wrapped<'a> {
+        ExtensionVersion::from_raw(raw)
     }
 }

@@ -1962,8 +1962,16 @@ namespace BinaryNinja {
 		{
 			char* smallerChan = BNAllocString(channel.c_str());
 			char* largerChan = BNAllocString(other.channel.c_str());
-			BNVersionInfo smaller = { major, minor, build, smallerChan };
-			BNVersionInfo larger = { other.major, other.minor, other.build, largerChan };
+			BNVersionInfo smaller = {};
+			smaller.major = major;
+			smaller.minor = minor;
+			smaller.build = build;
+			smaller.channel = smallerChan;
+			BNVersionInfo larger = {};
+			larger.major = other.major;
+			larger.minor = other.minor;
+			larger.build = other.build;
+			larger.channel = largerChan;
 			bool result = BNVersionLessThan(smaller, larger);
 			BNFreeString(smallerChan);
 			BNFreeString(largerChan);
@@ -19145,6 +19153,13 @@ namespace BinaryNinja {
 
 	struct ExtensionVersion
 	{
+		struct PlatformInfo
+		{
+			std::string name;
+			std::string downloadUrl;
+			std::string untrackedDownloadUrl;
+		};
+
 		std::string id;
 		std::string version;
 
@@ -19152,6 +19167,7 @@ namespace BinaryNinja {
 		std::string changelog;
 
 		uint64_t minimumClientVersion;
+		std::vector<PlatformInfo> platforms;
 		std::string created;
 	};
 

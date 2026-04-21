@@ -11,10 +11,10 @@ use std::ptr::NonNull;
 use binaryninjacore_sys::*;
 
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
-use crate::repository::plugin::Extension;
 use crate::string::{BnString, IntoCStr};
 
 pub use manager::RepositoryManager;
+pub use plugin::{Extension, ExtensionVersion, ExtensionVersionPlatform};
 
 pub type PluginType = BNPluginType;
 pub type PluginStatus = BNPluginStatus;

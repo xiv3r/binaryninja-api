@@ -70,14 +70,29 @@ string Extension::GetDescription() const
 	RETURN_STRING(BNPluginGetDescription(m_object));
 }
 
-VersionInfo Extension::GetMinimumVersionInfo() const
+static VersionInfo ConvertVersionInfo(const BNVersionInfo& coreInfo)
 {
-	auto coreInfo = BNPluginGetMinimumVersionInfo(m_object);
 	VersionInfo result;
 	result.major = coreInfo.major;
 	result.minor = coreInfo.minor;
 	result.build = coreInfo.build;
-	result.channel = coreInfo.channel;
+	result.channel = coreInfo.channel ? coreInfo.channel : "";
+	return result;
+}
+
+static ExtensionVersion::PlatformInfo ConvertVersionPlatform(const BNPluginVersionPlatform& corePlatform)
+{
+	ExtensionVersion::PlatformInfo result;
+	result.name = corePlatform.name ? corePlatform.name : "";
+	result.downloadUrl = corePlatform.downloadUrl ? corePlatform.downloadUrl : "";
+	result.untrackedDownloadUrl = corePlatform.untrackedDownloadUrl ? corePlatform.untrackedDownloadUrl : "";
+	return result;
+}
+
+VersionInfo Extension::GetMinimumVersionInfo() const
+{
+	auto coreInfo = BNPluginGetMinimumVersionInfo(m_object);
+	VersionInfo result = ConvertVersionInfo(coreInfo);
 	BNFreeString(coreInfo.channel);
 	return result;
 }
@@ -85,11 +100,7 @@ VersionInfo Extension::GetMinimumVersionInfo() const
 VersionInfo Extension::GetMaximumVersionInfo() const
 {
 	auto coreInfo = BNPluginGetMaximumVersionInfo(m_object);
-	VersionInfo result;
-	result.major = coreInfo.major;
-	result.minor = coreInfo.minor;
-	result.build = coreInfo.build;
-	result.channel = coreInfo.channel;
+	VersionInfo result = ConvertVersionInfo(coreInfo);
 	BNFreeString(coreInfo.channel);
 	return result;
 }
@@ -146,6 +157,9 @@ std::vector<ExtensionVersion> Extension::GetVersions() const
 		version.longDescription = versionsPtr[i].longDescription ? versionsPtr[i].longDescription : "";
 		version.changelog = versionsPtr[i].changelog ? versionsPtr[i].changelog : "";
 		version.minimumClientVersion = versionsPtr[i].minimumClientVersion;
+		version.platforms.reserve(versionsPtr[i].platformCount);
+		for (size_t j = 0; j < versionsPtr[i].platformCount; j++)
+			version.platforms.push_back(ConvertVersionPlatform(versionsPtr[i].platforms[j]));
 		version.created = versionsPtr[i].created ? versionsPtr[i].created : "";
 		versions.push_back(version);
 	}
@@ -163,6 +177,9 @@ ExtensionVersion Extension::GetCurrentVersion() const
 	version.longDescription = currentVersion.longDescription ? currentVersion.longDescription : "";
 	version.changelog = currentVersion.changelog ? currentVersion.changelog : "";
 	version.minimumClientVersion = currentVersion.minimumClientVersion;
+	version.platforms.reserve(currentVersion.platformCount);
+	for (size_t i = 0; i < currentVersion.platformCount; i++)
+		version.platforms.push_back(ConvertVersionPlatform(currentVersion.platforms[i]));
 	version.created = currentVersion.created ? currentVersion.created : "";
 	BNPluginFreeVersion(currentVersion);
 	return version;
