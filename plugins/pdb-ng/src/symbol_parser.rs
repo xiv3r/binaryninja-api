@@ -109,7 +109,7 @@ pub struct ParsedVariable {
 pub struct ParsedLocation {
     /// Location information
     pub location: Variable,
-    /// Is the storage location relative to the base pointer? See [ParsedProcedureInfo.frame_offset]
+    /// Is the storage location relative to the base pointer?
     pub base_relative: bool,
     /// Is the storage location relative to the stack pointer?
     pub stack_relative: bool,
@@ -943,7 +943,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         // We need both of these to exist (not sure why they wouldn't)
         let (raw_type, fancy_type) = match (raw_type, fancy_type) {
             (Some(raw), Some(fancy)) => (raw, fancy),
-            _ => return Ok((fancier_type, vec![])),
+            _ => return Ok((fancier_type, locals)),
         };
 
         let raw_params = raw_type.contents.parameters().ok_or(anyhow!("no params"))?;
@@ -1004,7 +1004,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
             // enough parameter variables declared as parameters, the remaining parameters are
             // the first however many locals. If you don't have enough of those, idk??
             if expected_param_count > (parsed_params.len() + parsed_locals.len()) {
-                return Ok((fancier_type, vec![]));
+                return Ok((fancier_type, locals));
             }
             parsed_params.extend(parsed_locals);
         }
@@ -1082,7 +1082,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
         self.log(|| format!("Fancy type:     {:#x?}", fancy_type));
         self.log(|| format!("Result type:    {:#x?}", fancier_type));
 
-        Ok((Some(fancier_type), vec![]))
+        Ok((Some(fancier_type), locals))
     }
 
     fn handle_procedure_symbol(
@@ -1678,12 +1678,10 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                     is_param,
                     ..
                 })) => {
-                    let new_storage = storage.iter().map(|&var| var.location).collect::<Vec<_>>();
-
                     // See if the parameter really is a parameter. Sometimes they don't say they are
                     let mut really_is_param = *is_param;
-                    for loc in &new_storage {
-                        match loc {
+                    for loc in storage.iter() {
+                        match loc.location {
                             Variable {
                                 ty: VariableSourceType::RegisterVariableSourceType,
                                 ..
@@ -1693,9 +1691,9 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                             }
                             Variable {
                                 ty: VariableSourceType::StackVariableSourceType,
-                                storage,
+                                storage: offset,
                                 ..
-                            } if *storage >= 0 => {
+                            } if offset >= 0 => {
                                 // Sometimes you can get two locals at the same offset, both rbp+(x > 0)
                                 // I'm guessing from looking at dumps from dia2dump that only the first
                                 // one is considered a parameter, although there are times that I see
@@ -1704,42 +1702,22 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                                 // and only one would be useful anyway.
                                 // Regardless of the mess, Binja can only handle one parameter per slot
                                 // so we're just going to use the first one.
-                                really_is_param = seen_offsets.insert(*storage);
+                                really_is_param = seen_offsets.insert(offset);
                             }
                             _ => {}
                         }
                     }
 
+                    let var = ParsedVariable {
+                        name: name.clone(),
+                        type_: type_.clone(),
+                        storage: storage.clone(),
+                        is_param: really_is_param,
+                    };
                     if really_is_param {
-                        params.push(ParsedVariable {
-                            name: name.clone(),
-                            type_: type_.clone(),
-                            storage: new_storage
-                                .into_iter()
-                                .map(|loc| ParsedLocation {
-                                    location: loc,
-                                    // This has been handled now
-                                    base_relative: false,
-                                    stack_relative: false,
-                                })
-                                .collect(),
-                            is_param: really_is_param,
-                        });
+                        params.push(var);
                     } else {
-                        locals.push(ParsedVariable {
-                            name: name.clone(),
-                            type_: type_.clone(),
-                            storage: new_storage
-                                .into_iter()
-                                .map(|loc| ParsedLocation {
-                                    location: loc,
-                                    // This has been handled now
-                                    base_relative: false,
-                                    stack_relative: false,
-                                })
-                                .collect(),
-                            is_param: really_is_param,
-                        });
+                        locals.push(var);
                     }
                 }
                 Some(ParsedSymbol::Data(_)) => {
