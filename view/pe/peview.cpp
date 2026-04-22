@@ -1348,7 +1348,7 @@ bool PEView::Init()
 	}
 
 	vector<pair<BNRelocationInfo, string>> relocs;
-	
+
 	BulkSymbolModification bulkSymbolModification(this);
 	m_symbolQueue = new SymbolQueue();
 	m_symExternMappingMetadata = new Metadata(KeyValueDataType);
@@ -1426,34 +1426,79 @@ bool PEView::Init()
 				// + m_imageBase, e_scnum, e_value);
 
 				uint8_t baseType = (e_type >> 4) & 0x3;
-				switch (baseType)
+
+				bool createSymbol = true;
+
+				// Some records are just providing debugging information and we should ignore them
+				// TODO: can we recover any useful information from the aux records?
+				// See https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records for info provided by aux records
+				if (e_sclass == IMAGE_SYM_CLASS_EXTERNAL && baseType == IMAGE_SYM_DTYPE_FUNCTION)
 				{
-					case IMAGE_SYM_DTYPE_NULL: // no derived type
+					// Auxiliary Format 1: Function Definitions
+				}
+				else if (e_sclass == IMAGE_SYM_CLASS_FUNCTION)
+				{
+					if (symbolName == ".bf" || symbolName == ".ef")
 					{
-						if (virtualAddress)
-							AddPESymbol(DataSymbol, "", symbolName, virtualAddress, binding);
-						break;
+						// Auxiliary Format 2: .bf and .ef Symbols
+						// This entry is providing information about a function's line numbers and should not have a symbol created
+						createSymbol = false;
 					}
-					case IMAGE_SYM_DTYPE_POINTER: // pointer to base type
+					else if (symbolName == ".lf")
 					{
-						break;
+						// This entry is providing information about a function's line numbers and should not have a symbol created
+						createSymbol = false;
 					}
-					case IMAGE_SYM_DTYPE_FUNCTION: // function that returns base type
-					{
-						//LogError("%x StorageClass:%u Type:%x NumAux:%x COFF_DT_FCN at %x section:%x %s ", header.coffSymbolTable + (i * 18), e_sclass, e_type, e_numaux, virtualAddress + m_imageBase, e_scnum, symbolName.c_str());
-						if (virtualAddress)
-							AddPESymbol(FunctionSymbol, "", symbolName, virtualAddress, binding);
-						break;
-					}
-					case IMAGE_SYM_DTYPE_ARRAY: // array of base type
-					{
-						break;
-					}
-					default:
-						break;
+				}
+				else if (e_sclass == IMAGE_SYM_CLASS_EXTERNAL && e_scnum == IMAGE_SYM_UNDEFINED && e_value == 0)
+				{
+					// Auxiliary Format 3: Weak Externals
+				}
+				else if (e_sclass == IMAGE_SYM_CLASS_FILE && symbolName == ".file")
+				{
+					// Auxiliary Format 4: Files
+					// This entry is providing information about a source file and should not have a symbol created
+					createSymbol = false;
+				}
+				else if (e_sclass == IMAGE_SYM_CLASS_STATIC &&
+					find_if(m_sections.begin(), m_sections.end(), [&symbolName](const PESection& section) { return section.name == symbolName; }) != m_sections.end())
+				{
+					// Auxiliary Format 5: Section Definitions
+					// This entry is providing information about a section and should not have a symbol created
+					createSymbol = false;
 				}
 
-				// TODO handle auxiliary entries
+				if (createSymbol)
+				{
+					switch (baseType)
+					{
+						case IMAGE_SYM_DTYPE_NULL: // no derived type
+						{
+							if (virtualAddress)
+								AddPESymbol(DataSymbol, "", symbolName, virtualAddress, binding);
+							break;
+						}
+						case IMAGE_SYM_DTYPE_POINTER: // pointer to base type
+						{
+							break;
+						}
+						case IMAGE_SYM_DTYPE_FUNCTION: // function that returns base type
+						{
+							//LogError("%x StorageClass:%u Type:%x NumAux:%x COFF_DT_FCN at %x section:%x %s ", header.coffSymbolTable + (i * 18), e_sclass, e_type, e_numaux, virtualAddress + m_imageBase, e_scnum, symbolName.c_str());
+							if (virtualAddress)
+								AddPESymbol(FunctionSymbol, "", symbolName, virtualAddress, binding);
+							break;
+						}
+						case IMAGE_SYM_DTYPE_ARRAY: // array of base type
+						{
+							break;
+						}
+						default:
+							break;
+					}
+				}
+
+				// Skip over auxiliary entries
 				i += e_numaux;
 			}
 		}
