@@ -175,6 +175,8 @@ void BINARYNINJAUIAPI showHexPreview(QWidget* parent, ViewFrame* frame, const QP
 bool BINARYNINJAUIAPI showDisassemblyPreview(QWidget* parent, ViewFrame* frame, const QPoint& previewPos,BinaryViewRef data, FunctionRef func,
     const ViewLocation& location);
 void BINARYNINJAUIAPI showTextTooltip(QWidget* parent, const QPoint& previewPos, const QString& text);
+void BINARYNINJAUIAPI showTokenTooltip(QWidget* parent, const QPoint& previewPos,
+    const std::vector<std::vector<BinaryNinja::InstructionTextToken>>& lines);
 
 // Interpret the hovered token and, if applicable, displays a tooltip or preview. If no token-driven preview matches
 // and `dataflowFallbackAddress` is set, a dataflow-details tooltip is shown for that address.
