@@ -233,9 +233,9 @@ def log_alert_for_exception(text: Any, logger: str = ""):
 	core.BNLogStringWithStackTrace(0, LogLevel.AlertLog, logger, threading.current_thread().ident, traceback.format_exc(), text)
 
 
-def log_with_traceback(level: LogLevel, text: Any, logger: str = "", session: int = 0):
+def log_with_traceback(level: LogLevel, text: Any, logger: str = "", session: int = 0, stack_trace: Optional[str] = None):
 	"""
-	``log_with_traceback`` writes messages to the log console for the given log level, including the current stack trace.
+	``log_with_traceback`` writes messages to the log console for the given log level, including a stack trace.
 
 		============ ======== =======================================================================
 		LogLevelName LogLevel  Description
@@ -249,71 +249,70 @@ def log_with_traceback(level: LogLevel, text: Any, logger: str = "", session: in
 
 	:param LogLevel level: Log level to use
 	:param str text: message to print
+	:param str stack_trace: optional explicit trace string to attach (shown behind the log entry's "Details..." link). \
+		If omitted, the current Python stack is used. Callers can pass subprocess output, a decoded exception, etc.
 	:rtype: None
 	"""
 	if not isinstance(text, str):
 		text = str(text)
-	core.BNLogStringWithStackTrace(session, level, logger, threading.current_thread().ident, ''.join(traceback.format_stack()), text)
+	if stack_trace is None:
+		stack_trace = ''.join(traceback.format_stack())
+	core.BNLogStringWithStackTrace(session, level, logger or "", threading.current_thread().ident, stack_trace, text)
 
 
-def log_debug_with_traceback(text: Any, logger: str = ""):
+def log_debug_with_traceback(text: Any, logger: str = "", stack_trace: Optional[str] = None):
 	"""
-	``log_debug_with_traceback`` Logs debugging information messages to the console, including the current stack trace.
+	``log_debug_with_traceback`` Logs debugging information messages to the console, including a stack trace.
 
 	:param str text: message to print
+	:param str stack_trace: optional explicit trace string to attach; if omitted, the current Python stack is used.
 	:rtype: None
 	"""
-	if not isinstance(text, str):
-		text = str(text)
-	core.BNLogStringWithStackTrace(0, LogLevel.DebugLog, logger, threading.current_thread().ident, ''.join(traceback.format_stack()), text)
+	log_with_traceback(LogLevel.DebugLog, text, logger, 0, stack_trace)
 
 
-def log_info_with_traceback(text: Any, logger: str = ""):
+def log_info_with_traceback(text: Any, logger: str = "", stack_trace: Optional[str] = None):
 	"""
-	``log_info_with_traceback`` Logs general information messages to the console, including the current stack trace.
+	``log_info_with_traceback`` Logs general information messages to the console, including a stack trace.
 
 	:param str text: message to print
+	:param str stack_trace: optional explicit trace string to attach; if omitted, the current Python stack is used.
 	:rtype: None
 	"""
-	if not isinstance(text, str):
-		text = str(text)
-	core.BNLogStringWithStackTrace(0, LogLevel.InfoLog, logger, threading.current_thread().ident, ''.join(traceback.format_stack()), text)
+	log_with_traceback(LogLevel.InfoLog, text, logger, 0, stack_trace)
 
 
-def log_warn_with_traceback(text: Any, logger: str = ""):
+def log_warn_with_traceback(text: Any, logger: str = "", stack_trace: Optional[str] = None):
 	"""
-	``log_warn_with_traceback`` Logs message to console, including the current stack trace. When run through the GUI it logs with **Warning** icon.
+	``log_warn_with_traceback`` Logs message to console, including a stack trace. When run through the GUI it logs with **Warning** icon.
 
 	:param str text: message to print
+	:param str stack_trace: optional explicit trace string to attach; if omitted, the current Python stack is used.
 	:rtype: None
 	"""
-	if not isinstance(text, str):
-		text = str(text)
-	core.BNLogStringWithStackTrace(0, LogLevel.WarningLog, logger, threading.current_thread().ident, ''.join(traceback.format_stack()), text)
+	log_with_traceback(LogLevel.WarningLog, text, logger, 0, stack_trace)
 
 
-def log_error_with_traceback(text: Any, logger: str = ""):
+def log_error_with_traceback(text: Any, logger: str = "", stack_trace: Optional[str] = None):
 	"""
-	``log_error_with_traceback`` Logs message to console, including the current stack trace. When run through the GUI it logs with **Error** icon, focusing the error console.
+	``log_error_with_traceback`` Logs message to console, including a stack trace. When run through the GUI it logs with **Error** icon, focusing the error console.
 
 	:param str text: message to print
+	:param str stack_trace: optional explicit trace string to attach; if omitted, the current Python stack is used.
 	:rtype: None
 	"""
-	if not isinstance(text, str):
-		text = str(text)
-	core.BNLogStringWithStackTrace(0, LogLevel.ErrorLog, logger, threading.current_thread().ident, ''.join(traceback.format_stack()), text)
+	log_with_traceback(LogLevel.ErrorLog, text, logger, 0, stack_trace)
 
 
-def log_alert_with_traceback(text: Any, logger: str = ""):
+def log_alert_with_traceback(text: Any, logger: str = "", stack_trace: Optional[str] = None):
 	"""
-	``log_alert_with_traceback`` Logs message console, including the current stack trace. A pop up window is created if run through the GUI.
+	``log_alert_with_traceback`` Logs message console, including a stack trace. A pop up window is created if run through the GUI.
 
 	:param str text: message to print
+	:param str stack_trace: optional explicit trace string to attach; if omitted, the current Python stack is used.
 	:rtype: None
 	"""
-	if not isinstance(text, str):
-		text = str(text)
-	core.BNLogStringWithStackTrace(0, LogLevel.AlertLog, logger, threading.current_thread().ident, ''.join(traceback.format_stack()), text)
+	log_with_traceback(LogLevel.AlertLog, text, logger, 0, stack_trace)
 
 
 def log_to_stdout(min_level: LogLevel = LogLevel.InfoLog):
@@ -409,20 +408,20 @@ class Logger:
 	def log_alert_for_exception(self, message: str) -> None:
 		log_for_exception(LogLevel.AlertLog, message, self.logger_name, self.session_id)
 
-	def log_with_traceback(self, level: LogLevel, message: str) -> None:
-		log_with_traceback(level, message, self.logger_name, self.session_id)
+	def log_with_traceback(self, level: LogLevel, message: str, stack_trace: Optional[str] = None) -> None:
+		log_with_traceback(level, message, self.logger_name, self.session_id, stack_trace)
 
-	def log_debug_with_traceback(self, message: str) -> None:
-		log_with_traceback(LogLevel.DebugLog, message, self.logger_name, self.session_id)
+	def log_debug_with_traceback(self, message: str, stack_trace: Optional[str] = None) -> None:
+		log_with_traceback(LogLevel.DebugLog, message, self.logger_name, self.session_id, stack_trace)
 
-	def log_info_with_traceback(self, message: str) -> None:
-		log_with_traceback(LogLevel.InfoLog, message, self.logger_name, self.session_id)
+	def log_info_with_traceback(self, message: str, stack_trace: Optional[str] = None) -> None:
+		log_with_traceback(LogLevel.InfoLog, message, self.logger_name, self.session_id, stack_trace)
 
-	def log_warn_with_traceback(self, message: str) -> None:
-		log_with_traceback(LogLevel.WarningLog, message, self.logger_name, self.session_id)
+	def log_warn_with_traceback(self, message: str, stack_trace: Optional[str] = None) -> None:
+		log_with_traceback(LogLevel.WarningLog, message, self.logger_name, self.session_id, stack_trace)
 
-	def log_error_with_traceback(self, message: str) -> None:
-		log_with_traceback(LogLevel.ErrorLog, message, self.logger_name, self.session_id)
+	def log_error_with_traceback(self, message: str, stack_trace: Optional[str] = None) -> None:
+		log_with_traceback(LogLevel.ErrorLog, message, self.logger_name, self.session_id, stack_trace)
 
-	def log_alert_with_traceback(self, message: str) -> None:
-		log_with_traceback(LogLevel.AlertLog, message, self.logger_name, self.session_id)
+	def log_alert_with_traceback(self, message: str, stack_trace: Optional[str] = None) -> None:
+		log_with_traceback(LogLevel.AlertLog, message, self.logger_name, self.session_id, stack_trace)

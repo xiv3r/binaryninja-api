@@ -1120,6 +1120,9 @@ class PythonScriptingProvider(ScriptingProvider):
 
 		try:
 			return (True, subprocess.check_output(args, startupinfo=si, stderr=subprocess.STDOUT, env=env).decode("utf-8"))
+		except subprocess.CalledProcessError as se:
+			output = se.output.decode("utf-8", errors="replace") if se.output else ""
+			return (False, f"{se}\n{output}" if output else str(se))
 		except subprocess.SubprocessError as se:
 			return (False, str(se))
 
@@ -1277,9 +1280,13 @@ class PythonScriptingProvider(ScriptingProvider):
 		logger.log_info(f"Running pip {args}")
 		status, result = self._run_args(args, env=python_env)
 		if status:
+			logger.log_debug(f"pip output: {result}")
 			importlib.invalidate_caches()
 		else:
-			logger.log_error(f"Error while attempting to install requirements {result}")
+			logger.log_error_with_traceback(
+			    "Failed to install requirements. Click (Details...) for pip output.",
+			    stack_trace=result,
+			)
 		return status
 
 	def _module_installed(self, ctx, module: str) -> bool:
