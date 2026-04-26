@@ -390,7 +390,7 @@ private Q_SLOTS:
 	void makeInt32();
 	void makeInt64();
 	void toggleIntSize();
-	void toggleIntSign();
+	void toggleIntSign(const UIActionContext& context);
 	void makeFloat32();
 	void makeFloat64();
 	void toggleFloatSize();

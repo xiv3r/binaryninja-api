@@ -106,6 +106,7 @@ class BINARYNINJAUIAPI TokenizedTextView :
 	void makeInt32();
 	void makeInt64();
 	void toggleIntSize();
+	void toggleIntSign();
 	void makeFloat32();
 	void makeFloat64();
 	void toggleFloatSize();
