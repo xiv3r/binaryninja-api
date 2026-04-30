@@ -101,6 +101,7 @@ public:
 	void renameRoot();
 	void renameMember();
 	bool canUndefine();
+	QString undefineDisplayName();
 	void undefine();
 	void undefineRoots();
 	void undefineMembers();
