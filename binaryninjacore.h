@@ -8582,7 +8582,7 @@ extern "C"
 	BINARYNINJACOREAPI char* BNRemoteGetUsername(BNRemote* remote);
 	BINARYNINJACOREAPI char* BNRemoteGetToken(BNRemote* remote);
 	BINARYNINJACOREAPI int BNRemoteGetServerVersion(BNRemote* remote);
-	BINARYNINJACOREAPI char* BNRemoteGetServerBuildVersion(BNRemote* remote);
+	BINARYNINJACOREAPI BNVersionInfo BNRemoteGetServerBuildVersion(BNRemote* remote);
 	BINARYNINJACOREAPI char* BNRemoteGetServerBuildId(BNRemote* remote);
 	BINARYNINJACOREAPI bool BNRemoteGetAuthBackends(BNRemote* remote, char*** backendIds, char*** backendNames, size_t* count);
 	BINARYNINJACOREAPI bool BNRemoteHasPulledProjects(BNRemote* remote);
