@@ -548,6 +548,8 @@ public:
 	void deleteTypes();
 	bool canChangeTypes();
 	void changeTypes();
+	bool canCreateStructureMemberAtOffset();
+	void createStructureMemberAtOffset();
 	bool canImportType();
 	void importType();
 	bool canImportTypeByGUID(BinaryViewRef view);

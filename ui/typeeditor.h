@@ -107,6 +107,8 @@ public:
 	void undefineMembers();
 	bool canAppendField();
 	void appendField();
+	bool canCreateStructureMemberAtOffset();
+	void createStructureMemberAtOffset();
 	bool canCreateArray();
 	void createArray();
 	bool canChangeType();
