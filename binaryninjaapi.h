@@ -12641,6 +12641,11 @@ namespace BinaryNinja {
 			\return List of automatic annotations for the start of this block
 		*/
 		std::vector<std::vector<InstructionTextToken>> GetAnnotations();
+		/*! Hint for sorting this block in graph layouts
+
+			\return Integer for sorting this block, if defined
+		 */
+		std::optional<int64_t> GetSortHint();
 
 		/*! property which returns a list of DisassemblyTextLine objects for the current basic block.
 
@@ -13432,6 +13437,7 @@ namespace BinaryNinja {
 		bool IsCallInstruction(Architecture* arch, uint64_t addr);
 
 		std::vector<std::vector<InstructionTextToken>> GetBlockAnnotations(Architecture* arch, uint64_t addr);
+		std::optional<int64_t> GetBlockSortHint(Architecture* arch, uint64_t addr);
 
 		BNIntegerDisplayType GetIntegerConstantDisplayType(
 		    Architecture* arch, uint64_t instrAddr, uint64_t value, size_t operand);

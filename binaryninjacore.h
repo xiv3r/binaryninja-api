@@ -5653,6 +5653,8 @@ extern "C"
 
 	BINARYNINJACOREAPI BNInstructionTextLine* BNGetFunctionBlockAnnotations(
 	    BNFunction* func, BNArchitecture* arch, uint64_t addr, size_t* count);
+	BINARYNINJACOREAPI bool BNGetFunctionBlockSortHint(
+	    BNFunction* func, BNArchitecture* arch, uint64_t addr, int64_t* result);
 
 	BINARYNINJACOREAPI BNIntegerDisplayType BNGetIntegerConstantDisplayType(
 	    BNFunction* func, BNArchitecture* arch, uint64_t instrAddr, uint64_t value, size_t operand);

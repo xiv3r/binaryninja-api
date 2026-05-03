@@ -593,6 +593,12 @@ vector<vector<InstructionTextToken>> BasicBlock::GetAnnotations()
 }
 
 
+std::optional<int64_t> BasicBlock::GetSortHint()
+{
+	return GetFunction()->GetBlockSortHint(GetArchitecture(), GetStart());
+}
+
+
 vector<DisassemblyTextLine> BasicBlock::GetDisassemblyText(DisassemblySettings* settings)
 {
 	size_t count;

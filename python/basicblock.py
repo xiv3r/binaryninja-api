@@ -705,6 +705,14 @@ class BasicBlock:
 		return self.function.get_block_annotations(self.start, self.arch)
 
 	@property
+	def sort_hint(self) -> Optional[int]:
+		"""Graph edge sorting hint for this block (read-only)"""
+		if self.function is None:
+			raise ValueError("Attempting to call BasicBlock.sort_hint when Function is None")
+
+		return self.function.get_block_sort_hint(self.start, self.arch)
+
+	@property
 	def disassembly_text(self) -> List['_function.DisassemblyTextLine']:
 		"""
 		``disassembly_text`` property which returns a list of function.DisassemblyTextLine objects for the current basic block.

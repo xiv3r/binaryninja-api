@@ -2437,6 +2437,14 @@ class Function:
 		finally:
 			core.BNFreeInstructionTextLines(lines, count.value)
 
+	def get_block_sort_hint(self, addr: int, arch: Optional['architecture.Architecture'] = None) -> Optional[int]:
+		if arch is None:
+			arch = self.arch
+		result = ctypes.c_int64()
+		if not core.BNGetFunctionBlockSortHint(self.handle, arch.handle, addr, ctypes.byref(result)):
+			return None
+		return result.value
+
 	def set_auto_type(self, value: StringOrType) -> None:
 		if isinstance(value, str):
 			(value, _) = self.view.parse_type_string(value)

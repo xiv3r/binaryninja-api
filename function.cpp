@@ -1798,6 +1798,18 @@ vector<vector<InstructionTextToken>> Function::GetBlockAnnotations(Architecture*
 }
 
 
+std::optional<int64_t> Function::GetBlockSortHint(Architecture* arch, uint64_t addr)
+{
+	int64_t result;
+	if (!BNGetFunctionBlockSortHint(m_object, arch->GetObject(), addr, &result))
+	{
+		return std::nullopt;
+	}
+
+	return result;
+}
+
+
 BNIntegerDisplayType Function::GetIntegerConstantDisplayType(
     Architecture* arch, uint64_t instrAddr, uint64_t value, size_t operand)
 {

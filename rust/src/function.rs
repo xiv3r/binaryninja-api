@@ -510,6 +510,14 @@ impl Function {
         unsafe { Array::new(lines, count, ()) }
     }
 
+    pub fn block_sort_hint(&self, addr: u64, arch: Option<CoreArchitecture>) -> Option<i64> {
+        let arch = arch.unwrap_or_else(|| self.arch());
+        let mut result = 0;
+        unsafe {
+            BNGetFunctionBlockSortHint(self.handle, arch.handle, addr, &mut result).then_some(result)
+        }
+    }
+
     pub fn variable_name(&self, var: &Variable) -> String {
         unsafe {
             let raw_var = BNVariable::from(var);
