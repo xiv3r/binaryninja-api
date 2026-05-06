@@ -2786,7 +2786,7 @@ void ElfView::ParseMiniDebugInfo()
 	}
 
 	// Load debug bv at same address as this bv
-	string debugBvOptions = fmt::format("{{\"loader.imageBase\": {}, \"analysis.outlining.builtins\": false}}", GetStart());
+	string debugBvOptions = fmt::format("{{\"loader.imageBase\": {}, \"analysis.outlining.builtins\": false, \"analysis.functions.allowUnbackedMemory\": true}}", GetStart());
 	Ref<BinaryView> debugBv = Load(debugElf, false, debugBvOptions);
 	if (!debugBv)
 	{
@@ -2796,10 +2796,22 @@ void ElfView::ParseMiniDebugInfo()
 
 	for (const auto& symbol : debugBv->GetSymbols())
 	{
+		uint64_t addr = symbol->GetAddress();
+		auto symbolType = symbol->GetType();
+		if ((symbolType == FunctionSymbol) || (symbolType == ImportedFunctionSymbol) || (symbolType == LibraryFunctionSymbol))
+		{
+			if (auto funcs = debugBv->GetAnalysisFunctionsForAddress(addr); !funcs.empty())
+			{
+				const auto& archName = funcs[0]->GetArchitecture()->GetName();
+				if ((archName == "thumb2") || (archName == "thumb2eb"))
+					addr |= 1;
+			}
+		}
+
 		DefineElfSymbol(
 			symbol->GetType(),
 			symbol->GetRawName(),
-			symbol->GetAddress(),
+			addr,
 			false,
 			symbol->GetBinding()
 		);
