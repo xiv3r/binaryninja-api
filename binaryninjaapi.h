@@ -2218,7 +2218,7 @@ namespace BinaryNinja {
 		explicit Metadata(MetadataType type);
 		virtual ~Metadata() {}
 
-		bool operator==(const Metadata& rhs);
+		bool operator==(const Metadata& rhs) const;
 		Ref<Metadata> operator[](const std::string& key);
 		Ref<Metadata> operator[](size_t idx);
 
