@@ -3558,9 +3558,9 @@ class Function:
 		core.BNUnsplitVariable(self.handle, var.to_BNVariable())
 
 	@classmethod
-	def _inline_during_analysis_with_confidence(cls, value: Union['types.InlineDuringAnalysis', 'types.InlineDuringAnalysisWithConfidence', bool, 'types.BoolWithConfidence']) -> 'types.InlineDuringAnalysisWithConfidence':
+	def _inline_during_analysis_with_confidence(cls, value: Union['types.InlineDuringAnalysis', 'types.InlineDuringAnalysisWithConfidence', bool, 'types.BoolWithConfidence']) -> 'core.BNInlineDuringAnalysisWithConfidence':
 		if isinstance(value, types.InlineDuringAnalysisWithConfidence):
-			return value
+			return value._to_core_struct()
 
 		if isinstance(value, types.BoolWithConfidence):
 			return core.BNInlineDuringAnalysisWithConfidence(int(value.value), value.confidence)
