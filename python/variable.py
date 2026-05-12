@@ -20,7 +20,7 @@
 # IN THE SOFTWARE.
 
 import ctypes
-from typing import List, Generator, Optional, Union, Set, Dict, Tuple
+from typing import Iterable, List, Generator, Optional, Union, Set, Dict, Tuple
 from dataclasses import dataclass
 
 import binaryninja
@@ -601,11 +601,11 @@ class PossibleValueSet:
 		return result
 
 	@staticmethod
-	def in_set_of_values(values: List[int]) -> 'PossibleValueSet':
+	def in_set_of_values(values: Iterable[int]) -> 'PossibleValueSet':
 		"""
 		Create a PossibleValueSet object for a value in a set of values.
 
-		:param list(int) values: List of integer values
+		:param Iterable[int] values: Iterable of integer values
 		:rtype: PossibleValueSet
 		"""
 		result = PossibleValueSet()
@@ -615,11 +615,11 @@ class PossibleValueSet:
 		return result
 
 	@staticmethod
-	def not_in_set_of_values(values: List[int]) -> 'PossibleValueSet':
+	def not_in_set_of_values(values: Iterable[int]) -> 'PossibleValueSet':
 		"""
 		Create a PossibleValueSet object for a value NOT in a set of values.
 
-		:param list(int) values: List of integer values
+		:param Iterable[int] values: Iterable of integer values
 		:rtype: PossibleValueSet
 		"""
 		result = PossibleValueSet()
