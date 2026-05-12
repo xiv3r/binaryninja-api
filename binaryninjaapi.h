@@ -12069,6 +12069,7 @@ namespace BinaryNinja {
 		Ref<BinaryView> m_view;
 		Ref<Function> m_function;
 
+		std::string PostRawRequest(const char* request);
 		bool PostRequest(const std::string& command);
 
 	public:
@@ -21276,7 +21277,6 @@ namespace BinaryNinja {
 	{
 	public:
 		FirmwareNinjaReferenceNode(BNFirmwareNinjaReferenceNode* node);
-		~FirmwareNinjaReferenceNode();
 
 		/*! Returns true if the reference tree node contains a function
 

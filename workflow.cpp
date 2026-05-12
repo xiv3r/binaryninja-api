@@ -375,11 +375,7 @@ bool WorkflowMachine::PostRequest(const std::string& command)
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+	string jsonResult = PostRawRequest(buffer.GetString());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -402,13 +398,23 @@ WorkflowMachine::WorkflowMachine(Ref<Function> function): m_function(function)
 }
 
 
+string WorkflowMachine::PostRawRequest(const char* request)
+{
+	char* result;
+	if (m_function)
+		result = BNPostWorkflowRequestForFunction(m_function->GetObject(), request);
+	else
+		result = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), request);
+
+	string jsonResult(result);
+	BNFreeString(result);
+	return jsonResult;
+}
+
+
 bool WorkflowMachine::PostJsonRequest(const std::string& request)
 {
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), request.c_str());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), request.c_str());
+	string jsonResult = PostRawRequest(request.c_str());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -450,11 +456,7 @@ WorkflowMachine::Status WorkflowMachine::GetStatus()
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+	string jsonResult = PostRawRequest(buffer.GetString());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -532,11 +534,7 @@ bool WorkflowMachine::SetLogEnabled(bool enable, bool global)
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+	string jsonResult = PostRawRequest(buffer.GetString());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -558,11 +556,7 @@ std::optional<bool> WorkflowMachine::QueryOverride(const string& activity)
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+	string jsonResult = PostRawRequest(buffer.GetString());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -585,11 +579,7 @@ bool WorkflowMachine::SetOverride(const string& activity, bool enable)
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+	string jsonResult = PostRawRequest(buffer.GetString());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -611,11 +601,7 @@ bool WorkflowMachine::ClearOverride(const string& activity)
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	string jsonResult;
-	if (m_function)
-		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
-	else
-		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+	string jsonResult = PostRawRequest(buffer.GetString());
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
@@ -720,7 +706,7 @@ Ref<Activity> Workflow::RegisterActivity(Ref<Activity> activity, const vector<st
 	if (!activityObject)
 		return nullptr;
 
-	return new Activity(BNNewActivityReference(activityObject));
+	return new Activity(activityObject);
 }
 
 
@@ -763,7 +749,7 @@ size_t Workflow::Size() const
 Ref<Activity> Workflow::GetActivity(const string& activity)
 {
 	BNActivity* activityObject = BNWorkflowGetActivity(m_object, activity.c_str());
-	return new Activity(BNNewActivityReference(activityObject));
+	return new Activity(activityObject);
 }
 
 

@@ -297,7 +297,7 @@ bool Extension::AreDependenciesBeingInstalled() const
 
 string Extension::GetCreationDate()
 {
-	return BNPluginGetCurrentVersionCreationDate(m_object);
+	RETURN_STRING(BNPluginGetCurrentVersionCreationDate(m_object));
 }
 
 string Extension::GetProjectData()

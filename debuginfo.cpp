@@ -371,7 +371,7 @@ Ref<DebugInfoParser> DebugInfoParser::GetByName(const string& name)
 {
 	BNDebugInfoParser* parser = BNGetDebugInfoParserByName(name.c_str());
 	if (parser)
-		return new DebugInfoParser(BNNewDebugInfoParserReference(parser));
+		return new DebugInfoParser(parser);
 	return nullptr;
 }
 
@@ -472,6 +472,5 @@ bool CustomDebugInfoParser::ParseCallback(void* ctxt, BNDebugInfo* debugInfo, BN
 
 
 CustomDebugInfoParser::CustomDebugInfoParser(const string& name) :
-    DebugInfoParser(
-        BNNewDebugInfoParserReference(BNRegisterDebugInfoParser(name.c_str(), IsValidCallback, ParseCallback, this)))
+    DebugInfoParser(BNRegisterDebugInfoParser(name.c_str(), IsValidCallback, ParseCallback, this))
 {}

@@ -63,7 +63,7 @@ FirmwareNinjaRelationship::FirmwareNinjaRelationship(Ref<BinaryView> view, BNFir
 	if (handle)
 		m_object = handle;
 	else
-		m_object = BNNewFirmwareNinjaRelationshipReference(BNCreateFirmwareNinjaRelationship(view->GetObject()));
+		m_object = BNCreateFirmwareNinjaRelationship(view->GetObject());
 }
 
 
@@ -204,7 +204,7 @@ Ref<ProjectFile> FirmwareNinjaRelationship::GetSecondaryExternalProjectFile() co
 	if (!bnProjectFile)
 		return nullptr;
 
-	return new ProjectFile(BNNewProjectFileReference(bnProjectFile));
+	return new ProjectFile(bnProjectFile);
 }
 
 
@@ -305,12 +305,6 @@ FirmwareNinjaReferenceNode::FirmwareNinjaReferenceNode(BNFirmwareNinjaReferenceN
 }
 
 
-FirmwareNinjaReferenceNode::~FirmwareNinjaReferenceNode()
-{
-	BNFreeFirmwareNinjaReferenceNode(m_object);
-}
-
-
 bool FirmwareNinjaReferenceNode::IsFunction()
 {
 	return BNFirmwareNinjaReferenceNodeIsFunction(m_object);
@@ -366,6 +360,7 @@ std::vector<Ref<FirmwareNinjaReferenceNode>> FirmwareNinjaReferenceNode::GetChil
 			BNNewFirmwareNinjaReferenceNodeReference(bnChildren[i])));
 	}
 
+	BNFreeFirmwareNinjaReferenceNodes(bnChildren, count);
 	return result;
 }
 
@@ -623,7 +618,7 @@ Ref<FirmwareNinjaReferenceNode> FirmwareNinja::GetReferenceTree(
 	if (!bnReferenceTree)
 		return nullptr;
 
-	return new FirmwareNinjaReferenceNode(BNNewFirmwareNinjaReferenceNodeReference(bnReferenceTree));
+	return new FirmwareNinjaReferenceNode(bnReferenceTree);
 }
 
 
@@ -641,7 +636,7 @@ Ref<FirmwareNinjaReferenceNode> FirmwareNinja::GetReferenceTree(
 	if (!bnReferenceTree)
 		return nullptr;
 
-	return new FirmwareNinjaReferenceNode(BNNewFirmwareNinjaReferenceNodeReference(bnReferenceTree));
+	return new FirmwareNinjaReferenceNode(bnReferenceTree);
 }
 
 
@@ -658,7 +653,7 @@ Ref<FirmwareNinjaReferenceNode> FirmwareNinja::GetReferenceTree(
 	if (!bnReferenceTree)
 		return nullptr;
 
-	return new FirmwareNinjaReferenceNode(BNNewFirmwareNinjaReferenceNodeReference(bnReferenceTree));
+	return new FirmwareNinjaReferenceNode(bnReferenceTree);
 }
 
 

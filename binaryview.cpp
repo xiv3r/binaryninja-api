@@ -5728,7 +5728,7 @@ Ref<ExternalLibrary> BinaryView::GetExternalLibrary(const std::string& name)
 	BNExternalLibrary* lib = BNBinaryViewGetExternalLibrary(m_object, name.c_str());
 	if (!lib)
 		return nullptr;
-	return new ExternalLibrary(BNNewExternalLibraryReference(lib));
+	return new ExternalLibrary(lib);
 }
 
 
@@ -5759,7 +5759,7 @@ Ref<ExternalLocation> BinaryView::AddExternalLocation(Ref<Symbol> sourceSymbol, 
 
 	if (!loc)
 		return nullptr;
-	return new ExternalLocation(BNNewExternalLocationReference(loc));
+	return new ExternalLocation(loc);
 }
 
 
@@ -5774,7 +5774,7 @@ Ref<ExternalLocation> BinaryView::GetExternalLocation(Ref<Symbol> sourceSymbol)
 	BNExternalLocation* loc = BNBinaryViewGetExternalLocation(m_object, sourceSymbol->GetObject());
 	if (!loc)
 		return nullptr;
-	return new ExternalLocation(BNNewExternalLocationReference(loc));
+	return new ExternalLocation(loc);
 }
 
 

@@ -97,7 +97,9 @@ std::string TypeParser::FormatParseErrors(const std::vector<TypeParserError>& er
 		BNFreeString(apiError.fileName);
 	}
 
-	return string;
+	std::string result = string ? string : "";
+	BNFreeString(string);
+	return result;
 }
 
 
