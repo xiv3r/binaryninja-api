@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <QtCore/QAbstractItemModel>
 #include <QtCore/QItemSelectionModel>
 #include <QtWidgets/QTreeView>
@@ -131,6 +132,7 @@ class BINARYNINJAUIAPI TagList : public QTreeView, public FilterTarget
 	UIActionHandler m_actionHandler;
 	ContextMenuManager* m_contextMenuManager;
 	FilteredView* m_filterView;
+	std::unique_ptr<Menu> m_ownedMenu;
 	Menu* m_menu;
 	std::mutex m_filterMutex;
 
