@@ -516,9 +516,12 @@ fn parse_range_data_offsets(file: &object::File) -> Result<IntervalMap<u64, i64>
             eh_frame.set_vendor(gimli::Vendor::AArch64);
         }
 
-        if let Some(address_size) = file.architecture().address_size() {
-            eh_frame.set_address_size(address_size.bytes());
-        }
+        let address_size = file
+            .architecture()
+            .address_size()
+            .map(|s| s.bytes())
+            .unwrap_or(if file.is_64() { 8 } else { 4 });
+        eh_frame.set_address_size(address_size);
 
         parse_unwind_section(&file, eh_frame).map_err(|e| format!("Error parsing .eh_frame: {}", e))
     } else if file.section_by_name(".debug_frame").is_some() {
@@ -529,9 +532,13 @@ fn parse_range_data_offsets(file: &object::File) -> Result<IntervalMap<u64, i64>
             debug_frame.set_vendor(gimli::Vendor::AArch64);
         }
 
-        if let Some(address_size) = file.architecture().address_size() {
-            debug_frame.set_address_size(address_size.bytes());
-        }
+        let address_size = file
+            .architecture()
+            .address_size()
+            .map(|s| s.bytes())
+            .unwrap_or(if file.is_64() { 8 } else { 4 });
+        debug_frame.set_address_size(address_size);
+
         parse_unwind_section(&file, debug_frame)
             .map_err(|e| format!("Error parsing .debug_frame: {}", e))
     } else {
