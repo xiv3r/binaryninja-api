@@ -10,6 +10,19 @@ using namespace BinaryNinja::DSC;
 
 static const char* VIEW_METADATA_KEY = "shared_cache_view";
 
+static bool IsBndbPath(const std::string& path)
+{
+	return std::filesystem::path(path).extension() == ".bndb";
+}
+
+
+static bool IsUsablePrimaryCachePath(const std::string& path)
+{
+	std::error_code ec;
+	return !path.empty() && !IsBndbPath(path) && std::filesystem::exists(path, ec)
+		&& std::filesystem::is_regular_file(path, ec);
+}
+
 SharedCacheViewType::SharedCacheViewType() : BinaryViewType(VIEW_NAME, VIEW_NAME) {}
 
 // We register all our one-shot stuff here, such as the object destructor.
@@ -102,6 +115,16 @@ Ref<Settings> SharedCacheViewType::GetLoadSettingsForData(BinaryView* data)
 			"default" : true,
 			"description" : "Add function starts sourced from the Function Starts tables to the core for analysis."
 			})");
+
+	settings->RegisterSetting("loader.dsc.primaryFilePath",
+		R"({
+		"title" : "Primary Shared Cache File Path",
+		"type" : "string",
+		"default" : "",
+		"description" : "Path to the primary dyld shared cache file to use when opening this database. This is useful for headless or scripted database loading.",
+		"ignore" : ["SettingsUserScope", "SettingsProjectScope"],
+		"uiSelectionAction" : "file"
+		})");
 
 	// Place the synthetic sections well after the shared cache to ensure they do
 	// not collide with any images that are later loaded from the shared cache.
@@ -1004,17 +1027,106 @@ void SharedCacheView::LogSecondaryFileName(std::string secondaryFileName)
 std::optional<std::string> SharedCacheView::GetPrimaryFilePath()
 {
 	auto viewFile = GetFile();
+
+	auto settings = GetLoadSettings(GetTypeName());
+	if (settings && settings->Contains("loader.dsc.primaryFilePath"))
+	{
+		auto configuredPrimaryFilePath = settings->Get<std::string>("loader.dsc.primaryFilePath", this);
+		if (!configuredPrimaryFilePath.empty())
+		{
+			settings->Reset("loader.dsc.primaryFilePath", this, SettingsResourceScope);
+			if (!IsUsablePrimaryCachePath(configuredPrimaryFilePath))
+			{
+				m_logger->LogErrorF(
+					"Configured primary shared cache file path is invalid: '{}'", configuredPrimaryFilePath);
+				if (!IsUIEnabled())
+					return std::nullopt;
+			}
+			else
+			{
+				SetPrimaryFileName(BaseFileName(configuredPrimaryFilePath));
+				return configuredPrimaryFilePath;
+			}
+		}
+	}
+
+	auto promptForPrimaryFile = [&]() -> std::optional<std::string> {
+		if (!IsUIEnabled())
+		{
+			m_logger->LogErrorF(
+				"Primary shared cache file '{}' could not be resolved. Provide loader.dsc.primaryFilePath when loading this database headlessly.",
+				m_primaryFileName);
+			return std::nullopt;
+		}
+
+		ShowMessageBox("Select Primary Shared Cache File",
+			"Binary Ninja needs the original primary dyld shared cache file to reopen this database. "
+			"Select the primary dyld_shared_cache file, not another .bndb database.", OKButtonSet, InformationIcon);
+
+		std::string newPrimaryFilePath;
+		std::string prompt = "Select primary shared cache file";
+		if (!m_primaryFileName.empty())
+			prompt += " '" + m_primaryFileName + "'";
+		if (!GetOpenFileNameInput(newPrimaryFilePath, prompt))
+			return std::nullopt;
+
+		if (IsBndbPath(newPrimaryFilePath))
+		{
+			m_logger->LogAlertF(
+				"Selected primary shared cache path is a Binary Ninja database, not a dyld shared cache file: '{}'",
+				newPrimaryFilePath);
+			return std::nullopt;
+		}
+
+		if (!IsUsablePrimaryCachePath(newPrimaryFilePath))
+		{
+			m_logger->LogAlertF("Selected primary shared cache path is not a usable file: '{}'", newPrimaryFilePath);
+			return std::nullopt;
+		}
+
+		return newPrimaryFilePath;
+	};
+
 	// 1. Try and get the primary file path using `GetOriginalFilename`.
 	auto primaryFilePath = viewFile->GetOriginalFilename();
 
 	// 2. If the original file name is not a usable file path then prompt the user to select one.
-	if (primaryFilePath.empty() || !std::filesystem::exists(primaryFilePath))
+	if (!IsUsablePrimaryCachePath(primaryFilePath))
 	{
-		if (!GetOpenFileNameInput(primaryFilePath, "Please select the primary shared cache file"))
+		std::vector<std::string> candidateNames;
+		if (!m_primaryFileName.empty())
+			candidateNames.push_back(m_primaryFileName);
+		auto originalBaseName = BaseFileName(primaryFilePath);
+		if (!originalBaseName.empty() && originalBaseName != m_primaryFileName)
+			candidateNames.push_back(originalBaseName);
+
+		for (const auto& candidateName : candidateNames)
+		{
+			auto candidatePath = (std::filesystem::path(viewFile->GetFilename()).parent_path() / candidateName).string();
+			if (IsUsablePrimaryCachePath(candidatePath))
+			{
+				primaryFilePath = candidatePath;
+				break;
+			}
+		}
+
+		if (!IsUsablePrimaryCachePath(primaryFilePath))
+		{
+			auto promptedPrimaryFilePath = promptForPrimaryFile();
+			if (!promptedPrimaryFilePath)
+				return std::nullopt;
+			primaryFilePath = *promptedPrimaryFilePath;
+		}
+
+		if (IsBndbPath(primaryFilePath))
+		{
+			m_logger->LogAlertF(
+				"Primary shared cache path is a Binary Ninja database, not a dyld shared cache file: '{}'",
+				primaryFilePath);
 			return std::nullopt;
+		}
+
 		SetPrimaryFileName(BaseFileName(primaryFilePath));
-		// Update so next load we don't need to prompt the user.
-		viewFile->SetOriginalFilename(primaryFilePath);
 	}
 
 	// 3. If we are not in a project, we can go ahead and return the file path, it does not need to be resolved from project.
@@ -1047,16 +1159,23 @@ std::optional<std::string> SharedCacheView::GetPrimaryFilePath()
 		return pj->GetPathOnDisk();
 	}
 
+	if (IsUsablePrimaryCachePath(primaryFilePath) && BaseFileName(primaryFilePath) == m_primaryFileName)
+		return primaryFilePath;
+
 	// 6. If we fail to resolve the project file given the `m_primaryFileName` than we fall back to asking the user.
-	std::string newPrimaryFilePath;
-	if (!GetOpenFileNameInput(newPrimaryFilePath, "Please select the primary shared cache file"))
+	auto promptedPrimaryFilePath = promptForPrimaryFile();
+	if (!promptedPrimaryFilePath)
 		return std::nullopt;
+	std::string newPrimaryFilePath = *promptedPrimaryFilePath;
 
 	// TODO: We likely want to verify that the project file exists in the same directory as the BNDB.
 	// TODO: We currently require the database to exist in the same directory as the files.
 	// Update the primary file name for later loads, otherwise we would keep prompting to select a file.
 	primaryProjectFile = project->GetFileByPathOnDisk(newPrimaryFilePath);
-	SetPrimaryFileName(primaryProjectFile->GetName());
+	if (primaryProjectFile)
+		SetPrimaryFileName(primaryProjectFile->GetName());
+	else
+		SetPrimaryFileName(BaseFileName(newPrimaryFilePath));
 	return newPrimaryFilePath;
 }
 
