@@ -72,13 +72,11 @@ bv = load(
 )
 ```
 
-Note: `loader.dsc.primaryFilePath` is used only for the *current* load. Binary Ninja stores the primary cache file's basename in the database, but not the absolute path. If the primary shared cache file is in another directory and can't be found automatically, you may need to specify the `primaryFilePath` on subsequent loads.
+Note: `loader.dsc.primaryFilePath` is used only for the *current* load. Binary Ninja does not persist the absolute override path. When the primary file is resolved in a project, Binary Ninja stores the project-relative path. When it is resolved outside a project, Binary Ninja stores a path relative to the database when possible.
 
 ### Project Support
 
-Binary Ninja projects support `dyld_shared_cache` files. However, due to the nature of the project files not having a mappable path,
-saving the analysis database (`.bndb`) in a separate directory will require you to select the primary shared cache file on
-every open of the database. As a result, we advise keeping your analysis database in the same folder as your `dyld_shared_cache` files.
+Binary Ninja projects support `dyld_shared_cache` files. We recommend keeping your analysis database (`.bndb`) in the same project folder as your `dyld_shared_cache` files. If the database and shared cache files are in different project folders, Binary Ninja will try to store and resolve the primary shared cache file using its project-relative path.
 
   - `your_project_folder`
     - `dyld_shared_cache_arm64` (**Primary**)
