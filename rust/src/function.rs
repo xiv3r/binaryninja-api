@@ -1077,7 +1077,7 @@ impl Function {
     {
         let locations: Vec<BNValueLocation> = values
             .into_iter()
-            .map(|location| ValueLocation::into_rust_raw(&location.into()))
+            .map(|location| ValueLocation::into_rust_raw(&location))
             .collect();
         unsafe {
             BNSetUserFunctionParameterLocations(
@@ -1089,9 +1089,7 @@ impl Function {
                 },
             )
         }
-        locations
-            .into_iter()
-            .for_each(|location| ValueLocation::free_rust_raw(location.into()));
+        locations.into_iter().for_each(ValueLocation::free_rust_raw);
     }
 
     pub fn set_auto_parameter_locations<I>(&self, values: I, confidence: u8)
@@ -1100,7 +1098,7 @@ impl Function {
     {
         let locations: Vec<BNValueLocation> = values
             .into_iter()
-            .map(|location| ValueLocation::into_rust_raw(&location.into()))
+            .map(|location| ValueLocation::into_rust_raw(&location))
             .collect();
         unsafe {
             BNSetAutoFunctionParameterLocations(
@@ -1112,9 +1110,7 @@ impl Function {
                 },
             )
         }
-        locations
-            .into_iter()
-            .for_each(|location| ValueLocation::free_rust_raw(location.into()));
+        locations.into_iter().for_each(ValueLocation::free_rust_raw);
     }
 
     pub fn parameter_at(

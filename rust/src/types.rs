@@ -449,7 +449,7 @@ impl TypeBuilder {
     // TODO: Deprecate this for a FunctionBuilder (along with the Type variant?)
     /// NOTE: This is likely to be deprecated and removed in favor of a function type builder, please
     /// use [`Type::function`] where possible.
-    pub fn function<'a, T: Into<ReturnValue>>(
+    pub fn function<T: Into<ReturnValue>>(
         return_value: T,
         parameters: Vec<FunctionParameter>,
         variable_arguments: bool,
@@ -500,11 +500,7 @@ impl TypeBuilder {
     // TODO: Deprecate this for a FunctionBuilder (along with the Type variant?)
     /// NOTE: This is likely to be deprecated and removed in favor of a function type builder, please
     /// use [`Type::function_with_opts`] where possible.
-    pub fn function_with_opts<
-        'a,
-        T: Into<ReturnValue>,
-        C: Into<Conf<Ref<CoreCallingConvention>>>,
-    >(
+    pub fn function_with_opts<T: Into<ReturnValue>, C: Into<Conf<Ref<CoreCallingConvention>>>>(
         return_value: T,
         parameters: &[FunctionParameter],
         variable_arguments: bool,
@@ -929,7 +925,7 @@ impl Type {
     }
 
     // TODO: FunctionBuilder
-    pub fn function<'a, T: Into<ReturnValue>>(
+    pub fn function<T: Into<ReturnValue>>(
         return_value: T,
         parameters: Vec<FunctionParameter>,
         variable_arguments: bool,
@@ -979,11 +975,7 @@ impl Type {
     }
 
     // TODO: FunctionBuilder
-    pub fn function_with_opts<
-        'a,
-        T: Into<ReturnValue>,
-        C: Into<Conf<Ref<CoreCallingConvention>>>,
-    >(
+    pub fn function_with_opts<T: Into<ReturnValue>, C: Into<Conf<Ref<CoreCallingConvention>>>>(
         return_value: T,
         parameters: &[FunctionParameter],
         variable_arguments: bool,
@@ -1253,7 +1245,7 @@ impl ValueLocation {
     }
 
     pub fn variable_for_return_value(&self) -> Option<Variable> {
-        let value_raw = Self::into_rust_raw(&self);
+        let value_raw = Self::into_rust_raw(self);
         let mut var_raw = BNVariable::default();
         let valid = unsafe { BNGetValueLocationVariableForReturnValue(&value_raw, &mut var_raw) };
         Self::free_rust_raw(value_raw);
@@ -1265,7 +1257,7 @@ impl ValueLocation {
     }
 
     pub fn variable_for_parameter(&self, idx: usize) -> Option<Variable> {
-        let value_raw = Self::into_rust_raw(&self);
+        let value_raw = Self::into_rust_raw(self);
         let mut var_raw = BNVariable::default();
         let valid =
             unsafe { BNGetValueLocationVariableForParameter(&value_raw, &mut var_raw, idx) };
@@ -1283,7 +1275,7 @@ impl ValueLocation {
         Self {
             components: components_raw
                 .iter()
-                .map(|component| ValueLocationComponent::from_raw(component))
+                .map(ValueLocationComponent::from_raw)
                 .collect(),
             indirect: loc.indirect,
             returned_pointer: if loc.returnedPointerValid {
@@ -1298,7 +1290,7 @@ impl ValueLocation {
         let components: Box<[BNValueLocationComponent]> = value
             .components
             .iter()
-            .map(|component| ValueLocationComponent::into_raw(component))
+            .map(ValueLocationComponent::into_raw)
             .collect();
         BNValueLocation {
             count: components.len(),
@@ -1321,11 +1313,11 @@ impl ValueLocation {
     }
 }
 
-impl Into<ValueLocation> for Variable {
-    fn into(self) -> ValueLocation {
+impl From<Variable> for ValueLocation {
+    fn from(value: Variable) -> Self {
         ValueLocation {
             components: vec![ValueLocationComponent {
-                variable: self,
+                variable: value,
                 offset: 0,
                 size: None,
             }],
@@ -1397,46 +1389,46 @@ impl ReturnValue {
     }
 }
 
-impl Into<ReturnValue> for Ref<Type> {
-    fn into(self) -> ReturnValue {
+impl From<Ref<Type>> for ReturnValue {
+    fn from(value: Ref<Type>) -> ReturnValue {
         ReturnValue {
-            ty: self.into(),
+            ty: value.into(),
             location: None,
         }
     }
 }
 
-impl Into<ReturnValue> for &Ref<Type> {
-    fn into(self) -> ReturnValue {
+impl From<&Ref<Type>> for ReturnValue {
+    fn from(value: &Ref<Type>) -> ReturnValue {
         ReturnValue {
-            ty: self.clone().into(),
+            ty: value.clone().into(),
             location: None,
         }
     }
 }
 
-impl Into<ReturnValue> for &Type {
-    fn into(self) -> ReturnValue {
+impl From<&Type> for ReturnValue {
+    fn from(value: &Type) -> ReturnValue {
         ReturnValue {
-            ty: self.to_owned().into(),
+            ty: value.to_owned().into(),
             location: None,
         }
     }
 }
 
-impl Into<ReturnValue> for Conf<Ref<Type>> {
-    fn into(self) -> ReturnValue {
+impl From<Conf<Ref<Type>>> for ReturnValue {
+    fn from(value: Conf<Ref<Type>>) -> ReturnValue {
         ReturnValue {
-            ty: self,
+            ty: value,
             location: None,
         }
     }
 }
 
-impl Into<ReturnValue> for &Conf<Ref<Type>> {
-    fn into(self) -> ReturnValue {
+impl From<&Conf<Ref<Type>>> for ReturnValue {
+    fn from(value: &Conf<Ref<Type>>) -> ReturnValue {
         ReturnValue {
-            ty: self.clone(),
+            ty: value.clone(),
             location: None,
         }
     }
