@@ -90,8 +90,10 @@ class Extension:
 		return core.BNPluginIsInstalled(self.handle)
 
 	def install(self, version_id=None) -> bool:
-		"""Attempt to install the given plugin"""
+		"""Attempt to install the given plugin. Defaults to the latest available version."""
 		self.install_dependencies()
+		if version_id is None:
+			version_id = self.current_version.id
 		return core.BNPluginInstall(self.handle, version_id)
 
 	def uninstall(self) -> bool:
@@ -101,8 +103,7 @@ class Extension:
 	@installed.setter
 	def installed(self, state: bool):
 		if state:
-			self.install_dependencies()
-			core.BNPluginInstall(self.handle, None)
+			self.install()
 		else:
 			core.BNPluginUninstall(self.handle)
 
