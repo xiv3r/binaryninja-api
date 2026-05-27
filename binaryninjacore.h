@@ -8287,17 +8287,12 @@ extern "C"
 	BINARYNINJACOREAPI bool BNDeleteDirectory(const char* path);
 	BINARYNINJACOREAPI bool BNCreateDirectory(const char* path, bool createSubdirectories);
 	BINARYNINJACOREAPI bool BNPathExists(const char* path);
-	BINARYNINJACOREAPI char* BNGetParentPath(const char* path);
 	BINARYNINJACOREAPI bool BNIsPathDirectory(const char* path);
 	BINARYNINJACOREAPI bool BNIsPathRegularFile(const char* path);
 	BINARYNINJACOREAPI bool BNFileSize(const char* path, uint64_t* size);
 	BINARYNINJACOREAPI bool BNRenameFile(const char* source, const char* dest);
 	BINARYNINJACOREAPI bool BNCopyFile(const char* source, const char* dest);
-	BINARYNINJACOREAPI char* BNGetFileName(const char* path);
-	BINARYNINJACOREAPI char* BNGetFileExtension(const char* path);
 	BINARYNINJACOREAPI char** BNGetFilePathsInDirectory(const char* path, size_t* count);
-	BINARYNINJACOREAPI char* BNAppendPath(const char* path, const char* part);
-	BINARYNINJACOREAPI void BNFreePath(char* path);
 	BINARYNINJACOREAPI char* BNGetSystemCacheDirectory();
 
 	// Settings APIs
