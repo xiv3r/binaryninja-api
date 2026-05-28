@@ -682,6 +682,18 @@ extern "C"
 			BinaryViewType::RegisterPlatform("ELF", 0, platform);
 			BinaryViewType::RegisterPlatform("ELF", 3, platform);
 		}
+
+		Ref<Architecture> nds32be = Architecture::GetByName("nds32be");
+		if (nds32be)
+		{
+			Ref<Platform> platform;
+
+			platform = new LinuxNds32Platform(nds32be, "linux-nds32be");
+			Platform::Register("linux", platform);
+			// Linux binaries sometimes have an OS identifier of zero, even though 3 is the correct one
+			BinaryViewType::RegisterPlatform("ELF", 0, platform);
+			BinaryViewType::RegisterPlatform("ELF", 3, platform);
+		}
 #endif
 
 		return true;
