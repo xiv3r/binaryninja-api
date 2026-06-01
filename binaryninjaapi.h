@@ -16347,6 +16347,8 @@ namespace BinaryNinja {
 
 		ExprId Var(size_t size, const Variable& src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId VarSSA(size_t size, const SSAVariable& src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId VarSSAPartial(size_t size, const Variable& dest, size_t newVersion, size_t prevVersion,
+			const ILSourceLocation& loc = ILSourceLocation());
 		ExprId VarPhi(const SSAVariable& dest, const std::vector<SSAVariable>& sources,
 		    const ILSourceLocation& loc = ILSourceLocation());
 		ExprId MemPhi(

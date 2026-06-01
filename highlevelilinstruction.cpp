@@ -60,6 +60,7 @@ static constexpr std::array s_operandTypeForUsage = {
 	OperandUsageType{DestVariableHighLevelOperandUsage, VariableHighLevelOperand},
 	OperandUsageType{SSAVariableHighLevelOperandUsage, SSAVariableHighLevelOperand},
 	OperandUsageType{DestSSAVariableHighLevelOperandUsage, SSAVariableHighLevelOperand},
+	OperandUsageType{PartialSSAVariableSourceHighLevelOperandUsage, SSAVariableHighLevelOperand},
 	OperandUsageType{DestExprHighLevelOperandUsage, ExprHighLevelOperand},
 	OperandUsageType{LeftExprHighLevelOperandUsage, ExprHighLevelOperand},
 	OperandUsageType{RightExprHighLevelOperandUsage, ExprHighLevelOperand},
@@ -113,6 +114,12 @@ struct HighLevelILOperationTraits
 
 	static constexpr uint8_t GetOperandIndexAdvance(OperandUsage usage, size_t /* operandIndex */)
 	{
+		if (usage == PartialSSAVariableSourceHighLevelOperandUsage)
+		{
+			// SSA variables are usually two slots, but this one has previously defined
+			// variables and thus only takes one slot
+			return 1;
+		}
 		switch (OperandTypeForUsage(usage))
 		{
 		case SSAVariableHighLevelOperand:
@@ -252,6 +259,7 @@ static constexpr std::array s_instructionOperandUsage = {
 	OperandUsage{HLIL_FORCE_VER_SSA, {DestSSAVariableHighLevelOperandUsage, SSAVariableHighLevelOperandUsage}},
 	OperandUsage{HLIL_ASSERT_SSA, {SSAVariableHighLevelOperandUsage, ConstantHighLevelOperandUsage}},
 	OperandUsage{HLIL_VAR_SSA, {SSAVariableHighLevelOperandUsage}},
+	OperandUsage{HLIL_VAR_SSA_PARTIAL, {SSAVariableHighLevelOperandUsage, PartialSSAVariableSourceHighLevelOperandUsage}},
 	OperandUsage{HLIL_ARRAY_INDEX_SSA, {SourceExprHighLevelOperandUsage, SourceMemoryVersionHighLevelOperandUsage, IndexExprHighLevelOperandUsage}},
 	OperandUsage{HLIL_DEREF_SSA, {SourceExprHighLevelOperandUsage, SourceMemoryVersionHighLevelOperandUsage}},
 	OperandUsage{HLIL_DEREF_FIELD_SSA, {SourceExprHighLevelOperandUsage, SourceMemoryVersionHighLevelOperandUsage, OffsetHighLevelOperandUsage, MemberIndexHighLevelOperandUsage}},
@@ -813,6 +821,12 @@ Variable HighLevelILInstructionBase::GetRawOperandAsVariable(size_t operand) con
 SSAVariable HighLevelILInstructionBase::GetRawOperandAsSSAVariable(size_t operand) const
 {
 	return SSAVariable(Variable::FromIdentifier(operands[operand]), (size_t)operands[operand + 1]);
+}
+
+
+SSAVariable HighLevelILInstructionBase::GetRawOperandAsPartialSSAVariableSource(size_t operand) const
+{
+	return SSAVariable(Variable::FromIdentifier(operands[operand]), (size_t)operands[operand + 2]);
 }
 
 
@@ -1528,6 +1542,10 @@ ExprId HighLevelILInstruction::CopyTo(
 		return dest->Var(size, GetVariable<HLIL_VAR>(), loc);
 	case HLIL_VAR_SSA:
 		return dest->VarSSA(size, GetSSAVariable<HLIL_VAR_SSA>(), loc);
+	case HLIL_VAR_SSA_PARTIAL:
+		return dest->VarSSAPartial(size, GetDestSSAVariable<HLIL_VAR_SSA_PARTIAL>().var,
+			GetDestSSAVariable<HLIL_VAR_SSA_PARTIAL>().version,
+			GetSourceSSAVariable<HLIL_VAR_SSA_PARTIAL>().version, loc);
 	case HLIL_VAR_PHI:
 		return dest->VarPhi(GetDestSSAVariable<HLIL_VAR_PHI>(), GetSourceSSAVariables<HLIL_VAR_PHI>(), loc);
 	case HLIL_MEM_PHI:
@@ -1925,6 +1943,16 @@ bool HighLevelILInstruction::operator<(const HighLevelILInstruction& other) cons
 		if (size > other.size)
 			return false;
 		return GetSSAVariable<HLIL_VAR_SSA>() < other.GetSSAVariable<HLIL_VAR_SSA>();
+	case HLIL_VAR_SSA_PARTIAL:
+		if (size < other.size)
+			return true;
+		if (size > other.size)
+			return false;
+		if (GetDestSSAVariable<HLIL_VAR_SSA_PARTIAL>() < other.GetDestSSAVariable<HLIL_VAR_SSA_PARTIAL>())
+			return true;
+		if (other.GetDestSSAVariable<HLIL_VAR_SSA_PARTIAL>() < GetDestSSAVariable<HLIL_VAR_SSA_PARTIAL>())
+			return false;
+		return GetSourceSSAVariable<HLIL_VAR_SSA_PARTIAL>() < other.GetSourceSSAVariable<HLIL_VAR_SSA_PARTIAL>();
 	case HLIL_STRUCT_FIELD:
 		if (size < other.size)
 			return true;
@@ -2321,6 +2349,15 @@ SSAVariable HighLevelILInstruction::GetDestSSAVariable() const
 	if (GetOperandIndexForUsage(DestSSAVariableHighLevelOperandUsage, operandIndex))
 		return GetRawOperandAsSSAVariable(operandIndex);
 	throw HighLevelILInstructionAccessException();
+}
+
+
+SSAVariable HighLevelILInstruction::GetSourceSSAVariable() const
+{
+	size_t operandIndex;
+	if (GetOperandIndexForUsage(PartialSSAVariableSourceHighLevelOperandUsage, operandIndex))
+		return GetRawOperandAsPartialSSAVariableSource(operandIndex - 2);
+	throw MediumLevelILInstructionAccessException();
 }
 
 
@@ -2828,6 +2865,13 @@ ExprId HighLevelILFunction::Var(size_t size, const Variable& src, const ILSource
 ExprId HighLevelILFunction::VarSSA(size_t size, const SSAVariable& src, const ILSourceLocation& loc)
 {
 	return AddExprWithLocation(HLIL_VAR_SSA, loc, size, src.var.ToIdentifier(), src.version);
+}
+
+
+ExprId HighLevelILFunction::VarSSAPartial(size_t size, const Variable& dest, size_t newVersion, size_t prevVersion,
+	const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(HLIL_VAR_SSA_PARTIAL, loc, size, dest.ToIdentifier(), newVersion, prevVersion);
 }
 
 

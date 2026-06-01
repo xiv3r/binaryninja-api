@@ -169,6 +169,7 @@ pub enum HighLevelILLiftedInstructionKind {
     VarInitSsa(LiftedVarInitSsa),
     VarPhi(LiftedVarPhi),
     VarSsa(VarSsa),
+    VarSsaPartial(VarSsaPartial),
     While(LiftedWhile),
     DoWhile(LiftedWhile),
     WhileSsa(LiftedWhileSsa),
@@ -310,6 +311,7 @@ impl HighLevelILLiftedInstruction {
             VarInitSsa(_) => "VarInitSsa",
             VarPhi(_) => "VarPhi",
             VarSsa(_) => "VarSsa",
+            VarSsaPartial(_) => "VarSsaPartial",
             While(_) => "While",
             DoWhile(_) => "DoWhile",
             WhileSsa(_) => "WhileSsa",
@@ -479,6 +481,10 @@ impl HighLevelILLiftedInstruction {
                 ("src", Operand::VarSsaList(op.src.clone())),
             ],
             VarSsa(op) => vec![("var", Operand::VarSsa(op.var))],
+            VarSsaPartial(op) => vec![
+                ("dest", Operand::VarSsa(op.dest)),
+                ("prev", Operand::VarSsa(op.prev)),
+            ],
             While(op) | DoWhile(op) => vec![
                 ("condition", Operand::Expr(*op.condition.clone())),
                 ("body", Operand::Expr(*op.body.clone())),

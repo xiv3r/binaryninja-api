@@ -614,6 +614,10 @@ impl HighLevelILInstruction {
             HLIL_VAR_SSA => Op::VarSsa(VarSsa {
                 var: get_var_ssa((op.operands[0], op.operands[1] as usize)),
             }),
+            HLIL_VAR_SSA_PARTIAL => Op::VarSsaPartial(VarSsaPartial {
+                dest: get_var_ssa((op.operands[0], op.operands[1] as usize)),
+                prev: get_var_ssa((op.operands[0], op.operands[2] as usize)),
+            }),
             HLIL_WHILE => Op::While(While {
                 condition: HighLevelExpressionIndex::from(op.operands[0]),
                 body: HighLevelExpressionIndex::from(op.operands[1]),
@@ -977,6 +981,7 @@ impl HighLevelILInstruction {
                 src: self.get_ssa_var_list(2),
             }),
             VarSsa(op) => Lifted::VarSsa(op),
+            VarSsaPartial(op) => Lifted::VarSsaPartial(op),
 
             While(op) => Lifted::While(self.lift_while(op)),
             DoWhile(op) => Lifted::DoWhile(self.lift_while(op)),
@@ -1274,6 +1279,7 @@ pub enum HighLevelILInstructionKind {
     VarInitSsa(VarInitSsa),
     VarPhi(VarPhi),
     VarSsa(VarSsa),
+    VarSsaPartial(VarSsaPartial),
     While(While),
     DoWhile(While),
     WhileSsa(WhileSsa),

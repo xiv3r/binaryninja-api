@@ -89,6 +89,7 @@ namespace BinaryNinja
 		DestVariableHighLevelOperandUsage,
 		SSAVariableHighLevelOperandUsage,
 		DestSSAVariableHighLevelOperandUsage,
+		PartialSSAVariableSourceHighLevelOperandUsage,
 		DestExprHighLevelOperandUsage,
 		LeftExprHighLevelOperandUsage,
 		RightExprHighLevelOperandUsage,
@@ -371,6 +372,7 @@ namespace BinaryNinja
 		HighLevelILInstruction GetRawOperandAsExpr(size_t operand) const;
 		Variable GetRawOperandAsVariable(size_t operand) const;
 		SSAVariable GetRawOperandAsSSAVariable(size_t operand) const;
+		SSAVariable GetRawOperandAsPartialSSAVariableSource(size_t operand) const;
 		HighLevelILInstructionList GetRawOperandAsExprList(size_t operand) const;
 		HighLevelILSSAVariableList GetRawOperandAsSSAVariableList(size_t operand) const;
 		HighLevelILIndexList GetRawOperandAsIndexList(size_t operand) const;
@@ -522,6 +524,11 @@ namespace BinaryNinja
 		SSAVariable GetDestSSAVariable() const
 		{
 			return As<N>().GetDestSSAVariable();
+		}
+		template <BNHighLevelILOperation N>
+		SSAVariable GetSourceSSAVariable() const
+		{
+			return As<N>().GetSourceSSAVariable();
 		}
 		template <BNHighLevelILOperation N>
 		HighLevelILInstruction GetDestExpr() const
@@ -700,6 +707,11 @@ namespace BinaryNinja
 			As<N>().SetDestSSAVersion(version);
 		}
 		template <BNHighLevelILOperation N>
+		void SetSourceSSAVersion(size_t version)
+		{
+			As<N>().SetSourceSSAVersion(version);
+		}
+		template <BNHighLevelILOperation N>
 		void SetParameterExprs(const _STD_VECTOR<MediumLevelILInstruction>& params)
 		{
 			As<N>().SetParameterExprs(params);
@@ -779,6 +791,7 @@ namespace BinaryNinja
 		Variable GetDestVariable() const;
 		SSAVariable GetSSAVariable() const;
 		SSAVariable GetDestSSAVariable() const;
+		SSAVariable GetSourceSSAVariable() const;
 		HighLevelILInstruction GetDestExpr() const;
 		HighLevelILInstruction GetLeftExpr() const;
 		HighLevelILInstruction GetRightExpr() const;
@@ -1162,6 +1175,14 @@ namespace BinaryNinja
 	{
 		SSAVariable GetSSAVariable() const { return GetRawOperandAsSSAVariable(0); }
 		void SetSSAVersion(size_t version) { UpdateRawOperand(1, version); }
+	};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_VAR_SSA_PARTIAL> : public HighLevelILInstructionBase
+	{
+		SSAVariable GetDestSSAVariable() const { return GetRawOperandAsSSAVariable(0); }
+		SSAVariable GetSourceSSAVariable() const { return GetRawOperandAsPartialSSAVariableSource(0); }
+		void SetDestSSAVersion(size_t version) { UpdateRawOperand(1, version); }
+		void SetSourceSSAVersion(size_t version) { UpdateRawOperand(2, version); }
 	};
 	template <>
 	struct HighLevelILInstructionAccessor<HLIL_VAR_PHI> : public HighLevelILInstructionBase

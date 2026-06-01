@@ -532,6 +532,13 @@ pub struct VarSsa {
     pub var: SSAVariable,
 }
 
+// VAR_SSA_PARTIAL
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct VarSsaPartial {
+    pub dest: SSAVariable,
+    pub prev: SSAVariable,
+}
+
 // WHILE, DO_WHILE
 #[derive(Debug, Copy, Clone)]
 pub struct While {

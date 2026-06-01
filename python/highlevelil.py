@@ -191,6 +191,8 @@ class HighLevelILInstruction(BaseILInstruction):
 	        ("dest", "expr_list"), ("dest_memory", "int"), ("src", "expr"), ("src_memory", "int")
 	    ], HighLevelILOperation.HLIL_VAR: [("var", "var")], HighLevelILOperation.HLIL_VAR_SSA: [
 	        ("var", "var_ssa")
+	    ], HighLevelILOperation.HLIL_VAR_SSA_PARTIAL: [
+	        ("var", "var_ssa_dest_and_src"), ("prev", "var_ssa_dest_and_src")
 	    ], HighLevelILOperation.HLIL_VAR_PHI: [("dest", "var_ssa"),
 	                                           ("src", "var_ssa_list")], HighLevelILOperation.HLIL_MEM_PHI: [
 	                                               ("dest", "int"), ("src", "int_list")
@@ -1553,6 +1555,24 @@ class HighLevelILVarSsa(HighLevelILInstruction, SSAVariableInstruction):
 
 
 @dataclass(frozen=True, repr=False, eq=False)
+class HighLevelILVarSsaPartial(HighLevelILInstruction, SSAVariableInstruction):
+	@property
+	def dest(self) -> 'mediumlevelil.SSAVariable':
+		return self._get_var_ssa(0, 1)
+
+	@property
+	def prev(self) -> 'mediumlevelil.SSAVariable':
+		return self._get_var_ssa(0, 2)
+
+	@property
+	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
+		return [
+			("dest", self.dest, "SSAVariable"),
+			("prev", self.prev, "SSAVariable"),
+		]
+
+
+@dataclass(frozen=True, repr=False, eq=False)
 class HighLevelILVarPhi(HighLevelILInstruction, Phi, SetVar):
 	@property
 	def dest(self) -> 'mediumlevelil.SSAVariable':
@@ -2495,6 +2515,7 @@ ILInstruction = {
         HighLevelILAssignUnpackMemSsa,  #  ("dest", "expr_list"), ("dest_memory", "int"), ("src", "expr"), ("src_memory", "int"),
     HighLevelILOperation.HLIL_VAR: HighLevelILVar,  #  ("var", "var"),
     HighLevelILOperation.HLIL_VAR_SSA: HighLevelILVarSsa,  #  ("var", "var_ssa"),
+	HighLevelILOperation.HLIL_VAR_SSA_PARTIAL: HighLevelILVarSsaPartial,  #  ("dest", "var_ssa_dest_and_src"), ("prev", "var_ssa_dest_and_src"),
     HighLevelILOperation.HLIL_VAR_PHI: HighLevelILVarPhi,  #  ("dest", "var_ssa"), ("src", "var_ssa_list"),
     HighLevelILOperation.HLIL_MEM_PHI: HighLevelILMemPhi,  #  ("dest", "int"), ("src", "int_list"),
     HighLevelILOperation.HLIL_ARRAY_INDEX: HighLevelILArrayIndex,  #  ("src", "expr"), ("index", "expr"),
