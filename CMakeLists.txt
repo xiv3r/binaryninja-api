@@ -60,7 +60,7 @@ elseif(BN_ALLOW_STUBS)
     add_dependencies(binaryninjaapi binaryninjacore_stubs)
     target_link_libraries(binaryninjaapi PUBLIC binaryninjacore_stubs)
 else()
-    message(FATAL_ERROR "No Binary Ninja installation was found and stub generation is disabled")
+    message(FATAL_ERROR "Could NOT find Binary Ninja installation. Please configure with -DBN_INSTALL_DIR=<path to Binary Ninja>, set the BN_INSTALL_DIR environment variable, or enable stub generation with -DBN_ALLOW_STUBS=ON")
 endif()
 
 if(BN_REF_COUNT_DEBUG)
