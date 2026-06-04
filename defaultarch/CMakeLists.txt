@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(defaultarch)
 
 if(NOT BN_INTERNAL_BUILD)
-	add_subdirectory(${PROJECT_SOURCE_DIR}/../.. ${PROJECT_BINARY_DIR}/api)
+	add_subdirectory(${PROJECT_SOURCE_DIR}/.. ${PROJECT_BINARY_DIR}/api)
 endif()
 
 file(GLOB SOURCES CONFIGURE_DEPENDS
