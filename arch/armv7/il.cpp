@@ -722,7 +722,7 @@ bool GetLowLevelILForArmInstruction(Architecture* arch, uint64_t addr, LowLevelI
 	InstructionOperand& op4 = instr.operands[3];
 	InstructionOperand& op5 = instr.operands[4];
 	InstructionOperand& op6 = instr.operands[5];
-	LowLevelILLabel trueLabel, falseLabel, endLabel, loopBody, loopStart, loopExit;
+	LowLevelILLabel trueLabel, falseLabel, endLabel;
 	uint32_t flagOperation[2] = {IL_FLAGWRITE_NONE, IL_FLAGWRITE_ALL};
 	LowLevelILLabel trueCode, falseCode, endCode;
 	switch (instr.operation)
@@ -816,25 +816,8 @@ bool GetLowLevelILForArmInstruction(Architecture* arch, uint64_t addr, LowLevelI
 			break;
 		case ARMV7_CLZ:
 			ConditionExecute(addr, instr.cond, instr, il, [&](size_t, Instruction&, LowLevelILFunction& il){
-				//Count leading zeros
-				//
-				// TEMP0 = 0
-				// TEMP1 = op2.reg
-				// while (TEMP1 != 0)
-				// 		TEMP1 = TEMP1 >> 1
-				// 		TEMP0 = TEMP0 + 1
-				// op1.reg = 32 - TEMP0
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(0), il.Const(4, 0)));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(1), ReadRegisterOrPointer(il, op2, addr)));
-				il.AddInstruction(il.Goto(loopStart));
-				il.MarkLabel(loopStart);
-				il.AddInstruction(il.If(il.CompareNotEqual(4, il.Register(4, LLIL_TEMP(1)), il.Const(4, 0)), loopBody, loopExit));
-				il.MarkLabel(loopBody);
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(1), il.LogicalShiftRight(4, il.Register(4, LLIL_TEMP(1)), il.Const(4,1))));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(0), il.Add(4, il.Register(4, LLIL_TEMP(0)), il.Const(4,1))));
-				il.AddInstruction(il.Goto(loopStart));
-				il.MarkLabel(loopExit);
-				il.AddInstruction(SetRegisterOrBranch(il, op1.reg, il.Sub(4, il.Const(4, 32), il.Register(4, LLIL_TEMP(0)))));
+				il.AddInstruction(SetRegisterOrBranch(il, op1.reg,
+					il.CountLeadingZeros(4, ReadRegisterOrPointer(il, op2, addr))));
 			});
 			break;
 		case ARMV7_CMN:
@@ -1833,59 +1816,28 @@ bool GetLowLevelILForArmInstruction(Architecture* arch, uint64_t addr, LowLevelI
 			break;
 		case ARMV7_RBIT:
 			ConditionExecute(addr, instr.cond, instr, il, [&](size_t, Instruction&, LowLevelILFunction& il){
-				//Reverse bits
-				//
-				// TEMP0 = 0
-				// TEMP1 = op2.reg
-				// TEMP2 = 0
-				// while (TEMP0 != 31)
-				//		TEMP2 = TEMP2 | (TEMP1 & 1)
-				//		TEMP2 = TEMP2 << 1
-				// 		TEMP1 = TEMP1 >> 1
-				// 		TEMP0 = TEMP0 + 1
-				// op1.reg = 32 - TEMP0
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(0), il.Const(4, 0)));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(1), ReadRegisterOrPointer(il, op2, addr)));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(2), il.Const(4, 0)));
-				il.AddInstruction(il.Goto(loopStart));
-				il.MarkLabel(loopStart);
-				il.AddInstruction(il.If(il.CompareNotEqual(4, il.Register(4, LLIL_TEMP(0)), il.Const(4, 31)), loopBody, loopExit));
-				il.MarkLabel(loopBody);
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(2), il.Or(4, il.Register(4, LLIL_TEMP(2)), il.And(4, il.Register(4, LLIL_TEMP(1)), il.Const(4,1)))));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(2), il.ShiftLeft(4, il.Register(4, LLIL_TEMP(2)), il.Const(4,1))));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(1), il.LogicalShiftRight(4, il.Register(4, LLIL_TEMP(1)), il.Const(4,1))));
-				il.AddInstruction(il.SetRegister(4, LLIL_TEMP(0), il.Add(4, il.Register(4, LLIL_TEMP(0)), il.Const(4,1))));
-				il.AddInstruction(il.Goto(loopStart));
-				il.MarkLabel(loopExit);
-				il.AddInstruction(SetRegisterOrBranch(il, op1.reg, il.Register(4, LLIL_TEMP(2))));
+				il.AddInstruction(SetRegisterOrBranch(il, op1.reg,
+					il.ReverseBits(4, ReadRegisterOrPointer(il, op2, addr))));
 			});
 			break;
 		case ARMV7_REV:
 			ConditionExecute(il, instr.cond, il.SetRegister(4, op1.reg,
-				il.Or(4,
-					il.LogicalShiftRight(4, il.Register(4, op2.reg), il.Const(1, 24)),
-					il.Or(4,
-						il.ShiftLeft(4, il.And(4, il.LogicalShiftRight(4, il.Register(4, op2.reg), il.Const(1, 16)), il.Const(4, 0xff)), il.Const(1, 8)),
-						il.Or(4,
-							il.ShiftLeft(4, il.And(4, il.LogicalShiftRight(4, il.Register(4, op2.reg), il.Const(1, 8)), il.Const(4, 0xff)), il.Const(1, 16)),
-							il.ShiftLeft(4, il.And(4, il.Register(4, op2.reg), il.Const(4, 0xff)), il.Const(1, 24))
-						)
-					)
-				),
+				il.ByteSwap(4, il.Register(4, op2.reg)),
 				flagOperation[instr.setsFlags]));
 			break;
 		case ARMV7_REV16:
+			// A 32-bit register holds two 16-bit lanes, so reversing the bytes within each lane is a
+			// full byte reversal rotated by one halfword
 			ConditionExecute(addr, instr.cond, instr, il, [&](size_t, Instruction&, LowLevelILFunction& il){
-				il.AddInstruction(il.SetRegister(2, LLIL_TEMP(0), il.RotateRight(2, il.LowPart(2, ReadILOperand(il, op2, addr)), il.Const(1, 16))));
-				il.AddInstruction(il.SetRegister(2, LLIL_TEMP(1), il.RotateRight(2, il.LogicalShiftRight(2, ReadILOperand(il, op2, addr), il.Const(1, 16)), il.Const(1, 16))));
-				il.AddInstruction(il.SetRegister(4, op1.reg, il.Or(4, il.ShiftLeft(4, il.Register(2, LLIL_TEMP(1)), il.Const(1, 16)), il.Register(2, LLIL_TEMP(0)))));
+				il.AddInstruction(il.SetRegister(4, op1.reg,
+					il.RotateRight(4, il.ByteSwap(4, ReadILOperand(il, op2, addr)), il.Const(1, 16))));
 			});
 			break;
 		case ARMV7_REVSH:
+			// Reverse the bytes of the low 16-bit halfword and sign-extend the result to 32 bits
 			ConditionExecute(addr, instr.cond, instr, il, [&](size_t, Instruction&, LowLevelILFunction& il){
-				il.AddInstruction(il.SetRegister(2, LLIL_TEMP(0), il.RotateRight(2, il.LowPart(2, ReadILOperand(il, op2, addr)), il.Const(1, 16))));
-				il.AddInstruction(il.SetRegister(2, LLIL_TEMP(1), il.RotateRight(2, il.LogicalShiftRight(2, ReadILOperand(il, op2, addr), il.Const(1, 16)), il.Const(1, 16))));
-				il.AddInstruction(il.SetRegister(4, op1.reg, il.SignExtend(4, il.Or(4, il.ShiftLeft(4, il.Register(2, LLIL_TEMP(1)), il.Const(1, 16)), il.Register(2, LLIL_TEMP(0))))));
+				il.AddInstruction(il.SetRegister(4, op1.reg,
+					il.SignExtend(4, il.ByteSwap(2, il.LowPart(2, ReadILOperand(il, op2, addr))))));
 			});
 			break;
 
