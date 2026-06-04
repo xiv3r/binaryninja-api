@@ -176,7 +176,7 @@ static ExprId GetFloat(LowLevelILFunction& il, InstructionOperand& operand, int 
 		case 4:
 			return il.FloatConstSingle(std::bit_cast<float>(static_cast<uint32_t>(operand.immediate)));
 		case 8:
-			return il.FloatConstDouble(std::bit_cast<double>(operand.immediate));
+			return il.FloatConstDouble(std::bit_cast<float>(static_cast<uint32_t>(operand.immediate)));
 		default:
 			break;
 		}
