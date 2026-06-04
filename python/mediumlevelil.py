@@ -271,7 +271,13 @@ class MediumLevelILInstruction(BaseILInstruction):
 	        ("src", "expr")
 	    ], MediumLevelILOperation.MLIL_CTZ: [("src", "expr")], MediumLevelILOperation.MLIL_RBIT: [
 	        ("src", "expr")
-	    ], MediumLevelILOperation.MLIL_CLS: [("src", "expr")], MediumLevelILOperation.MLIL_SX: [
+	    ], MediumLevelILOperation.MLIL_CLS: [("src", "expr")], MediumLevelILOperation.MLIL_MINS: [
+	        ("left", "expr"), ("right", "expr")
+	    ], MediumLevelILOperation.MLIL_MAXS: [("left", "expr"), ("right", "expr")], MediumLevelILOperation.MLIL_MINU: [
+	        ("left", "expr"), ("right", "expr")
+	    ], MediumLevelILOperation.MLIL_MAXU: [("left", "expr"), ("right", "expr")], MediumLevelILOperation.MLIL_ABS: [
+	        ("src", "expr")
+	    ], MediumLevelILOperation.MLIL_SX: [
 	        ("src", "expr")
 	    ], MediumLevelILOperation.MLIL_ZX: [("src", "expr")], MediumLevelILOperation.MLIL_LOW_PART: [
 	        ("src", "expr")
@@ -1467,6 +1473,31 @@ class MediumLevelILRbit(MediumLevelILUnaryBase, Arithmetic):
 
 @dataclass(frozen=True, repr=False, eq=False)
 class MediumLevelILCls(MediumLevelILUnaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class MediumLevelILMins(MediumLevelILBinaryBase, Arithmetic, Signed):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class MediumLevelILMaxs(MediumLevelILBinaryBase, Arithmetic, Signed):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class MediumLevelILMinu(MediumLevelILBinaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class MediumLevelILMaxu(MediumLevelILBinaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class MediumLevelILAbs(MediumLevelILUnaryBase, Arithmetic):
 	pass
 
 
@@ -3486,6 +3517,11 @@ ILInstruction = {
     MediumLevelILOperation.MLIL_CTZ: MediumLevelILCtz,  # [("src", "expr")],
     MediumLevelILOperation.MLIL_RBIT: MediumLevelILRbit,  # [("src", "expr")],
     MediumLevelILOperation.MLIL_CLS: MediumLevelILCls,  # [("src", "expr")],
+    MediumLevelILOperation.MLIL_MINS: MediumLevelILMins,  # [("left", "expr"), ("right", "expr")],
+    MediumLevelILOperation.MLIL_MAXS: MediumLevelILMaxs,  # [("left", "expr"), ("right", "expr")],
+    MediumLevelILOperation.MLIL_MINU: MediumLevelILMinu,  # [("left", "expr"), ("right", "expr")],
+    MediumLevelILOperation.MLIL_MAXU: MediumLevelILMaxu,  # [("left", "expr"), ("right", "expr")],
+    MediumLevelILOperation.MLIL_ABS: MediumLevelILAbs,  # [("src", "expr")],
     MediumLevelILOperation.MLIL_SX: MediumLevelILSx,  # [("src", "expr")],
     MediumLevelILOperation.MLIL_ZX: MediumLevelILZx,  # [("src", "expr")],
     MediumLevelILOperation.MLIL_LOW_PART: MediumLevelILLowPart,  # [("src", "expr")],

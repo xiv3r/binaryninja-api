@@ -2490,6 +2490,31 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 		}();
 		break;
 
+	case HLIL_MINS:
+	case HLIL_MINU:
+		AppendTwoOperandFunction("min", instr, tokens, settings, false);
+		if (statement)
+			tokens.AppendSemicolon();
+		break;
+
+	case HLIL_MAXS:
+	case HLIL_MAXU:
+		AppendTwoOperandFunction("max", instr, tokens, settings, false);
+		if (statement)
+			tokens.AppendSemicolon();
+		break;
+
+	case HLIL_ABS:
+		[&]() {
+			tokens.Append(OperationToken, "abs");
+			tokens.AppendOpenParen();
+			GetExprTextInternal(instr.GetSourceExpr<HLIL_ABS>(), tokens, settings);
+			tokens.AppendCloseParen();
+			if (statement)
+				tokens.AppendSemicolon();
+		}();
+		break;
+
 	case HLIL_FLOAT_CONV:
 		[&]() {
 			const auto srcExpr = instr.GetSourceExpr<HLIL_FLOAT_CONV>();

@@ -15069,6 +15069,60 @@ namespace BinaryNinja {
 		*/
 		ExprId CountLeadingSigns(size_t size, ExprId a, uint32_t flags = 0, const ILSourceLocation& loc = ILSourceLocation());
 
+		/*! Signed minimum of expressions \c left and \c right of size \c size potentially setting flags
+
+			\param size The size of the result in bytes
+			\param left The left expression
+			\param right The right expression
+			\param flags Flags to set
+			\param loc Optional IL Location this expression was added from.
+			\return The expression <tt>mins.<size>{<flags>}(left, right)</tt>
+		*/
+		ExprId MinSigned(size_t size, ExprId left, ExprId right, uint32_t flags = 0, const ILSourceLocation& loc = ILSourceLocation());
+
+		/*! Signed maximum of expressions \c left and \c right of size \c size potentially setting flags
+
+			\param size The size of the result in bytes
+			\param left The left expression
+			\param right The right expression
+			\param flags Flags to set
+			\param loc Optional IL Location this expression was added from.
+			\return The expression <tt>maxs.<size>{<flags>}(left, right)</tt>
+		*/
+		ExprId MaxSigned(size_t size, ExprId left, ExprId right, uint32_t flags = 0, const ILSourceLocation& loc = ILSourceLocation());
+
+		/*! Unsigned minimum of expressions \c left and \c right of size \c size potentially setting flags
+
+			\param size The size of the result in bytes
+			\param left The left expression
+			\param right The right expression
+			\param flags Flags to set
+			\param loc Optional IL Location this expression was added from.
+			\return The expression <tt>minu.<size>{<flags>}(left, right)</tt>
+		*/
+		ExprId MinUnsigned(size_t size, ExprId left, ExprId right, uint32_t flags = 0, const ILSourceLocation& loc = ILSourceLocation());
+
+		/*! Unsigned maximum of expressions \c left and \c right of size \c size potentially setting flags
+
+			\param size The size of the result in bytes
+			\param left The left expression
+			\param right The right expression
+			\param flags Flags to set
+			\param loc Optional IL Location this expression was added from.
+			\return The expression <tt>maxu.<size>{<flags>}(left, right)</tt>
+		*/
+		ExprId MaxUnsigned(size_t size, ExprId left, ExprId right, uint32_t flags = 0, const ILSourceLocation& loc = ILSourceLocation());
+
+		/*! Signed absolute value of expression \c value of size \c size potentially setting flags
+
+			\param size The size of the result in bytes
+			\param a The expression to take the absolute value of
+			\param flags Flags to set
+			\param loc Optional IL Location this expression was added from.
+			\return The expression <tt>abs.<size>{<flags>}(value)</tt>
+		*/
+		ExprId AbsoluteValue(size_t size, ExprId a, uint32_t flags = 0, const ILSourceLocation& loc = ILSourceLocation());
+
 		/*! Two's complement sign-extends the expression in \c value to \c size bytes
 
 			\param size The size of the result in bytes
@@ -15955,6 +16009,11 @@ namespace BinaryNinja {
 		ExprId CountTrailingZeros(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ReverseBits(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId CountLeadingSigns(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MinSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MaxSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MinUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MaxUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId AbsoluteValue(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId SignExtend(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ZeroExtend(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId LowPart(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
@@ -16362,6 +16421,11 @@ namespace BinaryNinja {
 		ExprId CountTrailingZeros(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ReverseBits(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId CountLeadingSigns(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MinSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MaxSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MinUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId MaxUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId AbsoluteValue(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId SignExtend(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId ZeroExtend(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId LowPart(size_t size, ExprId src, const ILSourceLocation& loc = ILSourceLocation());

@@ -1472,6 +1472,21 @@ namespace BinaryNinja
 	struct HighLevelILInstructionAccessor<HLIL_CLS> : public HighLevelILOneOperandInstruction
 	{};
 	template <>
+	struct HighLevelILInstructionAccessor<HLIL_MINS> : public HighLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_MAXS> : public HighLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_MINU> : public HighLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_MAXU> : public HighLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct HighLevelILInstructionAccessor<HLIL_ABS> : public HighLevelILOneOperandInstruction
+	{};
+	template <>
 	struct HighLevelILInstructionAccessor<HLIL_SX> : public HighLevelILOneOperandInstruction
 	{};
 	template <>

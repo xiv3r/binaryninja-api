@@ -2072,6 +2072,21 @@ namespace BinaryNinja
 	struct LowLevelILInstructionAccessor<LLIL_CLS> : public LowLevelILOneOperandInstruction
 	{};
 	template <>
+	struct LowLevelILInstructionAccessor<LLIL_MINS> : public LowLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct LowLevelILInstructionAccessor<LLIL_MAXS> : public LowLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct LowLevelILInstructionAccessor<LLIL_MINU> : public LowLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct LowLevelILInstructionAccessor<LLIL_MAXU> : public LowLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct LowLevelILInstructionAccessor<LLIL_ABS> : public LowLevelILOneOperandInstruction
+	{};
+	template <>
 	struct LowLevelILInstructionAccessor<LLIL_SX> : public LowLevelILOneOperandInstruction
 	{};
 	template <>

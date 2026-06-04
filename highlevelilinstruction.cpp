@@ -266,6 +266,11 @@ static constexpr std::array s_instructionOperandUsage = {
 	OperandUsage{HLIL_CTZ, {SourceExprHighLevelOperandUsage}},
 	OperandUsage{HLIL_RBIT, {SourceExprHighLevelOperandUsage}},
 	OperandUsage{HLIL_CLS, {SourceExprHighLevelOperandUsage}},
+	OperandUsage{HLIL_MINS, {LeftExprHighLevelOperandUsage, RightExprHighLevelOperandUsage}},
+	OperandUsage{HLIL_MAXS, {LeftExprHighLevelOperandUsage, RightExprHighLevelOperandUsage}},
+	OperandUsage{HLIL_MINU, {LeftExprHighLevelOperandUsage, RightExprHighLevelOperandUsage}},
+	OperandUsage{HLIL_MAXU, {LeftExprHighLevelOperandUsage, RightExprHighLevelOperandUsage}},
+	OperandUsage{HLIL_ABS, {SourceExprHighLevelOperandUsage}},
 };
 
 
@@ -1273,6 +1278,7 @@ void HighLevelILInstruction::CollectSubExprs(stack<size_t>& toProcess) const
 	case HLIL_CTZ:
 	case HLIL_RBIT:
 	case HLIL_CLS:
+	case HLIL_ABS:
 	case HLIL_SX:
 	case HLIL_ZX:
 	case HLIL_LOW_PART:
@@ -1298,6 +1304,10 @@ void HighLevelILInstruction::CollectSubExprs(stack<size_t>& toProcess) const
 	case HLIL_AND:
 	case HLIL_OR:
 	case HLIL_XOR:
+	case HLIL_MINS:
+	case HLIL_MAXS:
+	case HLIL_MINU:
+	case HLIL_MAXU:
 	case HLIL_LSL:
 	case HLIL_LSR:
 	case HLIL_ASR:
@@ -1587,6 +1597,7 @@ ExprId HighLevelILInstruction::CopyTo(
 	case HLIL_CTZ:
 	case HLIL_RBIT:
 	case HLIL_CLS:
+	case HLIL_ABS:
 	case HLIL_SX:
 	case HLIL_ZX:
 	case HLIL_LOW_PART:
@@ -1611,6 +1622,10 @@ ExprId HighLevelILInstruction::CopyTo(
 	case HLIL_AND:
 	case HLIL_OR:
 	case HLIL_XOR:
+	case HLIL_MINS:
+	case HLIL_MAXS:
+	case HLIL_MINU:
+	case HLIL_MAXU:
 	case HLIL_LSL:
 	case HLIL_LSR:
 	case HLIL_ASR:
@@ -2073,6 +2088,10 @@ bool HighLevelILInstruction::operator<(const HighLevelILInstruction& other) cons
 	case HLIL_AND:
 	case HLIL_OR:
 	case HLIL_XOR:
+	case HLIL_MINS:
+	case HLIL_MAXS:
+	case HLIL_MINU:
+	case HLIL_MAXU:
 	case HLIL_LSL:
 	case HLIL_LSR:
 	case HLIL_ASR:
@@ -2154,6 +2173,7 @@ bool HighLevelILInstruction::operator<(const HighLevelILInstruction& other) cons
 	case HLIL_CTZ:
 	case HLIL_RBIT:
 	case HLIL_CLS:
+	case HLIL_ABS:
 	case HLIL_SX:
 	case HLIL_ZX:
 	case HLIL_LOW_PART:
@@ -3154,6 +3174,36 @@ ExprId HighLevelILFunction::ReverseBits(size_t size, ExprId src, const ILSourceL
 ExprId HighLevelILFunction::CountLeadingSigns(size_t size, ExprId src, const ILSourceLocation& loc)
 {
 	return AddExprWithLocation(HLIL_CLS, loc, size, src);
+}
+
+
+ExprId HighLevelILFunction::MinSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(HLIL_MINS, loc, size, left, right);
+}
+
+
+ExprId HighLevelILFunction::MaxSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(HLIL_MAXS, loc, size, left, right);
+}
+
+
+ExprId HighLevelILFunction::MinUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(HLIL_MINU, loc, size, left, right);
+}
+
+
+ExprId HighLevelILFunction::MaxUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(HLIL_MAXU, loc, size, left, right);
+}
+
+
+ExprId HighLevelILFunction::AbsoluteValue(size_t size, ExprId src, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(HLIL_ABS, loc, size, src);
 }
 
 

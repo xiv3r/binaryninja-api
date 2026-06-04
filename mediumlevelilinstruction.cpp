@@ -310,6 +310,11 @@ static constexpr std::array s_instructionOperandUsage = {
 	OperandUsage{MLIL_CTZ, {SourceExprMediumLevelOperandUsage}},
 	OperandUsage{MLIL_RBIT, {SourceExprMediumLevelOperandUsage}},
 	OperandUsage{MLIL_CLS, {SourceExprMediumLevelOperandUsage}},
+	OperandUsage{MLIL_MINS, {LeftExprMediumLevelOperandUsage, RightExprMediumLevelOperandUsage}},
+	OperandUsage{MLIL_MAXS, {LeftExprMediumLevelOperandUsage, RightExprMediumLevelOperandUsage}},
+	OperandUsage{MLIL_MINU, {LeftExprMediumLevelOperandUsage, RightExprMediumLevelOperandUsage}},
+	OperandUsage{MLIL_MAXU, {LeftExprMediumLevelOperandUsage, RightExprMediumLevelOperandUsage}},
+	OperandUsage{MLIL_ABS, {SourceExprMediumLevelOperandUsage}},
 };
 
 VALIDATE_INSTRUCTION_ORDER(s_instructionOperandUsage);
@@ -1526,6 +1531,7 @@ void MediumLevelILInstruction::VisitExprs(bn::base::function_ref<bool(const Medi
 	case MLIL_CTZ:
 	case MLIL_RBIT:
 	case MLIL_CLS:
+	case MLIL_ABS:
 	case MLIL_SX:
 	case MLIL_ZX:
 	case MLIL_LOW_PART:
@@ -1558,6 +1564,10 @@ void MediumLevelILInstruction::VisitExprs(bn::base::function_ref<bool(const Medi
 	case MLIL_AND:
 	case MLIL_OR:
 	case MLIL_XOR:
+	case MLIL_MINS:
+	case MLIL_MAXS:
+	case MLIL_MINU:
+	case MLIL_MAXU:
 	case MLIL_LSL:
 	case MLIL_LSR:
 	case MLIL_ASR:
@@ -1873,6 +1883,7 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 	case MLIL_CTZ:
 	case MLIL_RBIT:
 	case MLIL_CLS:
+	case MLIL_ABS:
 	case MLIL_SX:
 	case MLIL_ZX:
 	case MLIL_LOW_PART:
@@ -1898,6 +1909,10 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 	case MLIL_AND:
 	case MLIL_OR:
 	case MLIL_XOR:
+	case MLIL_MINS:
+	case MLIL_MAXS:
+	case MLIL_MINU:
+	case MLIL_MAXU:
 	case MLIL_LSL:
 	case MLIL_LSR:
 	case MLIL_ASR:
@@ -2915,6 +2930,36 @@ ExprId MediumLevelILFunction::ReverseBits(size_t size, ExprId src, const ILSourc
 ExprId MediumLevelILFunction::CountLeadingSigns(size_t size, ExprId src, const ILSourceLocation& loc)
 {
 	return AddExprWithLocation(MLIL_CLS, loc, size, src);
+}
+
+
+ExprId MediumLevelILFunction::MinSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(MLIL_MINS, loc, size, left, right);
+}
+
+
+ExprId MediumLevelILFunction::MaxSigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(MLIL_MAXS, loc, size, left, right);
+}
+
+
+ExprId MediumLevelILFunction::MinUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(MLIL_MINU, loc, size, left, right);
+}
+
+
+ExprId MediumLevelILFunction::MaxUnsigned(size_t size, ExprId left, ExprId right, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(MLIL_MAXU, loc, size, left, right);
+}
+
+
+ExprId MediumLevelILFunction::AbsoluteValue(size_t size, ExprId src, const ILSourceLocation& loc)
+{
+	return AddExprWithLocation(MLIL_ABS, loc, size, src);
 }
 
 

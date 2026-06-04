@@ -383,7 +383,13 @@ class LowLevelILInstruction(BaseILInstruction):
 	        ("src", "expr")
 	    ], LowLevelILOperation.LLIL_CTZ: [("src", "expr")], LowLevelILOperation.LLIL_RBIT: [
 	        ("src", "expr")
-	    ], LowLevelILOperation.LLIL_CLS: [("src", "expr")], LowLevelILOperation.LLIL_SX: [
+	    ], LowLevelILOperation.LLIL_CLS: [("src", "expr")], LowLevelILOperation.LLIL_MINS: [
+	        ("left", "expr"), ("right", "expr")
+	    ], LowLevelILOperation.LLIL_MAXS: [("left", "expr"), ("right", "expr")], LowLevelILOperation.LLIL_MINU: [
+	        ("left", "expr"), ("right", "expr")
+	    ], LowLevelILOperation.LLIL_MAXU: [("left", "expr"), ("right", "expr")], LowLevelILOperation.LLIL_ABS: [
+	        ("src", "expr")
+	    ], LowLevelILOperation.LLIL_SX: [
 	        ("src", "expr")
 	    ], LowLevelILOperation.LLIL_ZX: [("src", "expr")], LowLevelILOperation.LLIL_LOW_PART: [
 	        ("src", "expr")
@@ -1395,6 +1401,31 @@ class LowLevelILRbit(LowLevelILUnaryBase, Arithmetic):
 
 @dataclass(frozen=True, repr=False, eq=False)
 class LowLevelILCls(LowLevelILUnaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class LowLevelILMins(LowLevelILBinaryBase, Arithmetic, Signed):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class LowLevelILMaxs(LowLevelILBinaryBase, Arithmetic, Signed):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class LowLevelILMinu(LowLevelILBinaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class LowLevelILMaxu(LowLevelILBinaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class LowLevelILAbs(LowLevelILUnaryBase, Arithmetic):
 	pass
 
 
@@ -3174,6 +3205,11 @@ ILInstruction:Dict[LowLevelILOperation, LowLevelILInstruction] = {  # type: igno
     LowLevelILOperation.LLIL_CTZ: LowLevelILCtz,                                    #  [("src", "expr")],
     LowLevelILOperation.LLIL_RBIT: LowLevelILRbit,                                  #  [("src", "expr")],
     LowLevelILOperation.LLIL_CLS: LowLevelILCls,                                    #  [("src", "expr")],
+    LowLevelILOperation.LLIL_MINS: LowLevelILMins,                                  #  [("left", "expr"), ("right", "expr")],
+    LowLevelILOperation.LLIL_MAXS: LowLevelILMaxs,                                  #  [("left", "expr"), ("right", "expr")],
+    LowLevelILOperation.LLIL_MINU: LowLevelILMinu,                                  #  [("left", "expr"), ("right", "expr")],
+    LowLevelILOperation.LLIL_MAXU: LowLevelILMaxu,                                  #  [("left", "expr"), ("right", "expr")],
+    LowLevelILOperation.LLIL_ABS: LowLevelILAbs,                                    #  [("src", "expr")],
     LowLevelILOperation.LLIL_SX: LowLevelILSx,                                      #  [("src", "expr")],
     LowLevelILOperation.LLIL_ZX: LowLevelILZx,                                      #  [("src", "expr")],
     LowLevelILOperation.LLIL_LOW_PART: LowLevelILLowPart,                           #  [("src", "expr")],

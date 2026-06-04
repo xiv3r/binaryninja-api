@@ -2434,6 +2434,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 	case HLIL_CTZ:
 	case HLIL_RBIT:
 	case HLIL_CLS:
+	case HLIL_ABS:
 		[&]() {
 			const char* method;
 			switch (instr.operation)
@@ -2443,12 +2444,37 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			case HLIL_CLZ: method = "leading_zeros"; break;
 			case HLIL_CTZ: method = "trailing_zeros"; break;
 			case HLIL_RBIT: method = "reverse_bits"; break;
+			case HLIL_ABS: method = "abs"; break;
 			default: method = "leading_sign_bits"; break;
 			}
 			GetExprText(instr.GetSourceExpr(), tokens, settings, MemberAndFunctionOperatorPrecedence);
 			tokens.Append(TextToken, ".");
 			tokens.Append(OperationToken, method);
 			tokens.AppendOpenParen();
+			tokens.AppendCloseParen();
+			if (exprType != InnerExpression)
+				tokens.AppendSemicolon();
+		}();
+		break;
+
+	case HLIL_MINS:
+	case HLIL_MAXS:
+	case HLIL_MINU:
+	case HLIL_MAXU:
+		[&]() {
+			const char* method;
+			switch (instr.operation)
+			{
+			case HLIL_MINS:
+			case HLIL_MINU: method = "min"; break;
+			default: method = "max"; break;
+			}
+			const auto& twoOperand = instr.AsTwoOperand();
+			GetExprText(twoOperand.GetLeftExpr(), tokens, settings, MemberAndFunctionOperatorPrecedence);
+			tokens.Append(TextToken, ".");
+			tokens.Append(OperationToken, method);
+			tokens.AppendOpenParen();
+			GetExprText(twoOperand.GetRightExpr(), tokens, settings);
 			tokens.AppendCloseParen();
 			if (exprType != InnerExpression)
 				tokens.AppendSemicolon();

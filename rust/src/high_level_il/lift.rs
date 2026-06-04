@@ -71,6 +71,10 @@ pub enum HighLevelILLiftedInstructionKind {
     ModuDp(LiftedBinaryOp),
     Mods(LiftedBinaryOp),
     ModsDp(LiftedBinaryOp),
+    MinSigned(LiftedBinaryOp),
+    MaxSigned(LiftedBinaryOp),
+    MinUnsigned(LiftedBinaryOp),
+    MaxUnsigned(LiftedBinaryOp),
     CmpE(LiftedBinaryOp),
     CmpNe(LiftedBinaryOp),
     CmpSlt(LiftedBinaryOp),
@@ -122,6 +126,7 @@ pub enum HighLevelILLiftedInstructionKind {
     Ctz(LiftedUnaryOp),
     Rbit(LiftedUnaryOp),
     Cls(LiftedUnaryOp),
+    Abs(LiftedUnaryOp),
     Sx(LiftedUnaryOp),
     Zx(LiftedUnaryOp),
     LowPart(LiftedUnaryOp),
@@ -207,6 +212,10 @@ impl HighLevelILLiftedInstruction {
             ModuDp(_) => "ModuDp",
             Mods(_) => "Mods",
             ModsDp(_) => "ModsDp",
+            MinSigned(_) => "MinSigned",
+            MaxSigned(_) => "MaxSigned",
+            MinUnsigned(_) => "MinUnsigned",
+            MaxUnsigned(_) => "MaxUnsigned",
             CmpE(_) => "CmpE",
             CmpNe(_) => "CmpNe",
             CmpSlt(_) => "CmpSlt",
@@ -258,6 +267,7 @@ impl HighLevelILLiftedInstruction {
             Ctz(_) => "Ctz",
             Rbit(_) => "Rbit",
             Cls(_) => "Cls",
+            Abs(_) => "Abs",
             Sx(_) => "Sx",
             Zx(_) => "Zx",
             LowPart(_) => "LowPart",
@@ -319,7 +329,8 @@ impl HighLevelILLiftedInstruction {
             ],
             Add(op) | Sub(op) | And(op) | Or(op) | Xor(op) | Lsl(op) | Lsr(op) | Asr(op)
             | Rol(op) | Ror(op) | Mul(op) | MuluDp(op) | MulsDp(op) | Divu(op) | DivuDp(op)
-            | Divs(op) | DivsDp(op) | Modu(op) | ModuDp(op) | Mods(op) | ModsDp(op) | CmpE(op)
+            | Divs(op) | DivsDp(op) | Modu(op) | ModuDp(op) | Mods(op) | ModsDp(op)
+            | MinSigned(op) | MaxSigned(op) | MinUnsigned(op) | MaxUnsigned(op) | CmpE(op)
             | CmpNe(op) | CmpSlt(op) | CmpUlt(op) | CmpSle(op) | CmpUle(op) | CmpSge(op)
             | CmpUge(op) | CmpSgt(op) | CmpUgt(op) | TestBit(op) | AddOverflow(op) | Fadd(op)
             | Fsub(op) | Fmul(op) | Fdiv(op) | FcmpE(op) | FcmpNe(op) | FcmpLt(op) | FcmpLe(op)
@@ -377,7 +388,7 @@ impl HighLevelILLiftedInstruction {
                 Operand::ConstantData(op.constant_data.clone()),
             )],
             Deref(op) | AddressOf(op) | PassByRef(op) | ReturnByRef(op) | Neg(op) | Not(op)
-            | Bswap(op) | Popcnt(op) | Clz(op) | Ctz(op) | Rbit(op) | Cls(op)
+            | Bswap(op) | Popcnt(op) | Clz(op) | Ctz(op) | Rbit(op) | Cls(op) | Abs(op)
             | Sx(op) | Zx(op) | LowPart(op) | BoolToInt(op) | UnimplMem(op) | Fsqrt(op)
             | Fneg(op) | Fabs(op) | FloatToInt(op) | IntToFloat(op) | FloatConv(op)
             | RoundToInt(op) | Floor(op) | Ceil(op) | Ftrunc(op) => {

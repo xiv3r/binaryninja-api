@@ -354,6 +354,11 @@ The parameter list can be accessed through the `params` property:
 * `MLIL_CTZ` - Count trailing zero bits of `src` expression; the result is `8 * size` when `src` is zero
 * `MLIL_RBIT` - Reverse the bit order of `src` expression
 * `MLIL_CLS` - Count leading sign bits of `src` expression (the number of bits below the sign bit that match it)
+* `MLIL_MINS` - Signed minimum of `left` expression and `right` expression
+* `MLIL_MAXS` - Signed maximum of `left` expression and `right` expression
+* `MLIL_MINU` - Unsigned minimum of `left` expression and `right` expression
+* `MLIL_MAXU` - Unsigned maximum of `left` expression and `right` expression
+* `MLIL_ABS` - Signed absolute value of `src` expression
 * `MLIL_FADD` - IEEE754 floating point addition of `left` expression with `right` expression
 * `MLIL_FSUB` - IEEE754 floating point subtraction of `left` expression with `right` expression
 * `MLIL_FMUL` - IEEE754 floating point multiplication of `left` expression with `right` expression

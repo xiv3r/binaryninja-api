@@ -117,6 +117,11 @@ There are a number of properties that can be queried on the [`HighLevelILInstruc
 * `HLIL_CTZ` - Count trailing zero bits of `src` expression; the result is `8 * size` when `src` is zero
 * `HLIL_RBIT` - Reverse the bit order of `src` expression
 * `HLIL_CLS` - Count leading sign bits of `src` expression (the number of bits below the sign bit that match it)
+* `HLIL_MINS` - Signed minimum of `left` expression and `right` expression
+* `HLIL_MAXS` - Signed maximum of `left` expression and `right` expression
+* `HLIL_MINU` - Unsigned minimum of `left` expression and `right` expression
+* `HLIL_MAXU` - Unsigned maximum of `left` expression and `right` expression
+* `HLIL_ABS` - Signed absolute value of `src` expression
 * `HLIL_FADD` - IEEE754 floating point addition of `left` expression with `right` expression
 * `HLIL_FSUB` - IEEE754 floating point subtraction of `left` expression with `right` expression
 * `HLIL_FMUL` - IEEE754 floating point multiplication of `left` expression with `right` expression

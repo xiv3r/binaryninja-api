@@ -254,7 +254,13 @@ class HighLevelILInstruction(BaseILInstruction):
 	        ("src", "expr")
 	    ], HighLevelILOperation.HLIL_CTZ: [("src", "expr")], HighLevelILOperation.HLIL_RBIT: [
 	        ("src", "expr")
-	    ], HighLevelILOperation.HLIL_CLS: [("src", "expr")], HighLevelILOperation.HLIL_SX: [
+	    ], HighLevelILOperation.HLIL_CLS: [("src", "expr")], HighLevelILOperation.HLIL_MINS: [
+	        ("left", "expr"), ("right", "expr")
+	    ], HighLevelILOperation.HLIL_MAXS: [("left", "expr"), ("right", "expr")], HighLevelILOperation.HLIL_MINU: [
+	        ("left", "expr"), ("right", "expr")
+	    ], HighLevelILOperation.HLIL_MAXU: [("left", "expr"), ("right", "expr")], HighLevelILOperation.HLIL_ABS: [
+	        ("src", "expr")
+	    ], HighLevelILOperation.HLIL_SX: [
 	        ("src", "expr")
 	    ], HighLevelILOperation.HLIL_ZX: [("src", "expr")], HighLevelILOperation.HLIL_LOW_PART: [
 	        ("src", "expr")
@@ -2020,6 +2026,31 @@ class HighLevelILCls(HighLevelILUnaryBase, Arithmetic):
 
 
 @dataclass(frozen=True, repr=False, eq=False)
+class HighLevelILMins(HighLevelILBinaryBase, Arithmetic, Signed):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class HighLevelILMaxs(HighLevelILBinaryBase, Arithmetic, Signed):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class HighLevelILMinu(HighLevelILBinaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class HighLevelILMaxu(HighLevelILBinaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class HighLevelILAbs(HighLevelILUnaryBase, Arithmetic):
+	pass
+
+
+@dataclass(frozen=True, repr=False, eq=False)
 class HighLevelILSx(HighLevelILUnaryBase, Arithmetic):
 	pass
 
@@ -2520,6 +2551,11 @@ ILInstruction = {
     HighLevelILOperation.HLIL_CTZ: HighLevelILCtz,  #  ("src", "expr"),
     HighLevelILOperation.HLIL_RBIT: HighLevelILRbit,  #  ("src", "expr"),
     HighLevelILOperation.HLIL_CLS: HighLevelILCls,  #  ("src", "expr"),
+    HighLevelILOperation.HLIL_MINS: HighLevelILMins,  #  ("left", "expr"), ("right", "expr"),
+    HighLevelILOperation.HLIL_MAXS: HighLevelILMaxs,  #  ("left", "expr"), ("right", "expr"),
+    HighLevelILOperation.HLIL_MINU: HighLevelILMinu,  #  ("left", "expr"), ("right", "expr"),
+    HighLevelILOperation.HLIL_MAXU: HighLevelILMaxu,  #  ("left", "expr"), ("right", "expr"),
+    HighLevelILOperation.HLIL_ABS: HighLevelILAbs,  #  ("src", "expr"),
     HighLevelILOperation.HLIL_SX: HighLevelILSx,  #  ("src", "expr"),
     HighLevelILOperation.HLIL_ZX: HighLevelILZx,  #  ("src", "expr"),
     HighLevelILOperation.HLIL_LOW_PART: HighLevelILLowPart,  #  ("src", "expr"),

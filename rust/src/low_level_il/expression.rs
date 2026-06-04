@@ -315,6 +315,13 @@ where
     Ctz(Operation<'func, M, F, operation::UnaryOp>),
     Rbit(Operation<'func, M, F, operation::UnaryOp>),
     Cls(Operation<'func, M, F, operation::UnaryOp>),
+
+    MinSigned(Operation<'func, M, F, operation::BinaryOp>),
+    MaxSigned(Operation<'func, M, F, operation::BinaryOp>),
+    MinUnsigned(Operation<'func, M, F, operation::BinaryOp>),
+    MaxUnsigned(Operation<'func, M, F, operation::BinaryOp>),
+    Abs(Operation<'func, M, F, operation::UnaryOp>),
+
     Sx(Operation<'func, M, F, operation::UnaryOp>),
     Zx(Operation<'func, M, F, operation::UnaryOp>),
     LowPart(Operation<'func, M, F, operation::UnaryOp>),
@@ -479,6 +486,12 @@ where
             LLIL_RBIT => LowLevelILExpressionKind::Rbit(Operation::new(function, op, index)),
             LLIL_CLS => LowLevelILExpressionKind::Cls(Operation::new(function, op, index)),
 
+            LLIL_MINS => LowLevelILExpressionKind::MinSigned(Operation::new(function, op, index)),
+            LLIL_MAXS => LowLevelILExpressionKind::MaxSigned(Operation::new(function, op, index)),
+            LLIL_MINU => LowLevelILExpressionKind::MinUnsigned(Operation::new(function, op, index)),
+            LLIL_MAXU => LowLevelILExpressionKind::MaxUnsigned(Operation::new(function, op, index)),
+            LLIL_ABS => LowLevelILExpressionKind::Abs(Operation::new(function, op, index)),
+
             LLIL_SX => LowLevelILExpressionKind::Sx(Operation::new(function, op, index)),
             LLIL_ZX => LowLevelILExpressionKind::Zx(Operation::new(function, op, index)),
             LLIL_LOW_PART => LowLevelILExpressionKind::LowPart(Operation::new(function, op, index)),
@@ -614,7 +627,8 @@ where
             | Lsr(ref op) | Asr(ref op) | Rol(ref op) | Ror(ref op) | Mul(ref op)
             | MulsDp(ref op) | MuluDp(ref op) | Divu(ref op) | Divs(ref op) | Modu(ref op)
             | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op) | Fdiv(ref op)
-            | DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) => Some(op),
+            | DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op)
+            | MinSigned(ref op) | MaxSigned(ref op) | MinUnsigned(ref op) | MaxUnsigned(ref op) => Some(op),
             _ => None,
         }
     }
@@ -633,7 +647,7 @@ where
 
         match *self {
             Neg(ref op) | Not(ref op) | Bswap(ref op) | Popcnt(ref op) | Clz(ref op) | Ctz(ref op)
-            | Rbit(ref op) | Cls(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
+            | Rbit(ref op) | Cls(ref op) | Abs(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
             | BoolToInt(ref op) | Fsqrt(ref op) | Fneg(ref op) | Fabs(ref op)
             | FloatToInt(ref op) | IntToFloat(ref op) | FloatConv(ref op) | RoundToInt(ref op)
             | Floor(ref op) | Ceil(ref op) | Ftrunc(ref op) => Some(op),
@@ -673,12 +687,13 @@ where
             | Mul(ref op) | MulsDp(ref op) | MuluDp(ref op) | Divu(ref op) | Divs(ref op)
             | Modu(ref op) | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op)
             | DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) | Fdiv(ref op)
+            | MinSigned(ref op) | MaxSigned(ref op) | MinUnsigned(ref op) | MaxUnsigned(ref op)
             | TestBit(ref op) => {
                 visit!(op.left());
                 visit!(op.right());
             }
             Neg(ref op) | Not(ref op) | Bswap(ref op) | Popcnt(ref op) | Clz(ref op) | Ctz(ref op)
-            | Rbit(ref op) | Cls(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
+            | Rbit(ref op) | Cls(ref op) | Abs(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
             | BoolToInt(ref op) | Fsqrt(ref op) | Fneg(ref op) | Fabs(ref op)
             | FloatToInt(ref op) | IntToFloat(ref op) | FloatConv(ref op) | RoundToInt(ref op)
             | Floor(ref op) | Ceil(ref op) | Ftrunc(ref op) => {
@@ -768,12 +783,13 @@ where
             | Xor(ref op) | Lsl(ref op) | Lsr(ref op) | Asr(ref op) | Rol(ref op) | Ror(ref op)
             | Mul(ref op) | MulsDp(ref op) | MuluDp(ref op) | Divu(ref op) | Divs(ref op)
             | Modu(ref op) | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op)
+            | MinSigned(ref op) | MaxSigned(ref op) | MinUnsigned(ref op) | MaxUnsigned(ref op)
             | Fdiv(ref op) | TestBit(ref op) => &op.op,
 
             DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) => &op.op,
 
             Neg(ref op) | Not(ref op) | Bswap(ref op) | Popcnt(ref op) | Clz(ref op) | Ctz(ref op)
-            | Rbit(ref op) | Cls(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
+            | Rbit(ref op) | Cls(ref op) | Abs(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
             | BoolToInt(ref op) | Fsqrt(ref op) | Fneg(ref op) | Fabs(ref op)
             | FloatToInt(ref op) | IntToFloat(ref op) | FloatConv(ref op) | RoundToInt(ref op)
             | Floor(ref op) | Ceil(ref op) | Ftrunc(ref op) => &op.op,
@@ -842,12 +858,13 @@ impl LowLevelILExpressionKind<'_, Mutable, NonSSA> {
             | Xor(ref op) | Lsl(ref op) | Lsr(ref op) | Asr(ref op) | Rol(ref op) | Ror(ref op)
             | Mul(ref op) | MulsDp(ref op) | MuluDp(ref op) | Divu(ref op) | Divs(ref op)
             | Modu(ref op) | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op)
+            | MinSigned(ref op) | MaxSigned(ref op) | MinUnsigned(ref op) | MaxUnsigned(ref op)
             | Fdiv(ref op) | TestBit(ref op) => op.flag_write(),
 
             DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) => op.flag_write(),
 
             Neg(ref op) | Not(ref op) | Bswap(ref op) | Popcnt(ref op) | Clz(ref op) | Ctz(ref op)
-            | Rbit(ref op) | Cls(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
+            | Rbit(ref op) | Cls(ref op) | Abs(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)
             | BoolToInt(ref op) | Fsqrt(ref op) | Fneg(ref op) | Fabs(ref op)
             | FloatToInt(ref op) | IntToFloat(ref op) | FloatConv(ref op) | RoundToInt(ref op)
             | Floor(ref op) | Ceil(ref op) | Ftrunc(ref op) => op.flag_write(),

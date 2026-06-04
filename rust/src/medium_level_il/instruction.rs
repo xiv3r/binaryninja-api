@@ -334,6 +334,22 @@ impl MediumLevelILInstruction {
                 left: MediumLevelExpressionIndex::from(op.operands[0]),
                 right: MediumLevelExpressionIndex::from(op.operands[1]),
             }),
+            MLIL_MINS => Op::MinSigned(BinaryOp {
+                left: MediumLevelExpressionIndex::from(op.operands[0]),
+                right: MediumLevelExpressionIndex::from(op.operands[1]),
+            }),
+            MLIL_MAXS => Op::MaxSigned(BinaryOp {
+                left: MediumLevelExpressionIndex::from(op.operands[0]),
+                right: MediumLevelExpressionIndex::from(op.operands[1]),
+            }),
+            MLIL_MINU => Op::MinUnsigned(BinaryOp {
+                left: MediumLevelExpressionIndex::from(op.operands[0]),
+                right: MediumLevelExpressionIndex::from(op.operands[1]),
+            }),
+            MLIL_MAXU => Op::MaxUnsigned(BinaryOp {
+                left: MediumLevelExpressionIndex::from(op.operands[0]),
+                right: MediumLevelExpressionIndex::from(op.operands[1]),
+            }),
             MLIL_CMP_E => Op::CmpE(BinaryOp {
                 left: MediumLevelExpressionIndex::from(op.operands[0]),
                 right: MediumLevelExpressionIndex::from(op.operands[1]),
@@ -591,6 +607,9 @@ impl MediumLevelILInstruction {
                 src: MediumLevelExpressionIndex::from(op.operands[0] as usize),
             }),
             MLIL_CLS => Op::Cls(UnaryOp {
+                src: MediumLevelExpressionIndex::from(op.operands[0] as usize),
+            }),
+            MLIL_ABS => Op::Abs(UnaryOp {
                 src: MediumLevelExpressionIndex::from(op.operands[0] as usize),
             }),
             MLIL_SX => Op::Sx(UnaryOp {
@@ -941,6 +960,10 @@ impl MediumLevelILInstruction {
             ModuDp(op) => Lifted::ModuDp(self.lift_binary_op(op)),
             Mods(op) => Lifted::Mods(self.lift_binary_op(op)),
             ModsDp(op) => Lifted::ModsDp(self.lift_binary_op(op)),
+            MinSigned(op) => Lifted::MinSigned(self.lift_binary_op(op)),
+            MaxSigned(op) => Lifted::MaxSigned(self.lift_binary_op(op)),
+            MinUnsigned(op) => Lifted::MinUnsigned(self.lift_binary_op(op)),
+            MaxUnsigned(op) => Lifted::MaxUnsigned(self.lift_binary_op(op)),
             CmpE(op) => Lifted::CmpE(self.lift_binary_op(op)),
             CmpNe(op) => Lifted::CmpNe(self.lift_binary_op(op)),
             CmpSlt(op) => Lifted::CmpSlt(self.lift_binary_op(op)),
@@ -1123,6 +1146,7 @@ impl MediumLevelILInstruction {
             Ctz(op) => Lifted::Ctz(self.lift_unary_op(op)),
             Rbit(op) => Lifted::Rbit(self.lift_unary_op(op)),
             Cls(op) => Lifted::Cls(self.lift_unary_op(op)),
+            Abs(op) => Lifted::Abs(self.lift_unary_op(op)),
             Sx(op) => Lifted::Sx(self.lift_unary_op(op)),
             Zx(op) => Lifted::Zx(self.lift_unary_op(op)),
             LowPart(op) => Lifted::LowPart(self.lift_unary_op(op)),
@@ -1843,6 +1867,10 @@ pub enum MediumLevelILInstructionKind {
     ModuDp(BinaryOp),
     Mods(BinaryOp),
     ModsDp(BinaryOp),
+    MinSigned(BinaryOp),
+    MaxSigned(BinaryOp),
+    MinUnsigned(BinaryOp),
+    MaxUnsigned(BinaryOp),
     CmpE(BinaryOp),
     CmpNe(BinaryOp),
     CmpSlt(BinaryOp),
@@ -1904,6 +1932,7 @@ pub enum MediumLevelILInstructionKind {
     Ctz(UnaryOp),
     Rbit(UnaryOp),
     Cls(UnaryOp),
+    Abs(UnaryOp),
     Sx(UnaryOp),
     Zx(UnaryOp),
     LowPart(UnaryOp),

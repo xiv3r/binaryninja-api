@@ -100,6 +100,7 @@ pub enum LowLevelILFlagWriteOp<R: ArchReg> {
     Ctz(usize, LowLevelILRegisterOrConstant<R>),
     Rbit(usize, LowLevelILRegisterOrConstant<R>),
     Cls(usize, LowLevelILRegisterOrConstant<R>),
+    Abs(usize, LowLevelILRegisterOrConstant<R>),
     Sx(usize, LowLevelILRegisterOrConstant<R>),
     Zx(usize, LowLevelILRegisterOrConstant<R>),
     LowPart(usize, LowLevelILRegisterOrConstant<R>),
@@ -183,6 +184,26 @@ pub enum LowLevelILFlagWriteOp<R: ArchReg> {
         LowLevelILRegisterOrConstant<R>,
     ),
     Mods(
+        usize,
+        LowLevelILRegisterOrConstant<R>,
+        LowLevelILRegisterOrConstant<R>,
+    ),
+    MinSigned(
+        usize,
+        LowLevelILRegisterOrConstant<R>,
+        LowLevelILRegisterOrConstant<R>,
+    ),
+    MaxSigned(
+        usize,
+        LowLevelILRegisterOrConstant<R>,
+        LowLevelILRegisterOrConstant<R>,
+    ),
+    MinUnsigned(
+        usize,
+        LowLevelILRegisterOrConstant<R>,
+        LowLevelILRegisterOrConstant<R>,
+    ),
+    MaxUnsigned(
         usize,
         LowLevelILRegisterOrConstant<R>,
         LowLevelILRegisterOrConstant<R>,
@@ -305,6 +326,7 @@ impl<R: ArchReg> LowLevelILFlagWriteOp<R> {
             (1, LLIL_CTZ) => op!(Ctz, 0),
             (1, LLIL_RBIT) => op!(Rbit, 0),
             (1, LLIL_CLS) => op!(Cls, 0),
+            (1, LLIL_ABS) => op!(Abs, 0),
             (1, LLIL_SX) => op!(Sx, 0),
             (1, LLIL_ZX) => op!(Zx, 0),
             (1, LLIL_LOW_PART) => op!(LowPart, 0),
@@ -328,6 +350,10 @@ impl<R: ArchReg> LowLevelILFlagWriteOp<R> {
             (2, LLIL_DIVS) => op!(Divs, 0, 1),
             (2, LLIL_MODU) => op!(Modu, 0, 1),
             (2, LLIL_MODS) => op!(Mods, 0, 1),
+            (2, LLIL_MINS) => op!(MinSigned, 0, 1),
+            (2, LLIL_MAXS) => op!(MaxSigned, 0, 1),
+            (2, LLIL_MINU) => op!(MinUnsigned, 0, 1),
+            (2, LLIL_MAXU) => op!(MaxUnsigned, 0, 1),
             (2, LLIL_DIVU_DP) => op!(DivuDp, 0, 1),
             (2, LLIL_DIVS_DP) => op!(DivsDp, 0, 1),
             (2, LLIL_MODU_DP) => op!(ModuDp, 0, 1),
@@ -369,6 +395,7 @@ impl<R: ArchReg> LowLevelILFlagWriteOp<R> {
             Ctz(size, ..) => (size, LLIL_CTZ),
             Rbit(size, ..) => (size, LLIL_RBIT),
             Cls(size, ..) => (size, LLIL_CLS),
+            Abs(size, ..) => (size, LLIL_ABS),
             Sx(size, ..) => (size, LLIL_SX),
             Zx(size, ..) => (size, LLIL_ZX),
             LowPart(size, ..) => (size, LLIL_LOW_PART),
@@ -392,6 +419,10 @@ impl<R: ArchReg> LowLevelILFlagWriteOp<R> {
             Divs(size, ..) => (size, LLIL_DIVS),
             Modu(size, ..) => (size, LLIL_MODU),
             Mods(size, ..) => (size, LLIL_MODS),
+            MinSigned(size, ..) => (size, LLIL_MINS),
+            MaxSigned(size, ..) => (size, LLIL_MAXS),
+            MinUnsigned(size, ..) => (size, LLIL_MINU),
+            MaxUnsigned(size, ..) => (size, LLIL_MAXU),
             DivuDp(size, ..) => (size, LLIL_DIVU_DP),
             DivsDp(size, ..) => (size, LLIL_DIVS_DP),
             ModuDp(size, ..) => (size, LLIL_MODU_DP),
@@ -428,6 +459,7 @@ impl<R: ArchReg> LowLevelILFlagWriteOp<R> {
             | Ctz(_, op0)
             | Rbit(_, op0)
             | Cls(_, op0)
+            | Abs(_, op0)
             | Sx(_, op0)
             | Zx(_, op0)
             | LowPart(_, op0)
@@ -456,6 +488,10 @@ impl<R: ArchReg> LowLevelILFlagWriteOp<R> {
             | Divs(_, op0, op1)
             | Modu(_, op0, op1)
             | Mods(_, op0, op1)
+            | MinSigned(_, op0, op1)
+            | MaxSigned(_, op0, op1)
+            | MinUnsigned(_, op0, op1)
+            | MaxUnsigned(_, op0, op1)
             | DivuDp(_, op0, op1)
             | DivsDp(_, op0, op1)
             | ModuDp(_, op0, op1)
@@ -1452,6 +1488,7 @@ impl LowLevelILMutableFunction {
     sized_unary_op_lifter!(ctz, LLIL_CTZ, ValueExpr);
     sized_unary_op_lifter!(rbit, LLIL_RBIT, ValueExpr);
     sized_unary_op_lifter!(cls, LLIL_CLS, ValueExpr);
+    sized_unary_op_lifter!(abs, LLIL_ABS, ValueExpr);
 
     size_changing_unary_op_lifter!(sx, LLIL_SX, ValueExpr);
     size_changing_unary_op_lifter!(zx, LLIL_ZX, ValueExpr);
@@ -1478,6 +1515,10 @@ impl LowLevelILMutableFunction {
     binary_op_lifter!(divu, LLIL_DIVU);
     binary_op_lifter!(mods, LLIL_MODS);
     binary_op_lifter!(modu, LLIL_MODU);
+    binary_op_lifter!(min_signed, LLIL_MINS);
+    binary_op_lifter!(max_signed, LLIL_MAXS);
+    binary_op_lifter!(min_unsigned, LLIL_MINU);
+    binary_op_lifter!(max_unsigned, LLIL_MAXU);
 
     binary_op_carry_lifter!(adc, LLIL_ADC);
     binary_op_carry_lifter!(sbb, LLIL_SBB);

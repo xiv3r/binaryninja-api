@@ -1804,6 +1804,21 @@ namespace BinaryNinja
 	struct MediumLevelILInstructionAccessor<MLIL_CLS> : public MediumLevelILOneOperandInstruction
 	{};
 	template <>
+	struct MediumLevelILInstructionAccessor<MLIL_MINS> : public MediumLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct MediumLevelILInstructionAccessor<MLIL_MAXS> : public MediumLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct MediumLevelILInstructionAccessor<MLIL_MINU> : public MediumLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct MediumLevelILInstructionAccessor<MLIL_MAXU> : public MediumLevelILTwoOperandInstruction
+	{};
+	template <>
+	struct MediumLevelILInstructionAccessor<MLIL_ABS> : public MediumLevelILOneOperandInstruction
+	{};
+	template <>
 	struct MediumLevelILInstructionAccessor<MLIL_SX> : public MediumLevelILOneOperandInstruction
 	{};
 	template <>
