@@ -22,6 +22,8 @@ parser.add_argument('--qmake', default=os.environ.get('QMAKE'), help='Path to qm
 parser.add_argument('--cmake', default=os.environ.get('CMAKE'), help='Path to cmake. Defaults to CMAKE or PATH lookup.')
 parser.add_argument('--cc', default=os.environ.get('CC'), help='C compiler to use. Defaults to CC or CMake platform default.')
 parser.add_argument('--cxx', default=os.environ.get('CXX'), help='C++ compiler to use. Defaults to CXX or CMake platform default.')
+parser.add_argument('--config', default=os.environ.get('CMAKE_BUILD_CONFIG', 'Release'),
+                    help='CMake build configuration to use. Defaults to CMAKE_BUILD_CONFIG or Release.')
 parser.add_argument('--extra-project', action='append', default=[],
                     help='Additional out-of-tree CMake project directory to build. May be specified multiple times.')
 args = parser.parse_args()
@@ -170,9 +172,10 @@ print_tool('cmake', cmake, ['--version'], env=configure_env)
 
 print(f'C compiler: {configure_env.get("CC", "CMake platform default")}')
 print(f'C++ compiler: {configure_env.get("CXX", "CMake platform default")}')
+print(f'CMake build config: {args.config}')
 
-configure_args = []
-build_args = []
+configure_args = [f'-DCMAKE_BUILD_TYPE={args.config}']
+build_args = ['--config', args.config]
 
 if platform.system() == "Windows":
 	configure_env['CXXFLAGS'] = f'/MP{args.parallel}'
