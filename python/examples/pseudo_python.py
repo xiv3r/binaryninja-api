@@ -889,6 +889,124 @@ class PseudoPythonFunction(LanguageRepresentationFunction):
                 tokens.append_close_paren()
                 if parens:
                     tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_BSWAP:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "bswap"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_POPCNT:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "popcnt"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_CLZ:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "clz"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_CTZ:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "ctz"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_RBIT:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "rbit"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_CLS:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "cls"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_ABS:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "abs"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.src, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_MINS:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "mins"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.left, tokens, settings)
+                tokens.append(InstructionTextToken(InstructionTextTokenType.TextToken, ", "))
+                self.perform_get_expr_text(instr.right, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_MAXS:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "maxs"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.left, tokens, settings)
+                tokens.append(InstructionTextToken(InstructionTextTokenType.TextToken, ", "))
+                self.perform_get_expr_text(instr.right, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_MINU:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "minu"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.left, tokens, settings)
+                tokens.append(InstructionTextToken(InstructionTextTokenType.TextToken, ", "))
+                self.perform_get_expr_text(instr.right, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
+            elif instr.operation == HighLevelILOperation.HLIL_MAXU:
+                parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
+                if parens:
+                    tokens.append_open_paren()
+                tokens.append(InstructionTextToken(InstructionTextTokenType.OperationToken, "maxu"))
+                tokens.append_open_paren()
+                self.perform_get_expr_text(instr.left, tokens, settings)
+                tokens.append(InstructionTextToken(InstructionTextTokenType.TextToken, ", "))
+                self.perform_get_expr_text(instr.right, tokens, settings)
+                tokens.append_close_paren()
+                if parens:
+                    tokens.append_close_paren()
             elif instr.operation == HighLevelILOperation.HLIL_ROUND_TO_INT:
                 parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
                 if parens:

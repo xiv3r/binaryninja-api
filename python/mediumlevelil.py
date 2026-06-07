@@ -4210,6 +4210,13 @@ class MediumLevelILFunction:
 			if expr.operation in [
 				MediumLevelILOperation.MLIL_NEG,
 				MediumLevelILOperation.MLIL_NOT,
+				MediumLevelILOperation.MLIL_BSWAP,
+				MediumLevelILOperation.MLIL_POPCNT,
+				MediumLevelILOperation.MLIL_CLZ,
+				MediumLevelILOperation.MLIL_CTZ,
+				MediumLevelILOperation.MLIL_RBIT,
+				MediumLevelILOperation.MLIL_CLS,
+				MediumLevelILOperation.MLIL_ABS,
 				MediumLevelILOperation.MLIL_SX,
 				MediumLevelILOperation.MLIL_ZX,
 				MediumLevelILOperation.MLIL_LOW_PART,
@@ -4243,6 +4250,10 @@ class MediumLevelILFunction:
 				MediumLevelILOperation.MLIL_ROL,
 				MediumLevelILOperation.MLIL_ROR,
 				MediumLevelILOperation.MLIL_MUL,
+				MediumLevelILOperation.MLIL_MINS,
+				MediumLevelILOperation.MLIL_MAXS,
+				MediumLevelILOperation.MLIL_MINU,
+				MediumLevelILOperation.MLIL_MAXU,
 				MediumLevelILOperation.MLIL_MULU_DP,
 				MediumLevelILOperation.MLIL_MULS_DP,
 				MediumLevelILOperation.MLIL_DIVU,
@@ -5212,6 +5223,66 @@ class MediumLevelILFunction:
 		"""
 		return self.expr(MediumLevelILOperation.MLIL_MULU_DP, a, b, size=size, source_location=loc)
 
+	def min_signed(
+		self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``min_signed`` signed minimum of expressions ``a`` and ``b`` returning an expression of ``size`` bytes
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex a: LHS expression
+		:param ExpressionIndex b: RHS expression
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``mins.<size>(a, b)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_MINS, a, b, size=size, source_location=loc)
+
+	def max_signed(
+		self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``max_signed`` signed maximum of expressions ``a`` and ``b`` returning an expression of ``size`` bytes
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex a: LHS expression
+		:param ExpressionIndex b: RHS expression
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``maxs.<size>(a, b)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_MAXS, a, b, size=size, source_location=loc)
+
+	def min_unsigned(
+		self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``min_unsigned`` unsigned minimum of expressions ``a`` and ``b`` returning an expression of ``size`` bytes
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex a: LHS expression
+		:param ExpressionIndex b: RHS expression
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``minu.<size>(a, b)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_MINU, a, b, size=size, source_location=loc)
+
+	def max_unsigned(
+		self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``max_unsigned`` unsigned maximum of expressions ``a`` and ``b`` returning an expression of ``size`` bytes
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex a: LHS expression
+		:param ExpressionIndex b: RHS expression
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``maxu.<size>(a, b)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_MAXU, a, b, size=size, source_location=loc)
+
 	def div_signed(
 		self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
@@ -5363,6 +5434,93 @@ class MediumLevelILFunction:
 		:rtype: ExpressionIndex
 		"""
 		return self.expr(MediumLevelILOperation.MLIL_NOT, value, size=size, source_location=loc)
+
+	def byte_swap(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``byte_swap`` reverses the byte order of expression ``value`` of size ``size``
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to byte swap
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``bswap.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_BSWAP, value, size=size, source_location=loc)
+
+	def population_count(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``population_count`` counts the number of set bits in expression ``value`` of size ``size``
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to count set bits in
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``popcnt.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_POPCNT, value, size=size, source_location=loc)
+
+	def count_leading_zeros(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``count_leading_zeros`` counts the leading zero bits in expression ``value`` of size ``size``. The result is
+		``8 * size`` when ``value`` is zero.
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to count leading zero bits in
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``clz.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_CLZ, value, size=size, source_location=loc)
+
+	def count_trailing_zeros(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``count_trailing_zeros`` counts the trailing zero bits in expression ``value`` of size ``size``. The result is
+		``8 * size`` when ``value`` is zero.
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to count trailing zero bits in
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``ctz.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_CTZ, value, size=size, source_location=loc)
+
+	def reverse_bits(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``reverse_bits`` reverses the bit order of expression ``value`` of size ``size``
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to reverse the bits of
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``rbit.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_RBIT, value, size=size, source_location=loc)
+
+	def count_leading_signs(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``count_leading_signs`` counts the leading sign bits in expression ``value`` of size ``size`` (the number of bits
+		below the sign bit that match it)
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to count leading sign bits in
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``cls.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_CLS, value, size=size, source_location=loc)
+
+	def absolute_value(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``absolute_value`` signed absolute value of expression ``value`` of size ``size``
+
+		:param int size: the size of the result in bytes
+		:param ExpressionIndex value: the expression to take the absolute value of
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``abs.<size>(value)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(MediumLevelILOperation.MLIL_ABS, value, size=size, source_location=loc)
 
 	def sign_extend(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
