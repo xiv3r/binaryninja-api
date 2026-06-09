@@ -99,9 +99,17 @@ void IdentifyStub(BinaryView& view, const SharedCacheController& controller, uin
 		// Ref<Type> selectedType = demangledType;
 		Ref<Type> selectedType = nullptr;
 		if (const auto image = controller.GetImageContaining(symbolAddr))
-			if (auto typeLib = TypeLibraryFromName(view, image->name))
+		{
+			// The objc_msgSend trampolines live in their own libobjcMsgSend* dylibs which have no type
+			// library. Look in libobjc.A.dylib instead.
+			std::string typeLibName = image->name;
+			if (typeLibName.rfind("/usr/lib/objc/libobjcMsgSend", 0) == 0)
+				typeLibName = "/usr/lib/libobjc.A.dylib";
+
+			if (auto typeLib = TypeLibraryFromName(view, typeLibName))
 				if (Ref<Type> libraryType = view.ImportTypeLibraryObject(typeLib, {symbol->name}); libraryType)
 					selectedType = libraryType;
+		}
 
 		if (selectedType != nullptr)
 			targetFunc->ApplyAutoDiscoveredType(selectedType);
@@ -112,7 +120,18 @@ void IdentifyStub(BinaryView& view, const SharedCacheController& controller, uin
 	view.DefineAutoSymbol(bnSymbol);
 }
 
-void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, SharedCacheController& controller, bool loadImage)
+// Controls which images AnalyzeStubFunction may auto-load to resolve a stub's jump target.
+enum class StubImageLoading
+{
+	// Do not auto-load any target image.
+	None,
+	// Only the dedicated objc_msgSend libraries introduced in macOS 27.
+	ObjCMsgSendOnly,
+	// Any directly referenced image.
+	AnyReferenced,
+};
+
+void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, SharedCacheController& controller, StubImageLoading imageLoading)
 {
 	// 1. Identify the load target and load the region, resolving the load to a const pointer.
 	// 2. We _should_ have a proper call now to the appropriate external function (external to the current image)
@@ -138,6 +157,20 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 		const auto image = controller.GetImageContaining(imageAddr);
 		if (!image.has_value() || controller.IsImageLoaded(*image))
 			return false;
+
+		const bool isLibobjcMsgSend = image->name.rfind("/usr/lib/objc/libobjcMsgSend", 0) == 0;
+		if (imageLoading == StubImageLoading::ObjCMsgSendOnly && !isLibobjcMsgSend)
+			return false;
+
+		if (isLibobjcMsgSend)
+		{
+			// The selectors referenced by `objc_msgSend` stubs still live in libobjc.A.dylib.
+			// Load it too so they are resolved to strings rather than `sel_` symbols.
+			auto libobjc = controller.GetImageWithName("/usr/lib/libobjc.A.dylib");
+			if (libobjc && !controller.IsImageLoaded(*libobjc))
+				controller.ApplyImage(*view, *libobjc);
+		}
+
 		return controller.ApplyImage(*view, *image);
 	};
 
@@ -145,8 +178,7 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 		// Skip if already loaded.
 		if (view->IsValidOffset(targetAddr))
 			return false;
-		// If the stub function is allowed to load images (for inlining)
-		if (loadImage && loadTargetImage(targetAddr))
+		if (imageLoading != StubImageLoading::None && loadTargetImage(targetAddr))
 			return true;
 		return loadStubIslandRegion(targetAddr);
 	};
@@ -358,10 +390,12 @@ void AnalyzeFunction(Ref<AnalysisContext> ctx)
 			AnalyzeStandardFunction(func, mlilSsa, *controller);
 			break;
 		case StubFunction:
-			AnalyzeStubFunction(func, mlilSsa, *controller, false);
+			AnalyzeStubFunction(func, mlilSsa, *controller,
+				workflowState->autoLoadObjCStubRequirements ? StubImageLoading::ObjCMsgSendOnly : StubImageLoading::None);
 			break;
 		case ObjCStubFunction:
-			AnalyzeStubFunction(func, mlilSsa, *controller, workflowState->autoLoadObjCStubRequirements);
+			AnalyzeStubFunction(func, mlilSsa, *controller,
+				workflowState->autoLoadObjCStubRequirements ? StubImageLoading::AnyReferenced : StubImageLoading::None);
 			break;
 	}
 }
