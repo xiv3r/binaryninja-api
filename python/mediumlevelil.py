@@ -27,7 +27,7 @@ from . import deprecation
 
 # Binary Ninja components
 from . import _binaryninjacore as core
-from .enums import MediumLevelILOperation, ILBranchDependence, DataFlowQueryOption, FunctionGraphType, DeadStoreElimination, ILInstructionAttribute, StringType
+from .enums import MediumLevelILOperation, ILBranchDependence, DataFlowQueryOption, FunctionGraphType, DeadStoreElimination, ILInstructionAttribute, StringType, ForceVersionReason
 from . import basicblock
 from . import function
 from . import types
@@ -3444,6 +3444,10 @@ class MediumLevelILForceVer(MediumLevelILInstruction):
 	def src(self) -> variable.Variable:
 		return self._get_var(1)
 
+	@property
+	def reason(self) -> ForceVersionReason:
+		return ForceVersionReason(self._get_int(2))
+
 @dataclass(frozen=True, repr=False, eq=False)
 class MediumLevelILForceVerSsa(MediumLevelILInstruction, SSA):
 	@property
@@ -3453,6 +3457,10 @@ class MediumLevelILForceVerSsa(MediumLevelILInstruction, SSA):
 	@property
 	def src(self) -> SSAVariable:
 		return self._get_var_ssa(2, 3)
+
+	@property
+	def reason(self) -> ForceVersionReason:
+		return ForceVersionReason(self._get_int(4))
 
 @dataclass(frozen=True, repr=False, eq=False)
 class MediumLevelILBlockToExpand(MediumLevelILInstruction):
@@ -4117,7 +4125,7 @@ class MediumLevelILFunction:
 				return dest.var_output_field(expr.size, expr.dest, expr.offset, loc)
 			if expr.operation == MediumLevelILOperation.MLIL_FORCE_VER:
 				expr: MediumLevelILForceVer
-				return dest.force_ver(expr.size, expr.dest, expr.src, loc)
+				return dest.force_ver(expr.size, expr.dest, expr.src, expr.reason, loc)
 			if expr.operation == MediumLevelILOperation.MLIL_ASSERT:
 				expr: MediumLevelILAssert
 				return dest.assert_expr(expr.size, expr.src, expr.constraint, loc)
@@ -4796,6 +4804,7 @@ class MediumLevelILFunction:
 		size: int,
 		dest: 'variable.CoreVariable',
 		src: 'variable.CoreVariable',
+		reason: ForceVersionReason = ForceVersionReason.UserForceVersionReason,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4806,11 +4815,12 @@ class MediumLevelILFunction:
 		:param int size: size of the variable
 		:param Variable dest: the variable to force a new version of
 		:param Variable src: the variable created with the new version
+		:param ForceVersionReason reason: reason for forcing the version
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``FORCE_VER(reg)``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(MediumLevelILOperation.MLIL_FORCE_VER, dest.identifier, src.identifier, size=size, source_location=loc)
+		return self.expr(MediumLevelILOperation.MLIL_FORCE_VER, dest.identifier, src.identifier, int(reason), size=size, source_location=loc)
 
 	def address_of(self, var: 'variable.CoreVariable', loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""

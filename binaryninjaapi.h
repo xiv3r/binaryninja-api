@@ -15912,8 +15912,10 @@ namespace BinaryNinja {
 		ExprId SetVarAliasedField(size_t size, const Variable& dest, size_t newMemVersion, size_t prevMemVersion,
 		    uint64_t offset, ExprId src, const ILSourceLocation& loc = ILSourceLocation());
 
-		ExprId ForceVer(size_t size, const Variable& dest, const Variable& src, const ILSourceLocation& loc = ILSourceLocation());
-		ExprId ForceVerSSA(size_t size, const SSAVariable& dest, const SSAVariable& src, const ILSourceLocation& loc = ILSourceLocation());
+		ExprId ForceVer(size_t size, const Variable& dest, const Variable& src, BNForceVersionReason reason,
+			const ILSourceLocation& loc = ILSourceLocation());
+		ExprId ForceVerSSA(size_t size, const SSAVariable& dest, const SSAVariable& src, BNForceVersionReason raeson,
+			const ILSourceLocation& loc = ILSourceLocation());
 
 		ExprId Assert(size_t size, const Variable& src, const PossibleValueSet& pvs, const ILSourceLocation& loc = ILSourceLocation());
 		ExprId AssertSSA(size_t size, const SSAVariable& src, const PossibleValueSet& pvs, const ILSourceLocation& loc = ILSourceLocation());

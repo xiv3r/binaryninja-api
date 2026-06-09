@@ -105,7 +105,8 @@ namespace BinaryNinja
 		VariableListMediumLevelOperand,
 		SSAVariableListMediumLevelOperand,
 		ExprListMediumLevelOperand,
-		ConstraintMediumLevelOperand
+		ConstraintMediumLevelOperand,
+		ForceVersionReasonMediumLevelOperand
 	};
 
 	/*!
@@ -154,7 +155,8 @@ namespace BinaryNinja
 		UntypedParameterSSAExprsMediumLevelOperandUsage,
 		ParameterSSAMemoryVersionMediumLevelOperandUsage,
 		SourceSSAVariablesMediumLevelOperandUsages,
-		ConstraintMediumLevelOperandUsage
+		ConstraintMediumLevelOperandUsage,
+		ForceVersionReasonMediumLevelOperandUsage
 	};
 }  // namespace BinaryNinjaCore
 
@@ -800,6 +802,11 @@ namespace BinaryNinja
 		{
 			return As<N>().GetConstraint();
 		}
+		template <BNMediumLevelILOperation N>
+		BNForceVersionReason GetForceVersionReason() const
+		{
+			return As<N>().GetForceVersionReason();
+		}
 
 		template <BNMediumLevelILOperation N>
 		void SetDestSSAVersion(size_t version)
@@ -899,6 +906,7 @@ namespace BinaryNinja
 		MediumLevelILInstructionList GetParameterExprs() const;
 		MediumLevelILInstructionList GetSourceExprs() const;
 		MediumLevelILSSAVariableList GetSourceSSAVariables() const;
+		BNForceVersionReason GetForceVersionReason() const;
 	};
 
 	/*!
@@ -1122,6 +1130,7 @@ namespace BinaryNinja
 	{
 		Variable GetDestVariable() const { return GetRawOperandAsVariable(0); }
 		Variable GetSourceVariable() const { return GetRawOperandAsVariable(1); }
+		BNForceVersionReason GetForceVersionReason() const { return (BNForceVersionReason)GetRawOperandAsInteger(2); }
 	};
 	template <>
 	struct MediumLevelILInstructionAccessor<MLIL_FORCE_VER_SSA> : public MediumLevelILInstructionBase
@@ -1130,6 +1139,7 @@ namespace BinaryNinja
 		void SetDestSSAVersion(size_t version) { UpdateRawOperand(1, version); }
 		SSAVariable GetSourceSSAVariable() const { return GetRawOperandAsSSAVariable(2); }
 		void SetSourceSSAVersion(size_t version) { UpdateRawOperand(3, version); }
+		BNForceVersionReason GetForceVersionReason() const { return (BNForceVersionReason)GetRawOperandAsInteger(4); }
 	};
 	template <>
 	struct MediumLevelILInstructionAccessor<MLIL_ASSERT> : public MediumLevelILInstructionBase

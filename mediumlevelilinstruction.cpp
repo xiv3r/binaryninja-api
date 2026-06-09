@@ -96,6 +96,7 @@ static constexpr std::array s_operandTypeForUsage = {
 	OperandUsageType{ParameterSSAMemoryVersionMediumLevelOperandUsage, IndexMediumLevelOperand},
 	OperandUsageType{SourceSSAVariablesMediumLevelOperandUsages, SSAVariableListMediumLevelOperand},
 	OperandUsageType{ConstraintMediumLevelOperandUsage, ConstraintMediumLevelOperand},
+	OperandUsageType{ForceVersionReasonMediumLevelOperandUsage, ForceVersionReasonMediumLevelOperand},
 };
 
 static_assert(std::is_sorted(s_operandTypeForUsage.begin(), s_operandTypeForUsage.end()),
@@ -160,7 +161,7 @@ static constexpr std::array s_instructionOperandUsage = {
 	OperandUsage{MLIL_SET_VAR_FIELD, {DestVariableMediumLevelOperandUsage, OffsetMediumLevelOperandUsage, SourceExprMediumLevelOperandUsage}},
 	OperandUsage{MLIL_SET_VAR_SPLIT, {HighVariableMediumLevelOperandUsage, LowVariableMediumLevelOperandUsage, SourceExprMediumLevelOperandUsage}},
 	OperandUsage{MLIL_ASSERT, {SourceVariableMediumLevelOperandUsage, ConstraintMediumLevelOperandUsage}},
-	OperandUsage{MLIL_FORCE_VER, {DestVariableMediumLevelOperandUsage, SourceVariableMediumLevelOperandUsage}},
+	OperandUsage{MLIL_FORCE_VER, {DestVariableMediumLevelOperandUsage, SourceVariableMediumLevelOperandUsage, ForceVersionReasonMediumLevelOperandUsage}},
 	OperandUsage{MLIL_LOAD, {SourceExprMediumLevelOperandUsage}},
 	OperandUsage{MLIL_LOAD_STRUCT, {SourceExprMediumLevelOperandUsage, OffsetMediumLevelOperandUsage}},
 	OperandUsage{MLIL_STORE, {DestExprMediumLevelOperandUsage, SourceExprMediumLevelOperandUsage}},
@@ -280,7 +281,7 @@ static constexpr std::array s_instructionOperandUsage = {
 	OperandUsage{MLIL_VAR_ALIASED_FIELD, {SourceSSAVariableMediumLevelOperandUsage, OffsetMediumLevelOperandUsage}},
 	OperandUsage{MLIL_VAR_SPLIT_SSA, {HighSSAVariableMediumLevelOperandUsage, LowSSAVariableMediumLevelOperandUsage}},
 	OperandUsage{MLIL_ASSERT_SSA, {SourceSSAVariableMediumLevelOperandUsage, ConstraintMediumLevelOperandUsage}},
-	OperandUsage{MLIL_FORCE_VER_SSA, {DestSSAVariableMediumLevelOperandUsage, SourceSSAVariableMediumLevelOperandUsage}},
+	OperandUsage{MLIL_FORCE_VER_SSA, {DestSSAVariableMediumLevelOperandUsage, SourceSSAVariableMediumLevelOperandUsage, ForceVersionReasonMediumLevelOperandUsage}},
 	OperandUsage{MLIL_CALL_SSA, {OutputExprsSubExprMediumLevelOperandUsage, OutputSSAMemoryVersionMediumLevelOperandUsage, DestExprMediumLevelOperandUsage, ParameterExprsMediumLevelOperandUsage, SourceMemoryVersionMediumLevelOperandUsage}},
 	OperandUsage{MLIL_CALL_UNTYPED_SSA, {OutputExprsSubExprMediumLevelOperandUsage, OutputSSAMemoryVersionMediumLevelOperandUsage, DestExprMediumLevelOperandUsage, UntypedParameterSSAExprsMediumLevelOperandUsage, ParameterSSAMemoryVersionMediumLevelOperandUsage, StackExprMediumLevelOperandUsage}},
 	OperandUsage{MLIL_SYSCALL_SSA, {OutputExprsSubExprMediumLevelOperandUsage, OutputSSAMemoryVersionMediumLevelOperandUsage, ParameterExprsMediumLevelOperandUsage, SourceMemoryVersionMediumLevelOperandUsage}},
@@ -1724,9 +1725,11 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 			GetSourceSSAVariable<MLIL_VAR_OUTPUT_ALIASED_FIELD>().version,
 			GetOffset<MLIL_VAR_OUTPUT_ALIASED_FIELD>(), loc);
 	case MLIL_FORCE_VER:
-		return dest->ForceVer(size, GetDestVariable<MLIL_FORCE_VER>(), GetSourceVariable<MLIL_FORCE_VER>(), loc);
+		return dest->ForceVer(size, GetDestVariable<MLIL_FORCE_VER>(), GetSourceVariable<MLIL_FORCE_VER>(),
+			GetForceVersionReason<MLIL_FORCE_VER>(), loc);
 	case MLIL_FORCE_VER_SSA:
-		return dest->ForceVerSSA(size, GetDestSSAVariable<MLIL_FORCE_VER_SSA>(), GetSourceSSAVariable<MLIL_FORCE_VER_SSA>(), loc);
+		return dest->ForceVerSSA(size, GetDestSSAVariable<MLIL_FORCE_VER_SSA>(), GetSourceSSAVariable<MLIL_FORCE_VER_SSA>(),
+			GetForceVersionReason<MLIL_FORCE_VER_SSA>(), loc);
 	case MLIL_ASSERT:
 		return dest->Assert(size, GetSourceVariable<MLIL_ASSERT>(), GetConstraint<MLIL_ASSERT>(), loc);
 	case MLIL_ASSERT_SSA:
@@ -2375,6 +2378,15 @@ MediumLevelILSSAVariableList MediumLevelILInstruction::GetSourceSSAVariables() c
 }
 
 
+BNForceVersionReason MediumLevelILInstruction::GetForceVersionReason() const
+{
+	size_t operandIndex;
+	if (GetOperandIndexForUsage(ForceVersionReasonMediumLevelOperandUsage, operandIndex))
+		return (BNForceVersionReason)GetRawOperandAsInteger(operandIndex);
+	throw MediumLevelILInstructionAccessException();
+}
+
+
 vector<Variable> MediumLevelILCallInstruction::GetOutputVariables() const
 {
 	vector<Variable> result;
@@ -2486,15 +2498,18 @@ ExprId MediumLevelILFunction::SetVarAliasedField(size_t size, const Variable& de
 }
 
 
-ExprId MediumLevelILFunction::ForceVer(size_t size, const Variable& dest, const Variable& src, const ILSourceLocation& loc)
+ExprId MediumLevelILFunction::ForceVer(size_t size, const Variable& dest, const Variable& src,
+	BNForceVersionReason reason, const ILSourceLocation& loc)
 {
-	return AddExprWithLocation(MLIL_FORCE_VER, loc, size, dest.ToIdentifier(), src.ToIdentifier());
+	return AddExprWithLocation(MLIL_FORCE_VER, loc, size, dest.ToIdentifier(), src.ToIdentifier(), reason);
 }
 
 
-ExprId MediumLevelILFunction::ForceVerSSA(size_t size, const SSAVariable& dest, const SSAVariable& src, const ILSourceLocation& loc)
+ExprId MediumLevelILFunction::ForceVerSSA(size_t size, const SSAVariable& dest, const SSAVariable& src,
+	BNForceVersionReason reason, const ILSourceLocation& loc)
 {
-	return AddExprWithLocation(MLIL_FORCE_VER_SSA, loc, size, dest.var.ToIdentifier(), dest.version, src.var.ToIdentifier(), src.version);
+	return AddExprWithLocation(MLIL_FORCE_VER_SSA, loc, size, dest.var.ToIdentifier(), dest.version,
+		src.var.ToIdentifier(), src.version, reason);
 }
 
 
