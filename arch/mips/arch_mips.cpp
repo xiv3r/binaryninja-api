@@ -21,6 +21,8 @@ using namespace std;
 
 #define E_MIPS_MACH_5900 0x00920000
 #define EF_MIPS_ABI2 0x00000020
+#define EF_MIPS_ARCH 0xf0000000
+#define EF_MIPS_ARCH_3 0x20000000
 
 uint32_t bswap32(uint32_t x)
 {
@@ -3707,8 +3709,14 @@ static Ref<Platform> ElfFlagsRecognize(BinaryView* view, Metadata* metadata)
 			LogInfo("ELF flags 0x%08" PRIx64 " machine variant 0x%02x: using R5900 architecture", flagsValue, machineVariant);
 			return Platform::GetByName("r5900l");
 		default:
-			return nullptr;
+			break;
 	}
+
+    // This needs to be after the R5900 check above or all R5900 binaries will load as MIPS III
+	if ((flagsValue & EF_MIPS_ARCH) == EF_MIPS_ARCH_3)
+		return Platform::GetByName(endianness == BigEndian ? "linux-mips3" : "linux-mipsel3");
+
+	return nullptr;
 }
 
 extern "C"
