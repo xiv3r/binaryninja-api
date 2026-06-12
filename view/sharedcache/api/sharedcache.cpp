@@ -53,6 +53,9 @@ CacheRegion RegionFromApi(BNSharedCacheRegion apiRegion)
 	region.size = apiRegion.size;
 	region.flags = apiRegion.flags;
 	region.type = apiRegion.regionType;
+	// A zeroed imageStart means the region is not associated with an image.
+	if (apiRegion.imageStart != 0)
+		region.imageStart = apiRegion.imageStart;
 	return region;
 }
 

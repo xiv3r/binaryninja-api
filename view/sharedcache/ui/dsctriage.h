@@ -1,6 +1,8 @@
+#include <QFutureWatcher>
 #include <QHeaderView>
 #include <QItemDelegate>
 #include <QPainter>
+#include <QPointer>
 #include <QSortFilterProxyModel>
 #include <QStandardItemModel>
 #include <QStyledItemDelegate>
@@ -193,6 +195,8 @@ class DSCTriageView : public QWidget, public View, public UIContextNotification
 	QStandardItemModel* m_imageModel;
 
 	SymbolTableView* m_symbolTable;
+	TriageTablePanel* m_symbolsPanel;
+	QPointer<QFutureWatcher<std::vector<SharedCacheAPI::CacheSymbol>>> m_symbolsWatcher;
 
 	StringsTableView* m_stringsTable;
 	TriageTablePanel* m_stringsPanel;
@@ -230,6 +234,7 @@ private:
 	void navigateToAddress(uint64_t address);
 	QWidget* initImageTable();
 	void initSymbolTable();
+	bool startSymbolLoad();
 	void initStringsTab();
 	bool startStringScan();
 	void pollStringScan();

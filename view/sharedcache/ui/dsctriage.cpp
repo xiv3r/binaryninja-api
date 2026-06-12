@@ -60,10 +60,11 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 	initStringsTab();
 	initCacheInfoTables();
 
-	// The string scan is expensive, so the panel starts its load only once the Strings tab is
-	// first shown, and clears its large result set after the tab leaves the screen.
+	// The string scan and symbol fetch are expensive, so each panel starts its load only once its
+	// tab is first shown, and clears its large result set after the tab leaves the screen.
 	connect(m_triageTabs, &SplitTabWidget::currentChanged, this, [this](QWidget* widget) {
 		m_stringsPanel->setCurrentTabWidget(widget);
+		m_symbolsPanel->setCurrentTabWidget(widget);
 	});
 
 	m_layout = new QVBoxLayout(this);
@@ -357,59 +358,31 @@ QWidget* DSCTriageView::initImageTable()
 void DSCTriageView::initSymbolTable()
 {
 	m_symbolTable = new SymbolTableView(this);
-
-	// Apply custom column styling
-	m_symbolTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_symbolTable));
-
-	auto symbolFilterEdit = new FilterEdit(m_symbolTable);
-	symbolFilterEdit->setPlaceholderText("Filter symbols");
-	connect(symbolFilterEdit, &FilterEdit::textChanged, [this, symbolFilterEdit](const QString& filter) {
-		m_symbolTable->setFilter(filter.toStdString(), symbolFilterEdit->getFilterOptions());
+	m_symbolsPanel = new TriageTablePanel(this, m_symbolTable, "Filter symbols", "symbols");
+	m_symbolsPanel->setLoader([this] { return startSymbolLoad(); });
+	m_symbolsPanel->setClearHandler([this] {
+		// Discard an in-flight symbol fetch rather than letting its results repopulate the
+		// cleared table.
+		if (m_symbolsWatcher)
+		{
+			m_symbolsWatcher->disconnect();
+			m_symbolsWatcher->deleteLater();
+		}
 	});
-	connect(symbolFilterEdit, &FilterEdit::optionsChanged, [this, symbolFilterEdit](FilterOptions options) {
-		m_symbolTable->setFilter(symbolFilterEdit->text().toStdString(), options);
-	});
 
-	auto loadSymbolImageButton = new QPushButton();
+	m_symbolsPanel->addFilterToggle(":/icons/images/folder.png", "Match Image Names",
+		[this](bool checked) { m_symbolTable->symbolsModel()->setMatchImageNames(checked); });
+
+	auto loadSymbolImageButton = m_symbolsPanel->addSelectionButton("Load Image");
 	connect(loadSymbolImageButton, &QPushButton::clicked, [this](bool) {
 		auto selected = m_symbolTable->selectionModel()->selectedRows();
 		std::vector<uint64_t> addresses;
 		for (const auto& row : selected)
-			addresses.push_back(row.data().toString().toULongLong(nullptr, 16));
+			addresses.push_back(m_symbolTable->getSymbolAtRow(row.row()).address);
 		loadImagesWithAddr(addresses);
 	});
-	loadSymbolImageButton->setText("Load Image");
 
-	// Shows the current selected rows image name.
-	auto currentImageLabel = new QLabel(this);
-	currentImageLabel->setText("");
-	currentImageLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	connect(m_symbolTable->selectionModel(), &QItemSelectionModel::currentRowChanged, this, [this, currentImageLabel](const QModelIndex &current, const QModelIndex &) {
-		auto symbol = m_symbolTable->getSymbolAtRow(current.row());
-		auto controller = SharedCacheController::GetController(*this->m_data);
-		if (!controller)
-			return;
-		auto image = controller->GetImageContaining(symbol.address);
-		if (image)
-			currentImageLabel->setText("Image: " + QString::fromStdString(image->name));
-		else
-			currentImageLabel->setText("");
-	});
-
-	auto symbolFooterLayout = new QHBoxLayout;
-	symbolFooterLayout->addWidget(loadSymbolImageButton);
-	symbolFooterLayout->addWidget(currentImageLabel);
-	symbolFooterLayout->setAlignment(Qt::AlignLeft);
-
-	auto symbolLayout = new QVBoxLayout;
-	symbolLayout->addWidget(symbolFilterEdit);
-	symbolLayout->addWidget(m_symbolTable);
-	symbolLayout->addLayout(symbolFooterLayout);
-
-	auto symbolWidget = new QWidget;
-	symbolWidget->setLayout(symbolLayout);
-
-	connect(m_symbolTable, &SymbolTableView::activated, this, [=, this](const QModelIndex& index){
+	connect(m_symbolTable, &SymbolTableView::activated, this, [this](const QModelIndex& index){
 		auto symbol = m_symbolTable->getSymbolAtRow(index.row());
 
 		auto controller = SharedCacheController::GetController(*this->m_data);
@@ -426,21 +399,43 @@ void DSCTriageView::initSymbolTable()
 			return;
 		}
 
-		auto dialog = new QMessageBox(this);
-		dialog->setText("Load " + QString::fromStdString(image->name) + "?");
-		dialog->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-
-		connect(dialog, &QMessageBox::buttonClicked, this, [=, this](QAbstractButton* button)
-		{
-			if (button == dialog->button(QMessageBox::Yes))
-				loadImagesWithAddr({image->headerAddress}, false, symbol.address);
-		});
-
-		dialog->exec();
+		promptToLoadImage(image->name, image->headerAddress, symbol.address);
 	});
 
-	m_triageTabs->addTab(symbolWidget, "Symbols");
-	m_triageTabs->setCanCloseTab(symbolWidget, false);
+	m_triageTabs->addTab(m_symbolsPanel, "Symbols");
+	m_triageTabs->setCanCloseTab(m_symbolsPanel, false);
+}
+
+
+bool DSCTriageView::startSymbolLoad()
+{
+	// The controller is not available until view init has finished. Retry on the next activation.
+	auto controller = SharedCacheController::GetController(*m_data);
+	if (!controller)
+		return false;
+
+	m_symbolTable->setNameSources(*controller);
+	m_symbolsPanel->statusLabel()->setText("Loading…");
+
+	typedef std::vector<CacheSymbol> SymbolList;
+	QPointer<QFutureWatcher<SymbolList>> watcher = new QFutureWatcher<SymbolList>(this);
+	m_symbolsWatcher = watcher;
+	connect(watcher, &QFutureWatcher<SymbolList>::finished, this, [watcher, this]() {
+		if (!watcher)
+			return;
+		m_symbolTable->symbolsModel()->appendSymbols(watcher->result());
+		m_symbolsPanel->finishLoad();
+		watcher->deleteLater();
+	});
+	QFuture<SymbolList> future = QtConcurrent::run([controller]() { return controller->GetSymbols(); });
+	watcher->setFuture(future);
+	connect(this, &QObject::destroyed, this, [watcher]() {
+		if (watcher && watcher->isRunning()) {
+			watcher->cancel();
+			watcher->waitForFinished();
+		}
+	});
+	return true;
 }
 
 
@@ -537,6 +532,7 @@ void DSCTriageView::showEvent(QShowEvent* event)
 {
 	QWidget::showEvent(event);
 	m_stringsPanel->setViewVisible(true);
+	m_symbolsPanel->setViewVisible(true);
 }
 
 
@@ -544,6 +540,7 @@ void DSCTriageView::hideEvent(QHideEvent* event)
 {
 	QWidget::hideEvent(event);
 	m_stringsPanel->setViewVisible(false);
+	m_symbolsPanel->setViewVisible(false);
 }
 
 
@@ -863,6 +860,8 @@ void DSCTriageView::RefreshData()
 	// TODO: This should use `QSortFilterProxyModel`, but that's a bigger change.
 	m_mappingTable->setSortingEnabled(true);
 
-
-	m_symbolTable->populateSymbols(*m_data);
+	// Symbols and strings are loaded lazily when their tabs are shown.
+	// Discard any loaded content so the reload picks up the refreshed cache information.
+	m_symbolsPanel->resetContent();
+	m_stringsPanel->resetContent();
 }
