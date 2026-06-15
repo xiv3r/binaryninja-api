@@ -1255,6 +1255,16 @@ impl<D: RiscVDisassembler> Architecture for RiscVArch<D> {
             Op::Jal(j) => {
                 let target = addr.wrapping_add(j.imm() as i64 as u64);
 
+                if j.rd().id() != 0 && j.rd().id() != 1 {
+                    // Return address stored in non-ra
+                    il.set_reg(
+                        max_width,
+                        Register::from(j.rd()),
+                        il.const_ptr(addr.wrapping_add(inst_len)),
+                    )
+                    .append();
+                }
+
                 match (j.rd().id(), il.label_for_address(target)) {
                     (0, Some(mut l)) => il.goto(&mut l),
                     (0, None) => il.jump(il.const_ptr(target)),
