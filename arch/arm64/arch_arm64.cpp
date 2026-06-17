@@ -420,7 +420,7 @@ class Arm64Architecture : public Architecture
 	{
 		if (operand->shiftType != ShiftType_NONE)
 		{
-			const char* shiftStr = get_shift(operand->shiftType);
+			const char* shiftStr = aarch64_get_shift(operand->shiftType);
 			if (shiftStr == NULL)
 				return FAILED_TO_DISASSEMBLE_OPERAND;
 
@@ -494,7 +494,7 @@ class Arm64Architecture : public Architecture
 	uint32_t tokenize_shifted_register(const InstructionOperand* restrict operand,
 	    uint32_t registerNumber, vector<InstructionTextToken>& result)
 	{
-		const char* reg = get_register_name(operand->reg[registerNumber]);
+		const char* reg = aarch64_get_register_name(operand->reg[registerNumber]);
 		if (EMPTY(reg))
 			return FAILED_TO_DISASSEMBLE_REGISTER;
 
@@ -533,7 +533,7 @@ class Arm64Architecture : public Architecture
 			return tokenize_shifted_register(operand, registerNumber, result);
 		}
 
-		const char* reg = get_register_name(operand->reg[registerNumber]);
+		const char* reg = aarch64_get_register_name(operand->reg[registerNumber]);
 		if (EMPTY(reg))
 			return FAILED_TO_DISASSEMBLE_REGISTER;
 
@@ -573,7 +573,7 @@ class Arm64Architecture : public Architecture
 		char paramBuff[32] = {0};
 		const char *reg0, *reg1;
 
-		reg0 = get_register_name(operand->reg[0]);
+		reg0 = aarch64_get_register_name(operand->reg[0]);
 		if (EMPTY(reg0))
 			return FAILED_TO_DISASSEMBLE_REGISTER;
 
@@ -615,7 +615,7 @@ class Arm64Architecture : public Architecture
 			}
 			else
 			{
-				reg1 = get_register_name(operand->reg[1]);
+				reg1 = aarch64_get_register_name(operand->reg[1]);
 				if (EMPTY(reg1))
 					return FAILED_TO_DISASSEMBLE_REGISTER;
 				result.emplace_back(EndMemoryOperandToken, "");
@@ -639,7 +639,7 @@ class Arm64Architecture : public Architecture
 			break;
 		case MEM_EXTENDED:  // [<reg>, <reg> optional(shift optional(imm))]
 			result.emplace_back(TextToken, ", ");
-			reg1 = get_register_name(operand->reg[1]);
+			reg1 = aarch64_get_register_name(operand->reg[1]);
 			if (EMPTY(reg1))
 				return FAILED_TO_DISASSEMBLE_REGISTER;
 			result.emplace_back(RegisterToken, reg1);
@@ -690,7 +690,7 @@ class Arm64Architecture : public Architecture
 	uint32_t tokenize_condition(
 	    const InstructionOperand* restrict operand, vector<InstructionTextToken>& result)
 	{
-		const char* condStr = get_condition((Condition)operand->cond);
+		const char* condStr = aarch64_get_condition((Condition)operand->cond);
 		if (condStr == NULL)
 			return FAILED_TO_DISASSEMBLE_OPERAND;
 
@@ -802,7 +802,7 @@ class Arm64Architecture : public Architecture
 			return false;
 
 		memset(buf, 0x20, sizeof(buf));
-		const char* operation = get_operation(&instr);
+		const char* operation = aarch64_get_operation(&instr);
 		if (operation == nullptr)
 			return false;
 
@@ -868,7 +868,7 @@ class Arm64Architecture : public Architecture
 			case ACCUM_ARRAY: /* eg: "za[w12, #0x6]" */
 				result.emplace_back(TextToken, "ZA");
 				result.emplace_back(BraceToken, "[");
-				snprintf(buf, sizeof(buf), "%s", get_register_name(operand->reg[0]));
+				snprintf(buf, sizeof(buf), "%s", aarch64_get_register_name(operand->reg[0]));
 				result.emplace_back(RegisterToken, buf);
 				result.emplace_back(OperandSeparatorToken, ", ");
 				result.emplace_back(OperationToken, " #");
@@ -888,7 +888,7 @@ class Arm64Architecture : public Architecture
 				if (operand->reg[0] != REG_NONE)
 				{
 					result.emplace_back(BraceToken, "[");
-					snprintf(buf, sizeof(buf), "%s", get_register_name(operand->reg[0]));
+					snprintf(buf, sizeof(buf), "%s", aarch64_get_register_name(operand->reg[0]));
 					result.emplace_back(RegisterToken, buf);
 					if (operand->arrSpec != ARRSPEC_FULL)
 					{
@@ -902,10 +902,10 @@ class Arm64Architecture : public Architecture
 				tokenizeSuccess = true;
 				break;
 			case INDEXED_ELEMENT: /* eg: "p12.d[w15, #0xf]" */
-				result.emplace_back(RegisterToken, get_register_name(operand->reg[0]));
+				result.emplace_back(RegisterToken, aarch64_get_register_name(operand->reg[0]));
 				result.emplace_back(TextToken, get_arrspec_str_truncated(operand->arrSpec));
 				result.emplace_back(BraceToken, "[");
-				result.emplace_back(RegisterToken, get_register_name(operand->reg[1]));
+				result.emplace_back(RegisterToken, aarch64_get_register_name(operand->reg[1]));
 				if (operand->immediate)
 				{
 					result.emplace_back(OperandSeparatorToken, ", ");
@@ -1673,7 +1673,7 @@ class Arm64Architecture : public Architecture
 	virtual string GetRegisterName(uint32_t reg_) override
 	{
 		if (reg_ > REG_NONE && reg_ < REG_END)
-			return get_register_name((enum Register)reg_);
+			return aarch64_get_register_name((enum Register)reg_);
 
 		if (reg_ > SYSREG_NONE && reg_ < SYSREG_END)
 			return get_system_register_name((enum SystemReg)reg_);

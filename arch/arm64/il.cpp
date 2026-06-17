@@ -133,7 +133,7 @@ ExprId ExtractImmediate(LowLevelILFunction& il, InstructionOperand& operand, int
 ExprId ExtractRegister(LowLevelILFunction& il, InstructionOperand& operand, size_t regNum,
     size_t extractSize, bool signExtend, size_t resultSize)
 {
-	size_t opsz = get_register_size(operand.reg[regNum]);
+	size_t opsz = aarch64_get_register_size(operand.reg[regNum]);
 
 	if (IS_ZERO_REG(operand.reg[regNum]))
 	    return il.Const(resultSize, 0);
@@ -1903,7 +1903,7 @@ bool GetLowLevelILForInstruction(
 			if ((dst_n != src1_n) || (src1_n != src2_n) || dst_n == 0)
 				ABORT_LIFT;
 
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 				il.AddInstruction(ILSETREG(
 					dsts[i], il.FloatAdd(rsize, ILREG(srcs1[i]), ILREG(srcs2[i]))));
@@ -1941,7 +1941,7 @@ bool GetLowLevelILForInstruction(
 			if ((dst_n != src1_n) || (src1_n != src2_n) || dst_n == 0)
 				ABORT_LIFT;
 
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 			{
 				auto srcs = i < dst_n / 2 ? srcs1 : srcs2;
@@ -2025,7 +2025,7 @@ bool GetLowLevelILForInstruction(
 			if ((dst_n != src_n) || dst_n == 0)
 				ABORT_LIFT;
 
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 				il.AddInstruction(ILSETREG(dsts[i], il.FloatSub(rsize, ILREG(dsts[i]), ILREG(srcs[i]))));
 			break;
@@ -2080,7 +2080,7 @@ bool GetLowLevelILForInstruction(
 			int src2_n = unpack_vector(operand3, srcs2);
 			if ((dst_n != src1_n) || (src1_n != src2_n) || dst_n == 0)
 				ABORT_LIFT;
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 				il.AddInstruction(ILSETREG(
 					dsts[i], il.FloatDiv(rsize, ILREG(srcs1[i]), ILREG(srcs2[i]))));
@@ -2102,7 +2102,7 @@ bool GetLowLevelILForInstruction(
 		case ENC_FMOV_V64I_FLOAT2INT:
 		{
 			Register minreg = vector_reg_minimize(instr.operands[0]);
-			il.AddInstruction(il.SetRegister(get_register_size(minreg), minreg,
+			il.AddInstruction(il.SetRegister(aarch64_get_register_size(minreg), minreg,
 			    il.Register(REGSZ_O(operand1), instr.operands[1].reg[0])));
 			break;
 		}
@@ -2194,7 +2194,7 @@ bool GetLowLevelILForInstruction(
 			int src2_n = unpack_vector(operand3, srcs2);
 			if ((dst_n != src1_n) || (src1_n != src2_n) || dst_n == 0)
 				ABORT_LIFT;
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 				il.AddInstruction(ILSETREG(
 					dsts[i], il.FloatMult(rsize, ILREG(srcs1[i]), ILREG(srcs2[i]))));
@@ -2214,7 +2214,7 @@ bool GetLowLevelILForInstruction(
 			int src2_n = unpack_vector(operand3, srcs2);
 			if ((dst_n != src1_n) || dst_n == 0 || src2_n != 1)
 				ABORT_LIFT;
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 				il.AddInstruction(ILSETREG(
 					dsts[i], il.FloatMult(rsize, ILREG(srcs1[i]), ILREG(srcs2[0]))));
@@ -2245,7 +2245,7 @@ bool GetLowLevelILForInstruction(
 			if ((dst_n != src_n) || dst_n == 0)
 				ABORT_LIFT;
 
-			int rsize = get_register_size(dsts[0]);
+			int rsize = aarch64_get_register_size(dsts[0]);
 			for (int i = 0; i < dst_n; ++i)
 				il.AddInstruction(ILSETREG(dsts[i], il.FloatNeg(rsize, ILREG(srcs[i]))));
 			break;
@@ -2843,7 +2843,7 @@ bool GetLowLevelILForInstruction(
 			int n = unpack_vector(operand1, regs);
 
 			if (n == 1) {
-				il.AddInstruction(ILSETREG(regs[0], ReadILOperand(il, operand2, get_register_size(regs[0]))));
+				il.AddInstruction(ILSETREG(regs[0], ReadILOperand(il, operand2, aarch64_get_register_size(regs[0]))));
 			} else {
 				Register cregs[2];
 				if (consolidate_vector(operand1, operand2, cregs))
@@ -2869,7 +2869,7 @@ bool GetLowLevelILForInstruction(
 		Register regs[16];
 		int n = unpack_vector(operand1, regs);
 		for (int i = 0; i < n; ++i)
-			il.AddInstruction(ILSETREG(regs[i], ILCONST_O(get_register_size(regs[i]), operand2)));
+			il.AddInstruction(ILSETREG(regs[i], ILCONST_O(aarch64_get_register_size(regs[i]), operand2)));
 		break;
 	}
 	case ARM64_MVN:
@@ -3143,7 +3143,7 @@ bool GetLowLevelILForInstruction(
 			Register regs[16];
 			int n = unpack_vector(operand1, regs);
 			for (int i = 0; i < n; ++i)
-				il.AddInstruction(ILSETREG(regs[i], ILCONST_O(get_register_size(regs[i]), operand2)));
+				il.AddInstruction(ILSETREG(regs[i], ILCONST_O(aarch64_get_register_size(regs[i]), operand2)));
 			break;
 		}
 		case ENC_ORR_ASIMDSAME_ONLY:
@@ -3336,7 +3336,7 @@ bool GetLowLevelILForInstruction(
 				if ((dst_n != src_n) || dst_n == 0)
 					ABORT_LIFT;
 
-				int rsize = get_register_size(dsts[0]);
+				int rsize = aarch64_get_register_size(dsts[0]);
 				for (int i = 0; i < dst_n; ++i)
 					il.AddInstruction(ILSETREG(dsts[i], il.IntToFloat(rsize,
 						zero_extend
@@ -3408,7 +3408,7 @@ bool GetLowLevelILForInstruction(
 		if ((dst_n != src_n) || dst_n == 0)
 			ABORT_LIFT;
 
-		int rsize = get_register_size(dsts[0]);
+		int rsize = aarch64_get_register_size(dsts[0]);
 		for (int i = 0; i < dst_n; ++i)
 		{
 			il.AddInstruction(il.SetRegister(rsize, dsts[i],
@@ -3426,7 +3426,7 @@ bool GetLowLevelILForInstruction(
 		if ((dst_n != src1_n) || (src1_n != src2_n) || dst_n == 0)
 			ABORT_LIFT;
 
-		int rsize = get_register_size(dsts[0]);
+		int rsize = aarch64_get_register_size(dsts[0]);
 		for (int i = 0; i < dst_n; ++i)
 		{
 			il.AddInstruction(il.SetRegister(rsize, dsts[i],
@@ -3448,7 +3448,7 @@ bool GetLowLevelILForInstruction(
 		if ((dst_n != src_n) || dst_n == 0)
 			ABORT_LIFT;
 
-		int rsize = get_register_size(dsts[0]);
+		int rsize = aarch64_get_register_size(dsts[0]);
 		for (int i = 0; i < dst_n; ++i)
 		{
 			il.AddInstruction(il.SetRegister(rsize, dsts[i],
@@ -3496,8 +3496,8 @@ bool GetLowLevelILForInstruction(
 		if (instr.operation == ARM64_SXTL2 || instr.operation == ARM64_SSHLL2 || instr.operation == ARM64_SHLL2)
 			two_variant_offset = src_n / 2;
 
-		int dst_size = get_register_size(dsts[0]);
-		int src_size = get_register_size(srcs[0]);
+		int dst_size = aarch64_get_register_size(dsts[0]);
+		int src_size = aarch64_get_register_size(srcs[0]);
 
 		for (int i = 0; i < dst_n; ++i)
 			if (left_shift)
@@ -3867,8 +3867,8 @@ bool GetLowLevelILForInstruction(
 		if (instr.operation == ARM64_UXTL2 || instr.operation == ARM64_USHLL2)
 			two_variant_offset = src_n / 2;
 
-		int dst_size = get_register_size(dsts[0]);
-		int src_size = get_register_size(srcs[0]);
+		int dst_size = aarch64_get_register_size(dsts[0]);
+		int src_size = aarch64_get_register_size(srcs[0]);
 
 		for (int i = 0; i < dst_n; ++i)
 			if (left_shift)
@@ -3907,7 +3907,7 @@ bool GetLowLevelILForInstruction(
 				if ((dst_n != src1_n) || (src1_n != src2_n) || dst_n == 0)
 					ABORT_LIFT;
 
-				int rsize = get_register_size(dsts[0]);
+				int rsize = aarch64_get_register_size(dsts[0]);
 				for (int i = 0; i < dst_n; ++i)
 				{
 					il.AddInstruction(il.SetRegister(rsize, dsts[i],
@@ -3933,7 +3933,7 @@ bool GetLowLevelILForInstruction(
 		if ((dst_n != src_n) || dst_n == 0)
 			ABORT_LIFT;
 
-		int rsize = get_register_size(dsts[0]);
+		int rsize = aarch64_get_register_size(dsts[0]);
 		for (int i = 0; i < dst_n; ++i)
 		{
 			il.AddInstruction(il.SetRegister(rsize, dsts[i],
