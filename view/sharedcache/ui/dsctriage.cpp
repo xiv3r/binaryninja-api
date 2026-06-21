@@ -258,6 +258,26 @@ QWidget* DSCTriageView::initImageTable()
 	});
 	loadImageButton->setText(" Load Selected ");
 
+	auto loadImageWithDepsButton = new QPushButton();
+	connect(loadImageWithDepsButton, &QPushButton::clicked, [this](bool) {
+		// Collect only visible selected rows
+		QModelIndexList selected;
+		for (const auto& index : m_imageTable->selectionModel()->selectedRows()) {
+			if (!m_imageTable->isRowHidden(index.row())) {
+				selected.append(index);
+			}
+		}
+
+		if (selected.empty())
+			return;
+
+		std::vector<uint64_t> addresses;
+		for (const auto& idx : selected)
+			addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
+		loadImagesWithAddr(addresses, true);
+	});
+	loadImageWithDepsButton->setText(" Load with Dependencies ");
+
 	auto refreshDataButton = new QPushButton();
 	{
 		// TODO: Might want to introduce a cooldown for this button (if we even keep it)
@@ -282,6 +302,7 @@ QWidget* DSCTriageView::initImageTable()
 
 	auto loadImageFooterLayout = new QHBoxLayout;
 	loadImageFooterLayout->addWidget(loadImageButton);
+	loadImageFooterLayout->addWidget(loadImageWithDepsButton);
 	loadImageFooterLayout->addWidget(refreshDataButton);
 	loadImageFooterLayout->setAlignment(Qt::AlignLeft);
 	loadImageLayout->addLayout(loadImageFooterLayout);
