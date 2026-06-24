@@ -22,7 +22,7 @@ static bool IsZeroConstant(LowLevelILInstruction expr)
 }
 
 
-static bool IsConstantPointer(LowLevelILInstruction expr, uint64_t value)
+static bool ConstantCompare(LowLevelILInstruction expr, uint64_t value)
 {
 	return ((expr.operation == LLIL_CONST) || (expr.operation == LLIL_CONST_PTR)) && ((uint64_t)expr.GetConstant() == value);
 }
@@ -42,6 +42,37 @@ static bool IsReturnAddressRegisterExpr(LowLevelILInstruction expr, const set<ui
 	case LLIL_SUB:
 		return IsReturnAddressRegisterExpr(expr.GetLeftExpr<LLIL_SUB>(), returnAddressRegisters)
 			&& IsZeroConstant(expr.GetRightExpr<LLIL_SUB>());
+	default:
+		return false;
+	}
+}
+
+
+static void RemoveWrittenReturnAddressRegisters(LowLevelILInstruction instr, set<uint32_t>& returnAddressRegisters)
+{
+	switch (instr.operation)
+	{
+	case LLIL_SET_REG:
+		returnAddressRegisters.erase(instr.GetDestRegister<LLIL_SET_REG>());
+		break;
+	case LLIL_SET_REG_SPLIT:
+		returnAddressRegisters.erase(instr.GetHighRegister<LLIL_SET_REG_SPLIT>());
+		returnAddressRegisters.erase(instr.GetLowRegister<LLIL_SET_REG_SPLIT>());
+		break;
+	default:
+		break;
+	}
+}
+
+
+static bool IsReturnAddressRegisterJumpOrReturn(LowLevelILInstruction instr, const set<uint32_t>& returnAddressRegisters)
+{
+	switch (instr.operation)
+	{
+	case LLIL_JUMP:
+		return IsReturnAddressRegisterExpr(instr.GetDestExpr<LLIL_JUMP>(), returnAddressRegisters);
+	case LLIL_RET:
+		return IsReturnAddressRegisterExpr(instr.GetDestExpr<LLIL_RET>(), returnAddressRegisters);
 	default:
 		return false;
 	}
@@ -1030,14 +1061,42 @@ void FunctionLifterContext::CheckForInlinedCall(BasicBlock* block, size_t instrC
 				if (instr.operation != LLIL_SET_REG)
 					continue;
 
-				if (IsConstantPointer(instr.GetSourceExpr<LLIL_SET_REG>(), addr))
+				// Call-like jumps may store the fallthrough address in any register, such as RISC-V jal t0.
+				if (ConstantCompare(instr.GetSourceExpr<LLIL_SET_REG>(), addr))
 					returnAddressRegisters.insert(instr.GetDestRegister<LLIL_SET_REG>());
 			}
+			bool hasCallSemantics = lastInstr.operation == LLIL_CALL
+				|| (lastInstr.operation == LLIL_JUMP && !returnAddressRegisters.empty());
 
-			if (lastInstr.operation == LLIL_CALL && returnAddressRegisters.empty())
+			// Copy the inlined code from the target function
+			Ref<Architecture> callArch = block->GetArchitecture();
+			auto blocks = PrepareToCopyForeignFunction(targetIL);
+			auto unresolvedIndirectBranches = targetFunc->GetUnresolvedIndirectBranches();
+			auto sourceLocation = inlineDuringAnalysis == InlineUsingCallAddress ? ILSourceLocation(lastInstr) : ILSourceLocation();
+			set<uint32_t> unmodifiedReturnAddressRegisters = returnAddressRegisters;
+			bool calleeReturnsThroughCallerReturnAddressRegister = false;
+			for (auto& block : blocks)
+			{
+				for (size_t instrIndex = block->GetStart(); instrIndex < block->GetEnd(); instrIndex++)
+				{
+					// If the callee overwrites a caller-set return register, later jumps through it are not returns.
+					RemoveWrittenReturnAddressRegisters(targetIL->GetInstruction(instrIndex), unmodifiedReturnAddressRegisters);
+				}
+			}
+			for (auto& block : blocks)
+			{
+				for (size_t instrIndex = block->GetStart(); instrIndex < block->GetEnd(); instrIndex++)
+				{
+					// A callee ending in jr t0/ret t0 already returns through the caller's chosen link register.
+					if (IsReturnAddressRegisterJumpOrReturn(
+						targetIL->GetInstruction(instrIndex), unmodifiedReturnAddressRegisters))
+						calleeReturnsThroughCallerReturnAddressRegister = true;
+				}
+			}
+
+			if (hasCallSemantics && !calleeReturnsThroughCallerReturnAddressRegister)
 			{
 				// Set up return address according to the architecture
-				// TODO: Handle architectures that use a nonstandard way of calling functions
 				uint32_t linkReg = m_platform->GetArchitecture()->GetLinkRegister();
 				if (linkReg == BN_INVALID_REGISTER)
 				{
@@ -1055,8 +1114,9 @@ void FunctionLifterContext::CheckForInlinedCall(BasicBlock* block, size_t instrC
 					BNRegisterInfo regInfo = m_platform->GetArchitecture()->GetRegisterInfo(linkReg);
 
 					uint64_t addrToSet = addr;
-					if (block->GetArchitecture()->GetName() == "thumb2")
-						addrToSet |= 1; // XXX: hack moved here from lowlevelilfunction.cpp
+					const auto& archName = block->GetArchitecture()->GetName();
+					if ((archName == "thumb2") || (archName == "thumb2eb"))
+						addrToSet |= 1;
 
 					ExprId linkExpr = m_function->SetRegister(
 						regInfo.size, linkReg, m_function->ConstPointer(regInfo.size, addrToSet, lastInstr), 0, lastInstr);
@@ -1064,12 +1124,6 @@ void FunctionLifterContext::CheckForInlinedCall(BasicBlock* block, size_t instrC
 					m_function->AddInstruction(linkExpr);
 				}
 			}
-
-			// Copy the inlined code from the target function
-			Ref<Architecture> callArch = block->GetArchitecture();
-			auto blocks = PrepareToCopyForeignFunction(targetIL);
-			auto unresolvedIndirectBranches = targetFunc->GetUnresolvedIndirectBranches();
-			auto sourceLocation = inlineDuringAnalysis == InlineUsingCallAddress ? ILSourceLocation(lastInstr) : ILSourceLocation();
 			for (auto& block : blocks)
 			{
 				m_function->PrepareToCopyBlock(block);
@@ -1078,7 +1132,7 @@ void FunctionLifterContext::CheckForInlinedCall(BasicBlock* block, size_t instrC
 					LowLevelILInstruction instr = targetIL->GetInstruction(instrIndex);
 					ArchAndAddr loc(block->GetArchitecture(), instr.address);
 
-					if (lastInstr.operation == LLIL_CALL && instr.operation == LLIL_RET)
+					if (hasCallSemantics && instr.operation == LLIL_RET)
 					{
 						// If the instruction is a return, emit the computation of the target
 						// location (it may affect the stack pointer) but go directly to the
@@ -1089,14 +1143,16 @@ void FunctionLifterContext::CheckForInlinedCall(BasicBlock* block, size_t instrC
 						m_function->AddInstruction(instr.GetDestExpr<LLIL_RET>().CopyTo(m_function, sourceLocation));
 						m_function->AddInstruction(m_function->Goto(end, sourceLocation));
 					}
-					else if (lastInstr.operation == LLIL_CALL && instr.operation == LLIL_JUMP
+					else if (hasCallSemantics && instr.operation == LLIL_JUMP
 						&& (block->GetArchitecture() == callArch)
-						&& (IsConstantPointer(instr.GetDestExpr<LLIL_JUMP>(), addr)
-							|| IsReturnAddressRegisterExpr(instr.GetDestExpr<LLIL_JUMP>(), returnAddressRegisters)))
+						&& (ConstantCompare(instr.GetDestExpr<LLIL_JUMP>(), addr)
+							|| IsReturnAddressRegisterExpr(instr.GetDestExpr<LLIL_JUMP>(),
+								unmodifiedReturnAddressRegisters)))
 					{
+						// Convert jumps back to fallthrough, including jr t0-style returns, into the inline continuation.
 						m_function->AddInstruction(m_function->Goto(end, sourceLocation));
 					}
-					else if (lastInstr.operation == LLIL_CALL && instr.operation == LLIL_JUMP
+					else if (hasCallSemantics && instr.operation == LLIL_JUMP
 						&& block->GetOutgoingEdges().empty() && (unresolvedIndirectBranches.count(loc) == 0))
 					{
 						// Jump without outgoing edges in the graph, and it is not marked as having
