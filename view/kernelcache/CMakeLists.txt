@@ -32,7 +32,7 @@ set(METADATA_VERSION 3 CACHE STRING "Version of the metadata")
 
 add_subdirectory(core)
 add_subdirectory(api)
-# add_subdirectory(workflow)
+add_subdirectory(workflow)
 
 add_library(kernelcache SHARED
     HeadlessPlugin.cpp)
@@ -60,7 +60,7 @@ set_target_properties(kernelcache PROPERTIES
 
 target_include_directories(kernelcache PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/core ${CMAKE_CURRENT_SOURCE_DIR}/api ${CMAKE_CURRENT_SOURCE_DIR}/workflow)
 
-target_link_libraries(kernelcache PUBLIC kernelcacheapi binaryninjaapi kernelcachecore) # kernelcacheworkflow)
+target_link_libraries(kernelcache PUBLIC kernelcacheapi binaryninjaapi kernelcachecore kernelcacheworkflow)
 
 
 
