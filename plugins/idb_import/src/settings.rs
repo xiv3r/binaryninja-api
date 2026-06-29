@@ -13,7 +13,7 @@ impl LoadSettings {
     pub const AUTO_LOAD_FILE_SETTING: &'static str = "analysis.idb.autoLoadFile";
 
     pub fn register() {
-        let bn_settings = Settings::new();
+        let bn_settings = Settings::global();
 
         let file_props = json!({
             "title" : "IDB File",
@@ -27,7 +27,7 @@ impl LoadSettings {
 
     pub fn from_view_settings(view: &BinaryView) -> Self {
         let mut load_settings = LoadSettings::default();
-        let settings = Settings::new();
+        let settings = Settings::global();
         let mut query_opts = QueryOptions::new_with_view(view);
         if settings.contains(Self::AUTO_LOAD_FILE_SETTING) {
             let path_str =

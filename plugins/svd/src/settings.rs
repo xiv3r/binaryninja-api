@@ -19,7 +19,7 @@ impl LoadSettings {
     pub const AUTO_LOAD_FILE_SETTING: &'static str = "analysis.svd.autoLoadFile";
 
     pub fn register() {
-        let bn_settings = Settings::new();
+        let bn_settings = Settings::global();
 
         let add_backing_region_props = json!({
             "title" : "Add Backing Regions",
@@ -53,7 +53,7 @@ impl LoadSettings {
 
     pub fn from_view_settings(view: &BinaryView) -> Self {
         let mut load_settings = LoadSettings::default();
-        let settings = Settings::new();
+        let settings = Settings::global();
         let mut query_opts = QueryOptions::new_with_view(view);
         if settings.contains(Self::ADD_BACKING_REGIONS_SETTING) {
             load_settings.add_backing_regions =

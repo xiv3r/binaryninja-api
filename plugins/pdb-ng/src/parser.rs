@@ -140,7 +140,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
             platform,
             pdb,
             address_map,
-            settings: Settings::new(),
+            settings: Settings::global(),
             settings_query_opts: QueryOptions::new_with_view(bv),
             indexed_types: Default::default(),
             named_types: Default::default(),

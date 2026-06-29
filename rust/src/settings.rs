@@ -40,10 +40,24 @@ impl Settings {
         Ref::new(Self { handle })
     }
 
-    pub fn new() -> Ref<Self> {
+    /// Retrieve the global settings instance, this will be populated by both the core and plugins.
+    ///
+    /// If you wish to construct your own instance, use [`Settings::new_with_id`] instead.
+    pub fn global() -> Ref<Self> {
         Self::new_with_id(GLOBAL_INSTANCE_ID)
     }
 
+    /// Retrieve the default global settings instance, this is the same as [`Settings::global`] but
+    /// the values will be set to the registered default values.
+    ///
+    /// If you wish to construct your own instance, use [`Settings::new_with_id`] instead.
+    pub fn global_default() -> Ref<Self> {
+        Self::new_with_id(DEFAULT_INSTANCE_ID)
+    }
+
+    /// Create (or get) the settings instance with the given id.
+    ///
+    /// Two special instances can be retrieved by passing [`DEFAULT_INSTANCE_ID`] and [`GLOBAL_INSTANCE_ID`].
     pub fn new_with_id(instance_id: &str) -> Ref<Self> {
         let instance_id = instance_id.to_cstr();
         unsafe { Self::ref_from_raw(BNCreateSettings(instance_id.as_ptr())) }

@@ -884,7 +884,7 @@ impl ConnectionOptions {
     ///
     /// NOTE: Uses the secret's provider specified by the setting "enterprise.secretsProvider".
     pub fn from_secrets_provider(address: &str) -> Result<Self, ()> {
-        let secrets_provider_name = Settings::new().get_string("enterprise.secretsProvider");
+        let secrets_provider_name = Settings::global().get_string("enterprise.secretsProvider");
         let provider = CoreSecretsProvider::by_name(&secrets_provider_name).ok_or(())?;
         let cred_data_str = provider.get_data(address);
         if cred_data_str.is_empty() {

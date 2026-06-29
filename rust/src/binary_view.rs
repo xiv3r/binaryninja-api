@@ -173,8 +173,14 @@ pub trait CustomBinaryViewType: 'static + Sync {
     /// path so prefer inexpensive checks rather than comprehensive ones.
     fn is_valid_for(&self, data: &BinaryView) -> bool;
 
-    fn load_settings_for_data(&self, _data: &BinaryView) -> Ref<Settings> {
-        Settings::new()
+    /// Get the settings for this view type.
+    ///
+    /// Most implementations will call [`Settings::new_with_id`] with a different id for each invocation.
+    ///
+    /// NOTE: Do not return the global settings instance (via [`Settings::global`]) as this is expected
+    /// to return a list of settings to overlay on top of those for the given `data`.
+    fn load_settings_for_data(&self, _data: &BinaryView) -> Option<Ref<Settings>> {
+        None
     }
 }
 
@@ -3385,8 +3391,10 @@ where
         let data = BinaryView::from_raw(data);
 
         let _span = ffi_span!("CustomBinaryViewType::load_settings", data);
-        let settings = view_type.load_settings_for_data(&data);
-        Ref::into_raw(settings).handle
+        match view_type.load_settings_for_data(&data) {
+            Some(load_settings) => Ref::into_raw(load_settings).handle,
+            None => std::ptr::null_mut(),
+        }
     })
 }
 

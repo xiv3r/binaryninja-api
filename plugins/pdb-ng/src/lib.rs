@@ -84,7 +84,7 @@ fn default_local_cache() -> Result<String> {
 fn active_local_cache(view: Option<&BinaryView>) -> Result<String> {
     // Check the local symbol store
     let mut settings_query_options = view.map(QueryOptions::new_with_view).unwrap_or_default();
-    let settings = Settings::new();
+    let settings = Settings::global();
     let mut local_store_path = settings
         .get_string_with_opts("pdb.files.localStoreAbsolute", &mut settings_query_options)
         .to_string();
@@ -167,7 +167,7 @@ fn read_from_sym_store(bv: &BinaryView, path: &str) -> Result<(bool, Vec<u8>)> {
     }
 
     let mut query_options = QueryOptions::new_with_view(bv);
-    if !Settings::new().get_bool_with_opts("network.pdbAutoDownload", &mut query_options) {
+    if !Settings::global().get_bool_with_opts("network.pdbAutoDownload", &mut query_options) {
         return Err(anyhow!("Auto download disabled"));
     }
 
@@ -349,7 +349,7 @@ impl PDBParser {
     ) -> Result<()> {
         let mut pdb = PDB::open(Cursor::new(&conts))?;
 
-        let settings = Settings::new();
+        let settings = Settings::global();
         let mut settings_query_opts = QueryOptions::new_with_view(view);
 
         if let Some(info) = parse_pdb_info(view) {
@@ -678,7 +678,7 @@ impl CustomDebugInfoParser for PDBParser {
 
             // Next, try downloading from all symbol servers in the server list
             let mut query_options = QueryOptions::new_with_view(view);
-            let server_list = Settings::new()
+            let server_list = Settings::global()
                 .get_string_list_with_opts("pdb.files.symbolServerList", &mut query_options);
 
             for server in server_list.iter() {
@@ -724,7 +724,7 @@ fn init_plugin() -> bool {
     binaryninja::tracing_init!("PDB Import");
     DebugInfoParser::register("PDB", PDBParser {});
 
-    let settings = Settings::new();
+    let settings = Settings::global();
     settings.register_group("pdb", "PDB Loader");
     settings.register_setting_json(
         "pdb.files.localStoreAbsolute",

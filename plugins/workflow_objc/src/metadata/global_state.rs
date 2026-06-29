@@ -102,7 +102,7 @@ impl GlobalState {
 
 impl AnalysisInfo {
     fn from_view(bv: &BinaryView) -> Option<Self> {
-        let should_rewrite_to_direct_calls = Settings::new().get_bool_with_opts(
+        let should_rewrite_to_direct_calls = Settings::global().get_bool_with_opts(
             "analysis.objectiveC.resolveDynamicDispatch",
             &mut QueryOptions::new_with_view(bv),
         );

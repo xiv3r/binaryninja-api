@@ -9,7 +9,7 @@ fn main() {
     let _headless_session =
         binaryninja::headless::Session::new().expect("Failed to initialize session");
 
-    let settings = Settings::new();
+    let settings = Settings::global();
     for key in &settings.keys() {
         let value = settings.get_string(key);
         let default_value = settings.get_property_string(key, "default");

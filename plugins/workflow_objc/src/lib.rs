@@ -16,7 +16,7 @@ fn plugin_init() -> bool {
         return false;
     };
 
-    let settings = Settings::new();
+    let settings = Settings::global();
     settings.register_setting_json(
         "analysis.objectiveC.resolveDynamicDispatch",
         r#"{

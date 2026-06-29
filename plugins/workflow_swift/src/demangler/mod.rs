@@ -14,7 +14,7 @@ fn should_extract_types(view: Option<&BinaryView>) -> bool {
         Some(v) => QueryOptions::new_with_view(v),
         None => QueryOptions::new(),
     };
-    Settings::new().get_bool_with_opts(crate::SETTING_EXTRACT_TYPES, &mut opts)
+    Settings::global().get_bool_with_opts(crate::SETTING_EXTRACT_TYPES, &mut opts)
 }
 
 pub struct SwiftDemangler;

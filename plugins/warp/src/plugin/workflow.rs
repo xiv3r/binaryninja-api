@@ -153,7 +153,7 @@ pub fn run_matcher(view: &BinaryView) {
     let start = Instant::now();
 
     // Build matcher
-    let view_settings = Settings::new();
+    let view_settings = Settings::global();
     let mut query_opts = QueryOptions::new_with_view(view);
     let matcher_settings = MatcherSettings::from_settings(&view_settings, &mut query_opts);
     let matcher = Matcher::new(matcher_settings);
@@ -275,7 +275,7 @@ pub fn run_fetcher(view: &BinaryView) {
     let start = Instant::now();
 
     // Build matcher
-    let view_settings = Settings::new();
+    let view_settings = Settings::global();
     let mut query_opts = QueryOptions::new_with_view(view);
     let plugin_settings = PluginSettings::from_settings(&view_settings, &mut query_opts);
 

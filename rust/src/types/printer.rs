@@ -361,7 +361,7 @@ impl CoreTypePrinter {
 impl Default for CoreTypePrinter {
     fn default() -> Self {
         // TODO: Remove this entirely, there is no "default", its view specific lets not make this some defined behavior.
-        let default_settings = crate::settings::Settings::new();
+        let default_settings = crate::settings::Settings::global();
         let name = default_settings.get_string("analysis.types.printerName");
         Self::printer_by_name(&name).unwrap()
     }

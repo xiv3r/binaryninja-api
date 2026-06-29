@@ -21,7 +21,7 @@ mod settings;
 mod workflow;
 
 fn load_bundled_signatures() {
-    let global_bn_settings = Settings::new();
+    let global_bn_settings = Settings::global();
     let plugin_settings =
         PluginSettings::from_settings(&global_bn_settings, &mut QueryOptions::new());
     // We want to load all the bundled directories into the container cache.
@@ -45,7 +45,7 @@ fn load_bundled_signatures() {
 }
 
 fn load_network_container() {
-    let global_bn_settings = Settings::new();
+    let global_bn_settings = Settings::global();
 
     let add_network_container = |url: String, api_key: Option<String>| {
         let network_client = NetworkClient::new(url.clone(), api_key.clone());
@@ -118,7 +118,7 @@ fn plugin_init() -> bool {
     }
 
     // Register our matcher and plugin settings globally.
-    let mut global_bn_settings = Settings::new();
+    let mut global_bn_settings = Settings::global();
     global_bn_settings.register_group("warp", "WARP");
     MatcherSettings::register(&mut global_bn_settings);
     PluginSettings::register(&mut global_bn_settings);

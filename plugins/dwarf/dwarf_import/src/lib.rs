@@ -862,7 +862,7 @@ impl CustomDebugInfoParser for DWARFParser {
 fn plugin_init() {
     binaryninja::tracing_init!("DWARF Import");
 
-    let settings = Settings::new();
+    let settings = Settings::global();
 
     settings.register_setting_json(
         "network.enableDebuginfod",

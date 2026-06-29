@@ -443,7 +443,7 @@ pub(crate) fn download_debug_info(
 ) -> Result<Option<Vec<u8>>, String> {
     let build_id_hex: String = build_id.iter().map(|x| format!("{:02x}", x)).collect();
     let mut settings_query_opts = QueryOptions::new_with_view(view);
-    let settings = Settings::new();
+    let settings = Settings::global();
     let debug_server_urls =
         settings.get_string_list_with_opts("network.debuginfodServers", &mut settings_query_opts);
 
@@ -521,7 +521,7 @@ pub(crate) fn find_local_debug_file_from_path(path: &PathBuf, view: &BinaryView)
     }
 
     let mut settings_query_opts = QueryOptions::new_with_view(view);
-    let settings = Settings::new();
+    let settings = Settings::global();
     let debug_dirs_enabled = settings.get_bool_with_opts(
         "analysis.debugInfo.enableDebugDirectories",
         &mut settings_query_opts,
@@ -566,7 +566,7 @@ pub(crate) fn load_debug_info_for_build_id(
     view: &BinaryView,
 ) -> Result<Option<Vec<u8>>, String> {
     let mut settings_query_opts = QueryOptions::new_with_view(view);
-    let settings = Settings::new();
+    let settings = Settings::global();
     if let Some(debug_file_path) = find_local_debug_file_for_build_id(build_id, view) {
         return std::fs::read(&debug_file_path)
             .map(|x| Some(x))
@@ -579,7 +579,7 @@ pub(crate) fn load_debug_info_for_build_id(
 
 pub(crate) fn find_sibling_debug_file(view: &BinaryView) -> Option<String> {
     let mut settings_query_opts = QueryOptions::new_with_view(view);
-    let settings = Settings::new();
+    let settings = Settings::global();
     let load_sibling_debug = settings.get_bool_with_opts(
         "analysis.debugInfo.loadSiblingDebugFiles",
         &mut settings_query_opts,

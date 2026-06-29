@@ -260,6 +260,15 @@ fn test_custom_view() {
     assert_eq!(core_type.is_deprecated(), false);
     assert_eq!(core_type.is_force_loadable(), false);
 
+    let load_settings = core_type
+        .load_settings_for_data(&valid_view)
+        .expect("Failed to retrieve load settings");
+    // We expect this setting to be seeded in by the core.
+    assert!(
+        load_settings.contains("loader.platform"),
+        "Core returned without seeding in default loader settings"
+    );
+
     let created_view = core_type
         .create(&valid_view)
         .expect("Failed to create view");
