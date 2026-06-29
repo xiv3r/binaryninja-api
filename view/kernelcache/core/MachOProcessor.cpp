@@ -193,11 +193,16 @@ uint64_t KernelCacheMachOProcessor::ApplyHeaderSections(KernelCacheMachOHeader& 
 			semantics = ReadOnlyDataSectionSemantics;
 		if (strncmp(section.sectname, "__data", sizeof(section.sectname)) == 0)
 			semantics = ReadWriteDataSectionSemantics;
-		if (strncmp(section.sectname, "__auth_got", sizeof(section.sectname)) == 0)
-			semantics = ReadOnlyDataSectionSemantics;
 
 		if (auto overriddenSemantics = SectionSemanticsForSection(section))
 			semantics = static_cast<BNSectionSemantics>(overriddenSemantics);
+
+		// GOT entries are resolved to concrete targets by chained-fixup processing. Mark them
+		// read-only for analysis so indirect calls through __auth_stubs are resolved to their
+		// targets, even though they sit in a segment that is mapped writable during early boot.
+		if (strncmp(section.sectname, "__got", sizeof(section.sectname)) == 0
+			|| strncmp(section.sectname, "__auth_got", sizeof(section.sectname)) == 0)
+			semantics = ReadOnlyDataSectionSemantics;
 
 		// Typically a view would add auto sections but those won't persist when loading the BNDB.
 		// if we want to use an auto section here we would need to allow the core to apply auto sections from the database.
