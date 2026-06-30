@@ -155,7 +155,7 @@ void DSCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses, b
 			watcher->deleteLater();
 		}
 	});
-	QFuture<ImageList> future = QtConcurrent::run([this, controller, images, imageLoadTask]() {
+	QFuture<ImageList> future = QtConcurrent::run([data = m_data, controller, images, imageLoadTask]() {
 		ImageList loadedImages = {};
 		for (const auto& image : images)
 		{
@@ -163,7 +163,7 @@ void DSCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses, b
 				break;
 			std::string newLoad = fmt::format("Loading images... ({}/{})", loadedImages.size(), images.size());
 			imageLoadTask->SetProgressText(newLoad);
-			if (controller->ApplyImage(*this->m_data, image))
+			if (controller->ApplyImage(*data, image))
 				loadedImages.emplace_back(image);
 		}
 		imageLoadTask->Finish();
@@ -630,8 +630,8 @@ void DSCTriageView::loadStringRegion(const CacheString& string, std::optional<ui
 			navigateToAddress(*navigateTo);
 		watcher->deleteLater();
 	});
-	QFuture<bool> future = QtConcurrent::run([this, controller, region]() {
-		return controller->ApplyRegion(*this->m_data, *region);
+	QFuture<bool> future = QtConcurrent::run([data = m_data, controller, region]() {
+		return controller->ApplyRegion(*data, *region);
 	});
 	watcher->setFuture(future);
 	connect(this, &QObject::destroyed, this, [watcher]() {
