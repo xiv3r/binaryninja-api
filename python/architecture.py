@@ -1023,6 +1023,8 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		binaryninja._init_plugins()
 		if cls.name is None:
 			raise ValueError("architecture 'name' is not defined")
+		if core.BNGetArchitectureByName(cls.name) is not None:
+			raise ValueError(f"architecture '{cls.name}' is already registered")
 		arch = cls()
 		cls._registered_cb = arch._cb
 		arch.handle = core.BNRegisterArchitecture(cls.name, arch._cb)
@@ -3352,6 +3354,10 @@ class CoreArchitecture(Architecture):
 		return flag_names
 
 
+# Keep registered hooks alive for the lifetime of the process as core holds pointers to their callbacks.
+_registered_architecture_hooks: List['ArchitectureHook'] = []
+
+
 class ArchitectureHook(CoreArchitecture):
 	def __init__(self, base_arch: 'Architecture'):
 		self._base_arch = base_arch
@@ -3385,9 +3391,9 @@ class ArchitectureHook(CoreArchitecture):
 			self._cb.freeTypeList = self._cb.freeTypeList.__class__()
 
 	def register(self) -> None:
-		self.__class__._registered_cb = self._cb
 		self.handle = core.BNRegisterArchitectureHook(self._base_arch.handle, self._cb)
 		core.BNFinalizeArchitectureHook(self._base_arch.handle)
+		_registered_architecture_hooks.append(self)
 
 	@property
 	def base_arch(self) -> 'Architecture':
