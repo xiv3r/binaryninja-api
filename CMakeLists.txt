@@ -32,6 +32,10 @@ endif()
 
 add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
 
+if(COVERAGE)
+    target_link_libraries(binaryninjaapi PRIVATE coverage_config)
+endif()
+
 target_include_directories(binaryninjaapi
     PUBLIC ${PROJECT_SOURCE_DIR})
 
