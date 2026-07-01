@@ -81,6 +81,18 @@ With all of this scaffolding in place, it's time to start implementing instructi
   <figcaption>Tags sidebar showing unimplemented instructions</figcaption>
 </figure>
 
+## Undefined, Unimplemented, and Unknown
+
+When a lifter cannot describe part of an instruction precisely, there are three different states you may need to communicate. In Python, these are exposed as `il.undefined()`, `il.unimplemented()`, and `il.unknown()`; in the C++ API, the corresponding builders are `il.Undefined()`, `il.Unimplemented()`, and `il.Unknown()`.
+
+Use `il.unimplemented()` for an instruction or expression you have not lifted yet. This is a TODO marker for the architecture plugin: Binary Ninja and user scripts should not assume the IL around it is trustworthy, and the UI can surface it as an unimplemented-lifting warning.
+
+Use `il.unknown()` for a value you have intentionally left unknown because it depends on runtime state that cannot be determined statically. This still communicates that analysis does not know the value, but unlike `unimplemented`, it means the lifter has made a deliberate and complete decision. For example, an architecture-specific flag value that cannot be recovered from the available operands may be better represented as `unknown` than as `unimplemented`. `unknown` renders as `unknown` and suppresses unimplemented warnings.
+
+Use `il.undefined()` only for situations that should not happen in correct lifting code. It represents an internal analysis error or impossible state, and hitting it is a hard break for user scripts and downstream analysis. Do not use it as a placeholder for future lifting work, and do not use it merely because a value is runtime-dependent.
+
+There are also memory forms for the two "cannot model the value" cases: `il.unimplemented_memory_ref(size, addr)` for memory behavior that has not been lifted yet, and `il.unknown_memory_ref(size, addr)` for an intentionally unknowable memory value.
+
 
 ## Loads and Stores
 
